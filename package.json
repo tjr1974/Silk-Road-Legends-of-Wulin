@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "express": "^4.19.2",
+    "pino": "^9.4.0",
+    "pino-http": "^10.3.0",
+    "queue": "^7.0.0",
+    "socket.io": "^4.7.5"
+  },
+  "name": "silk-road---legends-of-wulin",
+  "version": "1.0.0",
+  "main": "server code notes for ai.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {},
+  "description": ""
+}

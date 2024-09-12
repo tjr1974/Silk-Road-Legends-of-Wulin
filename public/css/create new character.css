@@ -1,0 +1,83 @@
+@font-face {
+  font-family: 'Ubuntu Mono';
+  src: url('../fonts/Ubuntu Mono.ttf') format('truetype');
+}
+body {
+  font-family: 'Ubuntu Mono';
+  background-color: #000;
+  color: #ff0000;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+}
+#create-character-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ff0000;
+  border-radius: 10px;
+  padding: 10px 20px;
+}
+#create-character-title {
+  color: magenta;
+  font-size: 24px;
+  text-align: center;
+}
+#create-character-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 16px;
+}
+label {
+  display: none;
+}
+#create-character-form input[type="text"],
+#create-character-form input[type="password"],
+#create-character-form input[type="email"],
+textarea,
+select {
+  background-color: #000;
+  border: 2px solid #ff0000;
+  border-radius: 10px;
+  color: #fff;
+  margin: 5px 0;
+  padding: 5px;
+  width: 100%;
+}
+#create-character-form input::placeholder,
+#create-character-form textarea::placeholder {
+  color: magenta;
+}
+#create-character-form .button-container {
+  display: flex;
+}
+#create-character-form button {
+  background-color: #0058b1;
+  border: 2px solid #0058b1;
+  color: #fff;
+  flex: 1;
+  margin: 10px 5px 0;
+  padding: 5px 10px;
+  min-width: 250px;
+}
+#create-character-form button:hover,
+#create-character-form button:focus {
+  background-color: #d32f2f;
+  border: 2px solid #fff;
+}
+#form-note {
+  color: #bbb;
+  font-size: 16px;
+  margin: 0 10px;
+  text-align: center;
+}
+#character-name-error {
+  display: none;
+  color: #ff0000;
+  margin-bottom: 10px;
+}

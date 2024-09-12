@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Silk Road: Legends of Wulin</title>
+<link rel="icon" type="image/x-icon" href="../images/favicon/favicon.ico">
+<link rel="stylesheet" href="../css/create new character.css">
+</head>
+<body>
+<!-- New character creation container -->
+<div id="create-character-container">
+  <div id="create-character-title">Create New Character</div>
+  <form id="create-character-form">
+    <label for="new-character-name">Character Name:</label>
+    <input type="text" id="new-character-name" placeholder="Character Name"required autofocus>
+    <div id="form-note">* Name is case sensitive and must be unique *</div>
+    <div id="form-note">* Required *</div>
+    <div id="character-name-error">* Character name already exists!</div>
+    <label for="new-character-password">Password:</label>
+    <input type="password" id="new-character-password" placeholder="Password" required>
+    <div id="form-note">* Password is case sensitive *</div>
+    <div id="form-note">* Required *</div>
+    <label for="confirm-password">Confirm Password:</label>
+    <input type="password" id="confirm-password" placeholder="Confirm Password" required>
+    <div id="form-note">* Required *</div>
+    <label for="character-email">Email:</label>
+    <input type="email" id="character-email" placeholder="Email">
+    <div id="form-note">* Optional: for password recovery purposes only *</div>
+    <label for="character-age">Age:</label>
+    <input type="text" id="character-age" placeholder="Age">
+    <label>Sex:</label>
+    <div>
+      <input type="radio" id="male" name="sex" value="male" required>
+      <label for="male">Male</label>
+      Male
+      <input type="radio" id="female" name="sex" value="female">
+      <label for="female">Female</label>
+      Female
+      <div id="form-note">* Required *</div>
+    </div>
+    <label for="character-title">Title:</label>
+    <input type="text" id="character-title" placeholder="Title">
+    <label>Reputation:</label>
+    <div>
+      <input type="radio" id="famous" name="reputation" value="famous" required>
+      <label for="famous">Famous</label>
+      Famous
+      <input type="radio" id="infamous" name="reputation" value="infamous">
+      <label for="infamous">Infamous</label>
+      Infamous
+    </div>
+    <label for="character-profession">Profession:</label>
+    <input type="text" id="character-profession" placeholder="Profession">
+    <label for="character-description">Description:</label>
+    <textarea id="character-description" rows="14" placeholder="Description"></textarea>
+    <div id="form-note">* All information, except character name, can be changed later *</div>
+    <div class="button-container">
+    <button type="button" id="submit-new-character">Create Character</button>
+    <button type="button" id="back-to-login">Back to Login</button>
+    </div>
+  </form>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+<script type="module">
+  import socket from '../javascript/server functions/shared socket connection.js';
+  </script>
+  <script>
+  // Create new character functions--------------------------------------------------------
+  const createCharacterContainer = document.getElementById('create-character-container');
+  const newCharacterNameInput = document.getElementById('new-character-name');
+  const newCharacterPasswordInput = document.getElementById('new-character-password');
+  const confirmPasswordInput = document.getElementById('confirm-password');
+  const characterEmailInput = document.getElementById('character-email');
+  const characterAgeInput = document.getElementById('character-age');
+  const characterTitleInput = document.getElementById('character-title');
+  const characterProfessionInput = document.getElementById('character-profession');
+  const characterDescriptionInput = document.getElementById('character-description');
+  const submitNewCharacterButton = document.getElementById('submit-new-character');
+  const backToLoginButton = document.getElementById('back-to-login');
+  // Add this line to check if the button is found
+  console.log('Submit button:', submitNewCharacterButton);
+  submitNewCharacterButton.addEventListener('click', (event) => {
+    // Add this line to prevent form submission
+    //event.preventDefault();
+    console.log('Submit button clicked'); // Add this line for debugging
+    const characterName = newCharacterNameInput.value.trim();
+    const password = newCharacterPasswordInput.value.trim();
+    const confirmPassword = confirmPasswordInput.value.trim();
+    const email = characterEmailInput.value.trim();
+    const age = characterAgeInput.value.trim();
+    const sex = document.querySelector('input[name="sex"]:checked')?.value;
+    const title = characterTitleInput.value.trim();
+    const reputation = document.querySelector('input[name="reputation"]:checked')?.value;
+    const profession = characterProfessionInput.value.trim();
+    const description = characterDescriptionInput.value.trim();
+    const requiredFields = [
+      { name: 'Character Name', value: characterName },
+      { name: 'Password', value: password },
+      { name: 'Confirm Password', value: confirmPassword },
+      { name: 'Sex', value: sex }
+    ];
+    const missingFields = requiredFields.filter(field => !field.value);
+    if (missingFields.length > 0) {
+      const missingFieldNames = missingFields.map(field => field.name).join(', ');
+      alert(`Please fill in the following required fields: ${missingFieldNames}`);
+    } else if (password !== confirmPassword) {
+      alert("Passwords do not match!");
+    } else {
+      getSocket().emit('createNewCharacter', {
+        playerName: characterName,
+        password: password,
+        email: email,
+        age: age,
+        sex: sex,
+        title: title,
+        reputation: reputation,
+        profession: profession,
+        description: description
+      });
+    }
+  });
+  function handleCharacterCreationResult(result) {
+    if (result.success) {
+      alert("Character created successfully!");
+      window.location.href = "../../login.html";
+    } else {
+      alert("Character creation failed: " + result.message);
+    }
+  }
+  backToLoginButton.addEventListener('click', () => {
+    window.location.href = "../../login.html";
+  });
+  window.addEventListener('load', () => {
+    const socket = getSocket();
+    socket.on('characterCreationResult', handleCharacterCreationResult);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silk Road: Legends of Wulin - Commands</title>
+  <link href="../images/favicon/favicon.ico" rel="icon" type="image/x-icon" />
+  <style>
+    @font-face {
+      font-family: 'Ubuntu Mono';
+      src: url('Ubuntu Mono.ttf') format('truetype');
+    }
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: 'Ubuntu Mono', 'Courier New', monospace;
+      justify-content: space-between;
+      font-size: 22;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      max-width: 80%;
+      margin: 0 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 5px;
+      padding-bottom: 10px;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 5px;
+      padding: 10px;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+    }
+    .content {
+      display: flex;
+      flex: 1;
+    }
+    .left-column {
+      flex: 0.8;
+      font-size: inherit;
+      margin-right: 5px;
+      padding: 10px;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+    }
+    .right-column {
+      flex: 0.2;
+      font-size: inherit;
+      padding: 10px;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+    }
+    img {
+      display: block;
+      /* Use block for horizontal center */
+      max-width: 100%;
+      /* Make the image responsive */
+      max-height: 405px;
+      margin: 0 auto;
+      /* Center horizontally with auto margins */
+      border-radius: 10px;
+    }
+    .welcome-msg {
+      display: block;
+      font-size: 28px;
+      font-weight: bold;
+      color: magenta;
+    }
+    /* unvisited link */
+    a:link {
+      color: #ffffff;
+    }
+    /* visited link */
+    a:visited {
+      color: #ffffff;
+    }
+    /* mouse over link */
+    a:hover {
+      color: #ff0000;
+    }
+    /* Width and height of scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    /* Track (background) of scrollbar */
+    ::-webkit-scrollbar-track {
+      background: #00000000;
+      border: 0px solid #00000000;
+      border-radius: 20px;
+    }
+    /* Handle (thumb) of scrollbar */
+    ::-webkit-scrollbar-thumb {
+      background: #3c3c3c;
+      border-radius: 20px;
+    }
+    /* On hover, style scrollbar handle */
+    ::-webkit-scrollbar-thumb:hover {
+      background: #ff0000;
+    }
+    #scroll-btn {
+      position: fixed;
+      right: 10px;
+      bottom: 10px;
+      cursor: pointer;
+      width: 50px;
+      height: 50px;
+      border-radius: 60px;
+      text-indent: -9999px;
+      background-color: magenta;
+      z-index: 100000;
+      display: none;
+    }
+    #scroll-btn span {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-left: -8px;
+      margin-top: -12px;
+      height: 0px;
+      width: 0px;
+      border: 8px solid transparent;
+      border-bottom-color: black;
+    }
+    #scroll-btn:hover {
+      background-color: red;
+      opacity: 1;
+      filter: "alpha(opacity=100)";
+    }
+    h1, h2, h3 {
+            color: #bb86fc;
+        }
+        pre {
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            color: #03dac6;
+        }
+        a {
+            color: #bb86fc;
+            text-decoration: none;
+        }
+        .command-section {
+            margin-bottom: 40px;
+        }
+        .command-section h2 {
+            border-bottom: 2px solid #bb86fc;
+            padding-bottom: 10px;
+        }
+        .aliases {
+            color: #03dac6;
+        }
+  </style>
+  <script>
+    window.onload = function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const scrollTo = urlParams.get('scrollTo');
+      if (scrollTo) {
+        const element = document.getElementById(scrollTo);
+        if (element) {
+          element.scrollIntoView();
+        }
+      }
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+      var scrollButton = document.getElementById("scroll-btn");
+      window.addEventListener("scroll", function () {
+        if (document.documentElement.scrollTop > 100) {
+          scrollButton.style.display = "block";
+        } else {
+          scrollButton.style.display = "none";
+        }
+      });
+      scrollButton.addEventListener("click", function () {
+        document.documentElement.scrollTop = 0;
+      });
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="welcome-msg">Silk Road: Legends of Wulin</span>
+      <div id="header-image-container">
+        <!-- The random image will be displayed here -->
+      </div>
+      <script>
+        randomSplashImage = Math.floor(Math.random() * 60);
+        image = new Image();
+        image.src = `../images/splash page images/splash - ${randomSplashImage}.png`;
+        // Add css class to image
+        document.getElementById("header-image-container").appendChild(image);
+      </script>
+    </header>
+    <div class="content">
+      <div class="left-column">
+        <div class="container">
+          <h1>Help System</h1>
+          <div class="command-section" id="help">
+            <h2>Help</h2>
+            <p>The help command displays useful information about specific topics.</p>
+            <pre><code>Usage:
+    help [topic]</code></pre>
+            <pre><code>Example:
+    help navigation - This will display information about navigation commands.
+    help commands - This will display information about common commands.
+    help drop - This will display information about the drop command.
+    help get - This will display information about the get command.
+    help put - This will display information about the put command.
+    help save - This will display information about the save command.</code></pre>
+            <p>For additional information see: <a href="#topics">TOPICS</a>, <a href="#commands">COMMANDS</a>, <a
+                href="#navigation">NAVIGATION</a></p>
+          </div>
+          <div class="command-section" id="navigation">
+            <h2>Navigation</h2>
+            <p>The game engine allows for travel in six directions: North, East, West, South, Up, and Down.</p>
+            <pre><code>Usage:
+    n
+    e
+    w
+    s
+    u
+    d</code></pre>
+            <pre><code>Example:
+    n - This moves the player character north of the current location.
+    e - This moves the player character east of the current location.
+    w - This moves the player character west of the current location.
+    s - This moves the player character south of the current location.
+    u - This moves the player character above the current location.
+    d - This moves the player character below the current location.</code></pre>
+            <p>For additional information see: <a href="#look">LOOK</a>, <a href="#open">OPEN</a>, <a
+                href="#close">CLOSE</a>, <a href="#lock">LOCK</a>, <a href="#unlock">UNLOCK</a></p>
+          </div>
+          <div class="command-section" id="attack">
+            <h2>Attack</h2>
+            <p>This command initiates combat with an NPC.</p>
+            <pre><code>Usage:
+    attack [NPC]</code></pre>
+            <pre><code>Example:
+    attack bandit</code></pre>
+            <p class="aliases">Aliases: ATTACK, ATT, A, KILL, K</p>
+            <p>For additional information see: <a href="#flee">FLEE</a></p>
+          </div>
+          <div class="command-section" id="autoloot">
+            <h2>Autoloot</h2>
+            <p>This command toggles automatic looting of defeated NPCs.</p>
+            <pre><code>Usage:
+    autoloot</code></pre>
+            <pre><code>Example:
+    autoloot</code></pre>
+            <p class="aliases">Aliases: AUTOLOOT</p>
+            <p>For additional information see: <a href="#loot">LOOT</a>, <a href="#loot-all">LOOT ALL</a></p>
+          </div>
+          <div class="command-section" id="clear">
+            <h2>Clear</h2>
+            <p>This command clears the screen of all previous text.</p>
+            <pre><code>Usage:
+    clear</code></pre>
+            <pre><code>Example:
+    clear</code></pre>
+            <p class="aliases">Aliases: CLEAR, CLS, CLR</p>
+          </div>
+          <div class="command-section" id="drop">
+            <h2>Drop</h2>
+            <p>This command moves an item from the character's inventory to the current location.</p>
+            <pre><code>Usage:
+    drop [item]</code></pre>
+            <pre><code>Example:
+    drop sword</code></pre>
+            <p class="aliases">Aliases: DROP, DRO</p>
+            <p>For additional information see: <a href="#drop-all">DROP ALL</a></p>
+          </div>
+          <div class="command-section" id="drop-all">
+            <h2>Drop All</h2>
+            <p>This command moves all items from the character's inventory to the current location.</p>
+            <pre><code>Usage:
+    drop all</code></pre>
+            <pre><code>Example:
+    drop all</code></pre>
+            <p class="aliases">Aliases: DROP ALL, DRO ALL</p>
+            <p>For additional information see: <a href="#drop">DROP</a></p>
+          </div>
+          <div class="command-section" id="drop-all-specified-items">
+            <h2>Drop All Specified Items</h2>
+            <p>This command moves all specified items from the character's inventory to the current location.</p>
+            <pre><code>Usage:
+    drop all.[item]</code></pre>
+            <pre><code>Example:
+    drop all.sword</code></pre>
+            <p class="aliases">Aliases: DROP, DRO</p>
+            <p>For additional information see: <a href="#drop-all">DROP ALL</a></p>
+          </div>
+          <div class="command-section" id="flee">
+            <h2>Flee</h2>
+            <p>This command allows a character to escape from combat in a random direction.</p>
+            <pre><code>Usage:
+    flee</code></pre>
+            <pre><code>Example:
+    flee</code></pre>
+            <p class="aliases">Aliases: FLEE, RUN</p>
+            <p>For additional information see: <a href="#attack">ATTACK</a></p>
+          </div>
+          <div class="command-section" id="get">
+            <h2>Get</h2>
+            <p>This command moves an item from the current location to the character's inventory.</p>
+            <pre><code>Usage:
+    get [item]</code></pre>
+            <pre><code>Example:
+    get sword</code></pre>
+            <p class="aliases">Aliases: GET, GRAB, GRA, TAKE, TAK</p>
+            <p>For additional information see: <a href="#get-all">GET ALL</a></p>
+          </div>
+          <div class="command-section" id="get-all">
+            <h2>Get All</h2>
+            <p>This command moves all items from the current location to the character's inventory.</p>
+            <pre><code>Usage:
+    get all</code></pre>
+            <pre><code>Example:
+    get all</code></pre>
+            <p class="aliases">Aliases: GET ALL, GRAB ALL, GRA ALL, TAKE ALL, TAK ALL</p>
+            <p>For additional information see: <a href="#get">GET</a></p>
+          </div>
+          <div class="command-section" id="get-all-items-from-container">
+            <h2>Get All Items from a Container</h2>
+            <p>This command retrieves all items from a container in the character's inventory, moving them to the
+              character's inventory.</p>
+            <pre><code>Usage:
+    get all [container]</code></pre>
+            <pre><code>Example:
+    get all bag</code></pre>
+            <p class="aliases">Aliases: GET ALL, GRAB ALL, GRA ALL, TAKE ALL, TAK ALL</p>
+            <p>For additional information see: <a href="#get">GET</a></p>
+          </div>
+          <div class="command-section" id="get-all-specified-items-from-location">
+            <h2>Get All Specified Items from Location</h2>
+            <p>This command moves all specified items from the current location to the character's inventory.</p>
+            <pre><code>Usage:
+    get all.[specific item]</code></pre>
+            <pre><code>Example:
+    get all.sword</code></pre>
+            <p class="aliases">Aliases: GET ALL, GRAB ALL, GRA ALL, TAKE ALL, TAK ALL</p>
+            <p>For additional information see: <a href="#get">GET</a></p>
+          </div>
+          <div class="command-section" id="get-all-specified-items-from-container">
+            <h2>Get All Specified Items from Container</h2>
+            <p>This command retrieves all specified items from a container in the character's inventory, moving them to
+              the character's inventory.</p>
+            <pre><code>Usage:
+    get all.[specific item] [container]</code></pre>
+            <pre><code>Example:
+    get all.sword bag</code></pre>
+            <p class="aliases">Aliases: GET ALL, GRAB ALL, GRA ALL, TAKE ALL, TAK ALL</p>
+            <p>For additional information see: <a href="#get">GET</a></p>
+          </div>
+          <div class="command-section" id="heavenly-flow">
+            <h2>Heavenly Flow</h2>
+            <p>This command activates the Heavenly Flow ability.</p>
+            <pre><code>Usage:
+    heavenly flow</code></pre>
+            <pre><code>Example:
+    heavenly flow</code></pre>
+            <p class="aliases">Aliases: HEAVENLY FLOW, HF</p>
+          </div>
+          <div class="command-section" id="immortal-vigor">
+            <h2>Immortal Vigor</h2>
+            <p>This command activates the Immortal Vigor ability.</p>
+            <pre><code>Usage:
+    immortal vigor</code></pre>
+            <pre><code>Example:
+    immortal vigor</code></pre>
+            <p class="aliases">Aliases: IMMORTAL VIGOR, IV</p>
+          </div>
+          <div class="command-section" id="inventory">
+            <h2>Inventory</h2>
+            <p>This command displays the items in a character's inventory.</p>
+            <pre><code>Usage:
+    inventory</code></pre>
+            <pre><code>Example:
+    inventory</code></pre>
+            <p class="aliases">Aliases: INVENTORY, INV, I</p>
+          </div>
+          <div class="command-section" id="iron-body">
+            <h2>Iron Body</h2>
+            <p>This command activates the Iron Body ability.</p>
+            <pre><code>Usage:
+    iron body</code></pre>
+            <pre><code>Example:
+    iron body</code></pre>
+            <p class="aliases">Aliases: IRON BODY, IB</p>
+          </div>
+          <div class="command-section" id="kill">
+            <h2>Kill</h2>
+            <p>This command initiates combat with an NPC.</p>
+            <pre><code>Usage:
+    kill [NPC]</code></pre>
+            <pre><code>Example:
+    kill bandit</code></pre>
+            <p class="aliases">Aliases: KILL, K, ATTACK, ATT, A</p>
+            <p>For additional information see: <a href="#flee">FLEE</a></p>
+          </div>
+          <div class="command-section" id="killer">
+            <h2>Killer</h2>
+            <p>This command toggles killer mode on or off. If killer mode is on, character will attempt to kill whatever
+              he attacks. If killer mode is off, Character will refrain from killing and end combat when his opponent is
+              unconscious.</p>
+            <pre><code>Usage:
+    killer</code></pre>
+            <pre><code>Example:
+    killer</code></pre>
+            <p class="aliases">Aliases: KILLER</p>
+          </div>
+          <div class="command-section" id="knockdown">
+            <h2>Knockdown</h2>
+            <p>This command attempts to knock down an opponent in combat.</p>
+            <pre><code>Usage:
+    knockdown [target]</code></pre>
+<pre><code>Example:
+  knockdown bandit</code></pre>
+          <p class="aliases">Aliases: KNOCKDOWN, KD</p>
+        </div>
+        <div class="command-section" id="look">
+          <h2>Look</h2>
+          <p>This command allows a character to view his surroundings, items, or NPCs.</p>
+          <pre><code>Usage:
+  look
+  look [item]
+  look at [item/NPC]
+  look in [container]</code></pre>
+          <pre><code>Example:
+  look
+  look sword
+  look at merchant
+  look in bag</code></pre>
+          <p class="aliases">Aliases: LOOK, LOO, L</p>
+          <p>For additional information see: <a href="#inventory">INVENTORY</a></p>
+        </div>
+        <div class="command-section" id="loot">
+          <h2>Loot</h2>
+          <p>This command allows a character to pilfer items from defeated NPCs.</p>
+          <pre><code>Usage:
+  loot [NPC]</code></pre>
+          <pre><code>Example:
+  loot bandit</code></pre>
+          <p class="aliases">Aliases: LOOT</p>
+          <p>For additional information see: <a href="#loot-all">LOOT ALL</a>, <a href="#autoloot">AUTOLOOT</a></p>
+        </div>
+        <div class="command-section" id="loot-all">
+          <h2>Loot All</h2>
+          <p>This command allows a character to pilfer items from all defeated NPCs in the current location.</p>
+          <pre><code>Usage:
+  loot all</code></pre>
+          <pre><code>Example:
+  loot all</code></pre>
+          <p class="aliases">Aliases: LOOT ALL</p>
+          <p>For additional information see: <a href="#loot">LOOT</a>, <a href="#autoloot">AUTOLOOT</a></p>
+        </div>
+        <div class="command-section" id="meditate">
+          <h2>Meditate</h2>
+          <p>This command allows a character to meditate, restoring health at a highly accelerated rate, compared to
+            standing, sitting or sleeping.</p>
+          <pre><code>Usage:
+  meditate</code></pre>
+          <pre><code>Example:
+  meditate</code></pre>
+          <p class="aliases">Aliases: MEDITATE, MED</p>
+        </div>
+        <div class="command-section" id="put">
+          <h2>Put</h2>
+          <p>This command moves an item from the character's inventory to a container in the player's inventory.</p>
+          <pre><code>Usage:
+  put [item] [container]</code></pre>
+          <pre><code>Example:
+  put sword bag</code></pre>
+          <p class="aliases">Aliases: PUT, PLACE</p>
+          <p>For additional information see: <a href="#put-all">PUT ALL</a></p>
+        </div>
+        <div class="command-section" id="put-all">
+          <h2>Put All Items in Container</h2>
+          <p>This command moves all items from the character's inventory to a container in the character's inventory.
+          </p>
+          <pre><code>Usage:
+  put all [container]</code></pre>
+          <pre><code>Example:
+  put all bag</code></pre>
+          <p class="aliases">Aliases: PUT ALL, PLACE ALL</p>
+          <p>For additional information see: <a href="#put">PUT</a></p>
+        </div>
+        <div class="command-section" id="quit">
+          <h2>Quit</h2>
+          <p>This command allows a character to exit the game.</p>
+          <pre><code>Usage:
+  quit</code></pre>
+          <pre><code>Example:
+  quit</code></pre>
+          <p class="aliases">Aliases: QUIT, EXIT</p>
+          <p>For additional information see: <a href="#save">SAVE</a></p>
+        </div>
+        <div class="command-section" id="save">
+          <h2>Save</h2>
+          <p>This command saves a character's current game progress.</p>
+          <pre><code>Usage:
+  save</code></pre>
+          <pre><code>Example:
+  save</code></pre>
+          <p class="aliases">Aliases: SAVE</p>
+          <p>For additional information see: <a href="#quit">QUIT</a></p>
+        </div>
+        <div class="command-section" id="score">
+          <h2>Score</h2>
+          <p>This command displays important information about a character's current statistics and status.</p>
+          <pre><code>Usage:
+  score</code></pre>
+          <pre><code>Example:
+  score</code></pre>
+          <p class="aliases">Aliases: SCORE, SC</p>
+        </div>
+        <div class="command-section" id="shutdown">
+          <h2>Shutdown</h2>
+          <p>This command is used by administrators to shut down the game server.</p>
+          <pre><code>Usage:
+  shutdown</code></pre>
+          <pre><code>Example:
+  shutdown</code></pre>
+          <p class="aliases">Aliases: SHUTDOWN</p>
+        </div>
+        <div class="command-section" id="sit">
+          <h2>Sit</h2>
+          <p>This command allows a character to sit down and recover health at an accelerated rate compared to
+            standing.</p>
+          <pre><code>Usage:
+  sit</code></pre>
+          <pre><code>Example:
+  sit</code></pre>
+          <p class="aliases">Aliases: SIT</p>
+          <p>For additional information see: <a href="#stand">STAND</a></p>
+        </div>
+        <div class="command-section" id="sleep">
+          <h2>Sleep</h2>
+          <p>This command allows a character to sleep and recover health at an accelerated rate compared to sitting.
+          </p>
+          <pre><code>Usage:
+  sleep</code></pre>
+          <pre><code>Example:
+  sleep</code></pre>
+          <p class="aliases">Aliases: SLEEP</p>
+          <p>For additional information see: <a href="#wake">WAKE</a></p>
+        </div>
+        <div class="command-section" id="sleeper-hold">
+          <h2>Sleeper Hold</h2>
+          <p>This command attempts to put an opponent to sleep during combat.</p>
+          <pre><code>Usage:
+  sleeper hold [target]</code></pre>
+          <pre><code>Example:
+  sleeper hold bandit</code></pre>
+          <p class="aliases">Aliases: SLEEPER HOLD, SH</p>
+        </div>
+        <div class="command-section" id="stand">
+          <h2>Stand</h2>
+          <p>This command allows a character to stand up after being knocked down in combat or when sitting, sleeping,
+            or meditating.</p>
+          <pre><code>Usage:
+  stand</code></pre>
+          <pre><code>Example:
+  stand</code></pre>
+          <p class="aliases">Aliases: STAND</p>
+          <p>For additional information see: <a href="#sit">SIT</a></p>
+        </div>
+        <div class="command-section" id="stop">
+          <h2>Stop</h2>
+          <p>This command is used by administrators to stop game timers and other things, before shutting down the
+            server.</p>
+          <pre><code>Usage:
+  stop</code></pre>
+          <pre><code>Example:
+  stop</code></pre>
+          <p class="aliases">Aliases: STOP</p>
+        </div>
+        <div class="command-section" id="tell-all-players-in-the-game">
+          <h2>Tell All Players in the Game</h2>
+          <p>This command allows players to communicate with each other, sending public messages.</p>
+          <pre><code>Usage:
+  tell all [message]</code></pre>
+          <pre><code>Example:
+  tell all Greetings everyone!</code></pre>
+          <p class="aliases">Aliases: TELL</p>
+          <p>For additional information see: <a href="#who">WHO</a></p>
+        </div>
+        <div class="command-section" id="tell-all-players-in-the-same-location-room">
+          <h2>Tell All Players in the Same Location (Room)</h2>
+          <p>This command allows players to communicate with each other, sending semi-public messages.</p>
+          <pre><code>Usage:
+  tell [message]</code></pre>
+          <pre><code>Example:
+  tell Hey fellas, what's going on?</code></pre>
+          <p class="aliases">Aliases: TELL</p>
+          <p>For additional information see: <a href="#who">WHO</a></p>
+        </div>
+        <div class="command-section" id="tell-a-specified-player">
+          <h2>Tell a Specified Player</h2>
+          <p>This command allows players to communicate with each other, sending private messages.</p>
+          <pre><code>Usage:
+  tell [player] [message]</code></pre>
+          <pre><code>Example:
+  tell John Hello there!</code></pre>
+          <p class="aliases">Aliases: TELL</p>
+          <p>For additional information see: <a href="#who">WHO</a></p>
+        </div>
+        <div class="command-section" id="vital-breath">
+          <h2>Vital Breath</h2>
+          <p>This command activates the Vital Breath ability, which may restore health or provide other benefits.</p>
+          <pre><code>Usage:
+  vital breath</code></pre>
+          <pre><code>Example:
+  vital breath</code></pre>
+          <p class="aliases">Aliases: VITAL BREATH, VB</p>
+        </div>
+        <div class="command-section" id="wake">
+          <h2>Wake</h2>
+          <p>This command awakens a character from unconsciousness.</p>
+          <pre><code>Usage:
+  wake</code></pre>
+          <pre><code>Example:
+  wake</code></pre>
+          <p class="aliases">Aliases: WAKE</p>
+          <p>For additional information see: <a href="#sleep">SLEEP</a></p>
+        </div>
+        <div class="command-section" id="who">
+          <h2>Who</h2>
+          <p>This command displays a list of currently connected characters.</p>
+          <pre><code>Usage:
+  who</code></pre>
+          <pre><code>Example:
+  who</code></pre>
+          <p class="aliases">Aliases: WHO</p>
+          <p>For additional information see: <a href="#tell-all-players-in-the-game">TELL</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="right-column">
+      <span style="color:#ff00ff;">
+        <center><b><u>LIST OF HELP TOPICS</u></b></center>
+      </span>
+      <!-- This section of code should be organized alphabetically. -->
+      <br><a href="#attack">ATTACK</a>
+      <br><br><a href="#autoloot">AUTOLOOT</a>
+      <br><br><a href="#clear">CLEAR</a>
+      <br><br><a href="#drop">DROP</a>
+      <br><br><a href="#drop-all">DROP ALL</a>
+      <br><br><a href="#flee">FLEE</a>
+      <br><br><a href="#get">GET</a>
+      <br><br><a href="#get-all">GET ALL</a>
+      <br><br><a href="#heavenly-flow">HEAVENLY FLOW</a>
+      <br><br><a href="#help">HELP</a>
+      <br><br><a href="#immortal-vigor">IMMORTAL VIGOR</a>
+      <br><br><a href="#inventory">INVENTORY</a>
+      <br><br><a href="#iron-body">IRON BODY</a>
+      <br><br><a href="#kill">KILL</a>
+      <br><br><a href="#killer">KILLER</a>
+      <br><br><a href="#knockdown">KNOCKDOWN</a>
+      <br><br><a href="#look">LOOK</a>
+      <br><br><a href="#loot">LOOT</a>
+      <br><br><a href="#loot-all">LOOT ALL</a>
+      <br><br><a href="#meditate">MEDITATE</a>
+      <br><br><a href="#navigation">NAVIGATION</a>
+      <br><br><a href="#put">PUT</a>
+      <br><br><a href="#put-all">PUT ALL</a>
+      <br><br><a href="#quit">QUIT</a>
+      <br><br><a href="#save">SAVE</a>
+      <br><br><a href="#score">SCORE</a>
+      <br><br><a href="#sit">SIT</a>
+      <br><br><a href="#sleep">SLEEP</a>
+      <br><br><a href="#sleeper-hold">SLEEPER HOLD</a>
+      <br><br><a href="#stand">STAND</a>
+      <br><br><a href="#stop">STOP</a>
+      <br><br><a href="#shutdown">SHUTDOWN</a>
+      <br><br><a href="#tell-all-players-in-the-game">TELL ALL PLAYERS</a>
+      <br><br><a href="#tell-all-players-in-the-same-location-room">TELL LOCAL PLAYERS</a>
+      <br><br><a href="#tell-a-specified-player">TELL SPECIFIED PLAYER</a>
+      <br><br><a href="#vital-breath">VITAL BREATH</a>
+      <br><br><a href="#wake">WAKE</a>
+      <br><br><a href="#who">WHO</a>
+    </div>
+    <!-- End of code section organized alphabetically. -->
+  </div>
+  <footer>
+    <span style="color:#ff00ff;"><b><u>PUBLIC DOMAIN NOTICE</u></b></span>
+    <span style="color:#0096FF"><br><br>The content presented here is intended for entertainment, informational,
+      educational, and research purposes.
+      <br>The textual content and source code for this website and game is in the public domain. You are free to share,
+      copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any
+      purpose.</span>
+  </footer>
+  <a href="#" id="scroll-btn"><span></span></a>
+</div>
+</body>
+</html>

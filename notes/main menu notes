@@ -1,0 +1,209 @@
+// Display main menu
+function displayMainMenu() {
+  stopTimers();
+  player.status = 'main menu';
+  displayMainMenuImage();
+}
+
+// Display main menu image
+function displayMainMenuImage() {
+  displayMessage(`<br><br><br><br>`);
+  const image = new Image();
+  image.src = 'source code/images/miscellaneous/menu.png';
+	// Add css class to image
+	image.classList.add("main-menu-image");
+	// When image loads, append to displayMessage
+  image.onload = function() {
+    displayMessage(image);
+		displayMainMenuOptions();
+  };
+}
+
+// Display main menu options
+function displayMainMenuOptions() {
+  const nbsp = (count) => "&nbsp;".repeat(count);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}1. Enter the World of Silk Road</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}2. Edit Character Password</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}3. Edit Character Description</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}4. Edit Character Profession</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}5. Edit Character Reputation</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}6. Edit Character Title</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}7. Create New Character</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}8. Delete Character</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}9. Access Basic Instructions</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(0)}10. Access Help Files</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(0)}11. Access Backstory</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(0)}12. Access Recent News</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(0)}13. Access Credits</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(0)}14. Access License</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(0)}15. About The Author</span>`);
+  displayMessage(`<br><span class="main-menu">${nbsp(1)}0. Quit the World of Silk Road</span><br>`);
+  displayMessage('<br><br><br>');
+}
+
+//Process main menu
+function processMainMenu() {
+  if (rawInput === '1') {
+    enterGameWorld();
+  } else if (rawInput === '2') {
+    editCharacterPassword();
+  } else if (rawInput === '3') {
+    editCharacterDescription();
+  } else if (rawInput === '4') {
+    editCharacterProfession();
+  } else if (rawInput === '5') {
+    editCharacterReputation();
+  } else if (rawInput === '6') {
+    editCharacterTitle();
+  } else if (rawInput === '7') {
+
+  } else if (rawInput === '8') {
+
+  } else if (rawInput === '9') {
+
+  } else if (rawInput === '10') {
+    processHelpCommand();
+    displayMainMenuImage();
+  } else if (rawInput === '11') {
+    displayBackstory();
+  } else if (rawInput === '12') {
+
+  } else if (rawInput === '13') {
+
+  } else if (rawInput === '14') {
+    displayLicenseInfo();
+  } else if (rawInput === '15') {
+    displayAuthorInfo();
+  } else if (rawInput === '0') {
+    processQuitCommand();
+  } else {
+    inputErrorControl();
+  }
+}
+
+// Enter game world
+function enterGameWorld() {
+  // Send info to server, if connected
+  if (connection === true) {
+    updatePlayerLocation();
+    updatePlayerStatus();
+    processPlayerJoinedGame();
+  }
+  player.status = 'standing';
+  startTimers();
+  displayLocation();
+}
+
+//Edit character description
+function editCharacterDescription() {
+  // Create modal container
+  const modal = document.createElement('div');
+  modal.classList.add('modal');
+  // Create modal content
+  const modalContent = document.createElement('div');
+  modalContent.classList.add('modal-content');
+  // Create modal header
+  const modalHeader = document.createElement('div');
+  modalHeader.classList.add('modal-header');
+  // Set the header content using innerHTML
+  modalHeader.innerHTML = `
+    <center><b><u>SPECIAL NOTE</u></center></b>
+    <br>For those familiar with html, this editor supports the use of html tags to format text. For those unfamiliar with html, use this as a basic text editor. Simply edit the text. What you see is what you'll get.<br>
+  `;
+  // Create textarea to edit description
+  const descriptionInput = document.createElement('textarea');
+  descriptionInput.id = 'descriptionInput';
+  descriptionInput.classList.add('edit-character-textarea');
+  // Get player description
+  descriptionInput.value = player.description;
+  // Get window height
+  const windowHeight = window.innerHeight;
+  // Calculate rows based on window height, fontsize, and line height
+  const fontSize = 22; // Font size in pixels
+  const lineHeight = 1.0; // Line height
+  const numRows = Math.floor((windowHeight / (fontSize * lineHeight) * 0.65)); // Set number of rows (lines) to percentage of screen height
+  descriptionInput.rows = numRows;
+  // Create save button
+  const saveButton = document.createElement('button');
+  saveButton.textContent = 'SAVE';
+  saveButton.classList.add('edit-character-save-button');
+  // Append header and textarea to modal content
+  modalContent.appendChild(modalHeader);
+  modalContent.appendChild(descriptionInput);
+  // Create a new div for the save button
+  const saveButtonContainer = document.createElement('div');
+  saveButtonContainer.classList.add('save-button-container');
+  // Append the save button to the new div
+  saveButtonContainer.appendChild(saveButton);
+  // Append the save button container to modal content
+  modalContent.appendChild(saveButtonContainer);
+  // Append modal content to modal
+  modal.appendChild(modalContent);
+  // Append modal to body
+  document.body.appendChild(modal);
+  // Add save button event listener
+  saveButton.addEventListener('click', () => {
+    player.description = descriptionInput.value;
+    savePlayerToLocalStorage();
+    // Close modal
+    modal.style.display = 'none';
+    displayMessage('<br><span class="main-menu">Character description successfully updated.</span><br>');
+    displayMainMenuImage();
+    // Set focus to inputElement
+    inputElement.focus();
+  });
+}
+
+// Edit character profession
+function editCharacterProfession() {
+  if (player.progressFlag === 0) {
+    getProfession();
+  } else if(player.progressFlag === 7) {
+    verifyProfession();
+  } else if (player.progressFlag === 8) {
+    if (command === 'y' || command === 'yes') {
+      player.progressFlag = 0;
+      savePlayerToLocalStorage();
+      displayMessage('<br><span class="main-menu">Character profession successfully updated.</span><br>');
+      displayMainMenuImage();
+    } else {
+      getProfession();
+    }
+  }
+}
+
+ // Edit character reputation
+ function editCharacterReputation() {
+  if (player.progressFlag === 0) {
+    getReputation();
+  } else if(player.progressFlag === 9) {
+    verifyReputation();
+  } else if (player.progressFlag === 10) {
+    if (command === 'y' || command === 'yes') {
+      player.progressFlag = 0;
+      savePlayerToLocalStorage();
+      displayMessage('<br><span class="main-menu">Character reputation successfully updated.</span><br>');
+      displayMainMenuImage();
+    } else {
+      getReputation();
+    }
+  }
+}
+
+ // Edit character title
+ function editCharacterTitle() {
+  if (player.progressFlag === 0) {
+    getTitle();
+  } else if(player.progressFlag === 11) {
+    verifyTitle();
+  } else if (player.progressFlag === 12) {
+    if (command === 'y' || command === 'yes') {
+      player.progressFlag = 0;
+      savePlayerToLocalStorage();
+      displayMessage('<br><span class="main-menu">Character title successfully updated.</span><br>');
+      displayMainMenuImage();
+    } else {
+      getTitle();
+    }
+  }
+}

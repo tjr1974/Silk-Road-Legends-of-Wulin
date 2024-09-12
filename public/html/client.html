@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silk Road: Legends of Wulin</title>
+  <link rel="icon" type="image/x-icon" href="../images/favicon/favicon.ico">
+  <link rel="stylesheet" href="../css/user interface.css">
+  <style>
+    /* CSS for game container messages from server */
+    #location-title { color: yellow; font-weight: bold; }
+    #location-description { color: magenta; margin-left: 20px; }
+    #item-name { color: cyan; }
+    #exits { color: #33ff33; }
+    #exit-to-location { color: yellow; }
+    #exits-list, #inventory-list, #items-list { margin-left: 20px; }
+    #npc-name { color: #ff0000; }
+    #npc-description, #npc-stats { color: #cccccc; margin-left: 20px; }
+    #player-name { color: magenta; }
+    #other-player-name { color: #fff; }
+    #combat-message-player { color: #00ff00; }
+    #combat-message-npc { color: #ff0000; }
+    #combat-message-health, #combat-message, #error-message { color: magenta; }
+  </style>
+<body>
+  <!-- Score container -->
+  <div id="score-container">
+    <div class="score" id="health-score">HEALTH: </div>
+    <div class="score" id="level-score">LEVEL: </div>
+    <div class="score" id="xp-score">XP: </div>
+    <div class="score" id="coordinates-score">X: Y: Z: </div>
+  </div>
+  <!-- Game container -->
+  <div id="game-container"></div>
+  <!-- Input container -->
+  <div id="input-container">
+    <input type="text" id="user-input" placeholder="Enter your command..." autocomplete="off">
+  </div>
+  <!-- End game containers -->
+  <!-- Customize color container -->
+  <div id="customize-colors-container">
+    <br>
+    <div class="centered-text">SET CUSTOM COLOR PREFERENCES</div> Input accepts <a
+      href="https://htmlcolorcodes.com/color-names/" target="_blank">HTML color names</a> or <a
+      href="https://www.w3schools.com/colors/colors_picker.asp" target="_blank">Hexadecimal color codes</a>. <br>
+    <!-- Set all text to single color container -->
+    <div id="set-all-text-to-single-color-container">
+      <input type="text" id="all-text-color" placeholder="Set All Text to Single Color">
+      <button onclick="viewChanges()">View Changes</button>
+      <button onclick="saveChanges()">Save Changes</button>
+    </div>
+    <!-- Customize individual color settings --> Alternatively, you may customize individual color settings: <br>
+    <div id="customize-individual-color-columns-container">
+      <div id="color-column">
+        <input type="text" id="body-bg-color" placeholder="Background Color">
+        <input type="text" id="body-text-color" placeholder="Default Text Color">
+        <input type="text" id="game-container-color" placeholder="Game Container Default Text Color">
+        <input type="text" id="game-container-border-color" placeholder="Game Container Border Color">
+        <input type="text" id="user-input-bg-color" placeholder="User Input Background Color">
+        <input type="text" id="user-input-text-color" placeholder="User Input Text Color">
+      </div>
+      <div id="color-column">
+        <input type="text" id="room-title-color" placeholder="Room Title Color">
+        <input type="text" id="room-description-color" placeholder="Room Description Color">
+        <input type="text" id="exit-color" placeholder="Exits Color">
+        <input type="text" id="exit-room-color" placeholder="Exits Room Title Color">
+        <input type="text" id="item-color" placeholder="Item Name Color">
+        <input type="text" id="npc-color" placeholder="NPC Name Color">
+      </div>
+      <div id="color-column">
+        <input type="text" id="npc-description-color" placeholder="NPC Description Color (look at)">
+        <input type="text" id="npc-stats-color" placeholder="NPC Statistics Color (look at)">
+        <input type="text" id="combat-message-health-color" placeholder="Combat Message Health Color">
+        <input type="text" id="combat-message-player-color" placeholder="Combat Message Player Color">
+        <input type="text" id="combat-message-npc-color" placeholder="Combat Message NPC Color">
+        <input type="text" id="error-message-color" placeholder="Error Message Color">
+      </div>
+    </div>
+    <div id="customize-individual-colors-button-container">
+      <button onclick="viewChanges()">View Changes</button>
+      <button onclick="saveChanges()">Save Changes</button>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+  <script type="module">
+    import socket from '../javascript/server functions/shared socket connection.js';
+  </script>
+  <script>
+    // Client Side Error Message Manager **************************************************************
+    class ErrorMessageManager {
+      constructor() {
+        this.errorMessages = [
+          `Dude, try speaking English!`,
+          `${this.player.sex === 'female' ? 'Girl' : 'Boy'}, you may be legally retarded!`,
+          `Did your cat just walk on the keyboard?`,
+          `I'm starting to think you're illiterate!`,
+          `A squirrel must've chewed through the wires.<br>Please input something comprehensible!`,
+          `I don't even know how to respond to that input!<br>Are you just mashing the keyboard randomly?`,
+          `I'm embarrassed for both of us after that attempt at input.<br>Let's pretend it never happened!`,
+          `Based on your input,<br>I suspect we're not even speaking the same language!`,
+          `That input was so wrong, somewhere an error message writer is smiling proudly!`,
+          `Who taught you how to type?<br>Because I'd like to have a word with them to<br>explain how command-line input is supposed to work!`,
+          `Your input is so confusing I thought maybe my system crashed for a second.<br>But nope, it's just nonsense!`,
+          `Your input is so illogical it broke my brain for a second.<br>Take a deep breath and try again!`,
+          `That input is so wrong I had to check if it was April Fools' Day.<br>But nope, it's just bad input!`,
+          `Whatch' you talkin' 'bout, Willis?`
+        ];
+      }
+      displayRandomErrorMessage(outputFunction) {
+        const randomIndex = Math.floor(Math.random() * this.errorMessages.length);
+        outputFunction(`<br><span class="error-message">${this.errorMessages[randomIndex]}</span><br>`);
+      }
+    }
+    // Client Side Game Manager ***********************************************************************
+    class GameManager {
+      handleGameJoined(player) {
+        this.displayMessageFromServer(`Welcome, ${player.name}!`);
+      }
+      handleFullStateSync(data) {
+        this.updateScoreDisplay(data.playerState);
+      }
+      handleDisplayMessageFromServer(data) {
+        const messageTypes = {
+          error: 'error-message',
+          info: 'info-message',
+          combat: 'combat-message',
+          npc: 'npc-message',
+          emote: 'emote-message',
+          tell: 'tell-message',
+          'tell-all': 'tell-message',
+          'tell-room': 'tell-message',
+        };
+        const messageClass = messageTypes[data.type] || '';
+        const formattedMessage = messageClass ? `<span id="${messageClass}">${data.content}</span>` : data.content;
+        this.appendMessage(formattedMessage);
+      }
+      appendMessage(message) {
+        gameContainer.innerHTML += `${message}<br>`;
+        gameContainer.scrollTop = gameContainer.scrollHeight;
+      }
+      updateScoreDisplay(player) {
+        healthScore.textContent = `HEALTH: ${Math.round(player.health || 0)}/${player.maxHealth || 0}`;
+        levelScore.textContent = `LEVEL: ${player.level || 0}`;
+        xpScore.textContent = `XP: ${player.xp || 0}`;
+        coordinatesScore.textContent = `X: ${player.coordinates.x || 0} Y: ${player.coordinates.y || 0} Z: ${player.coordinates.z || 0}`;
+      }
+    }
+    // Client Side Command Manager ********************************************************************
+    class CommandManager {
+      constructor() {
+        this.errorMessageManager = new ErrorMessageManager();
+        this.commands = {
+          MOVE: 'move',
+          ATTACK: 'attack',
+          DROP: 'drop',
+          GET: 'get',
+          SHOW_INVENTORY: 'showInventory',
+          DESCRIBE_LOCATION: 'describeLocation',
+          LOOT: 'lootSpecifiedNpc',
+          MEDITATE: 'meditate',
+          SIT: 'sit',
+          SLEEP: 'sleep',
+          STAND: 'stand',
+          STOP: 'stop',
+          WAKE: 'wake',
+          AUTO_LOOT: 'autoLootToggle',
+        };
+      }
+      // Client Side Command Manager Methods **********************************************************
+      sendMethodCallToServer() {
+        const words = this.inputElement.value.trim().toLowerCase().split(" ");
+        const [action, ...serverArgs] = words;
+        const commandMap = new Map([
+          ...this.navigationCommands(),
+          ...this.actionCommands(),
+        ]);
+        const serverAction = commandMap.get(action) || this.errorMessageManager.displayRandomErrorMessage(this.appendMessage.bind(this));
+        if (serverAction) {
+          this.serverCommunication.callMethod(serverAction, serverArgs);
+          console.log(`Action sent: ${serverAction}, Args: ${serverArgs}`);
+        }
+        this.updateCommandHistory(words);
+      }
+      navigationCommands() {
+        return [['n', this.commands.MOVE], ['e', this.commands.MOVE], ['w', this.commands.MOVE], ['s', this.commands.MOVE],
+                ['u', this.commands.MOVE], ['d', this.commands.MOVE]];
+      }
+      actionCommands() {
+        return [
+          ['attack', this.commands.ATTACK], ['att', this.commands.ATTACK], ['a', this.commands.ATTACK],
+          ['kill', this.commands.ATTACK], ['k', this.commands.ATTACK],
+          [this.commands.DROP, this.handleDrop.bind(this)],
+          [this.commands.GET, this.handleGet.bind(this)],
+          ['grab', this.handleGet.bind(this)],
+          ['take', this.handleGet.bind(this)],
+          ['inventory', this.commands.SHOW_INVENTORY], ['inv', this.commands.SHOW_INVENTORY], ['i', this.commands.SHOW_INVENTORY],
+          ['look', this.commands.DESCRIBE_LOCATION], ['loo', this.commands.DESCRIBE_LOCATION], ['l', this.commands.DESCRIBE_LOCATION],
+          ['loot', this.commands.LOOT], ['meditate', this.commands.MEDITATE],
+          ['sit', this.commands.SIT], ['sleep', this.commands.SLEEP], ['stand', this.commands.STAND],
+          ['stop', this.commands.STOP], ['wake', this.commands.WAKE],
+          ['eat', this.handleEatCommand.bind(this)],
+          ['fuck', this.processFuckCommand.bind(this)],
+          ['motherfucker', this.processMotherfuckerCommand.bind(this)],
+          ['autoloot', this.handleAutoLoot.bind(this)],
+        ];
+      }
+      updateCommandHistory(words) {
+        this.inputElement.value = '';
+        this.commandHistory.unshift(fullCommand);
+        if (this.commandHistory.length > 10) {
+          this.commandHistory.pop();
+        }
+        this.historyIndex = -1;
+      }
+      navigateHistory(direction) {
+        if (direction === -1 && this.historyIndex < this.commandHistory.length - 1) {
+          this.historyIndex++;
+        } else if (direction === 1 && this.historyIndex > -1) {
+          this.historyIndex--;
+        }
+        this.inputElement.value = this.historyIndex === -1 ? '' : this.commandHistory[this.historyIndex];
+      }
+      handleDrop(words) {
+        if (words[1] === 'all') {
+          return words[2] ? 'dropAllSpecifiedItems' : 'dropAllItems';
+        }
+        return 'dropSingleItem';
+      }
+      handleGet(words) {
+        if (words[1] === 'all') {
+          if (words[4]) {
+            return 'getAllSpecificItemsFromContainer';
+          } else if (words[3]) {
+            return 'getAllItemsFromContainer';
+          } else if (words[2]) {
+            return 'getAllSpecificItems';
+          }
+          return 'getAllItems';
+        }
+        return 'getSingleItem';
+      }
+      handlePutCommand(words) {
+        if (words[1] === 'all') {
+          return words[2] ? 'putAllSpecificItems' : 'putAllItems';
+        }
+        return 'putSingleItem';
+      }
+      handleEatCommand(words) {
+        if (words[1] === 'shit') {
+          this.processEatShitCommand();
+        } else {
+          // Handle other eat commands if necessary
+        }
+      }
+      processEatShitCommand() {
+        this.appendMessage(`<br><span class="error-message">That wouldn't taste very good!</span><br>`);
+      }
+      processFuckCommand() {
+        const message = `In your WILDEST dreams, Sally!
+        <br>Then again... What the hell? It might be fun!
+        <br>${this.player.name} grabs ${this.player.posPron} ankles and takes it like a ${noun}!
+        <br>Damn, ${this.player.subPron} is taking a genuinely fine pounding.
+        <br>And ${this.player.name} certainly looks as though ${this.player.sex === 'female' ? 'pro' : 'man'} is enjoying every inch of it!
+        <br>${this.player.name}'s truly an inspiration to fudge packing butt pirates everywhere!
+        <br>Check it out! ${this.player.name} spends so much time on ${this.player.sex === 'female' ? 'her' : 'his'} back, the bottoms of ${this.player.sex === 'female' ? 'her' : 'his'} feet are sunburned!
+        <br>Wow, what a trooper! Taking it on the chin like that! Muhahaha...`;
+        this.appendMessage(`<br><span class="error-message">${message}</span>`);
+      }
+      processMotherfuckerCommand() {
+        const nbsp = (count) => "&nbsp;".repeat(count);
+        this.appendMessage(`<br><span class="error-message">Though a motherfucker I may be,<br>${nbsp(3)}the mother I fucked was not the mother of me.<br>${nbsp(6)}However, she may be the mother of thee!</span>`);
+      }
+      handleAutoLoot() {
+        this.serverCommunication.callMethod(this.commands.AUTO_LOOT);
+        console.log('Action sent: autoLootToggle');
+      }
+    }
+    // User Input Manager *****************************************************************************
+    class UserInputManager {
+      constructor(inputElement, serverCommunication) {
+        this.inputElement = inputElement;
+        this.serverCommunication = serverCommunication;
+        this.commandHistory = [];
+        this.historyIndex = -1;
+      }
+      addEventListeners() {
+        this.inputElement.addEventListener('keydown', (e) => this.handleKeyDown(e));
+      }
+      removeEventListeners() {
+        this.inputElement.removeEventListener('keydown', (e) => this.handleKeyDown(e));
+      }
+      handleKeyDown(e) {
+        if (e.key === 'Enter') {
+          this.sendMethodCallToServer();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          this.navigateHistory(e.key === 'ArrowUp' ? -1 : 1);
+        }
+      }
+    }
+    function toggleInputContainer(isVisible) {
+      const inputContainer = document.getElementById('input-container');
+      if (isVisible) {
+        inputContainer.style.display = 'block';
+        userInputManager.addEventListeners(); // Add listeners when displayed
+      } else {
+        userInputManager.removeEventListeners(); // Remove listeners before hiding
+        inputContainer.style.display = 'none';
+      }
+    }
+    // Client Side Start Game *************************************************************************
+    const serverComm = new ServerCommunication(socket);
+    const userInputManager = new UserInputManager(inputElement, serverComm);
+    const gameManager = new GameManager();
+  </script>
+</body>
+</html>
