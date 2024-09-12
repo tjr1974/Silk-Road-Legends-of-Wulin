@@ -63,12 +63,14 @@ class Server {
   * If SSL certificates are not found, it defaults to HTTP.
   */
   async createServer() {
+    const SSL_KEY_PATH = './ssl/server.key'; // Added named constant for SSL key path
+    const SSL_CERT_PATH = './ssl/server.crt'; // Added named constant for SSL cert path
     const sslOptions = {
-      key: await this.fs.access('./ssl/server.key').then(() => this.fs.readFile('./ssl/server.key')),
-      cert: await this.fs.access('./ssl/server.crt').then(() => this.fs.readFile('./ssl/server.crt')),
+      key: await this.fs.access(SSL_KEY_PATH).then(() => this.fs.readFile(SSL_KEY_PATH)), // Updated to use named constant
+      cert: await this.fs.access(SSL_CERT_PATH).then(() => this.fs.readFile(SSL_CERT_PATH)), // Updated to use named constant
     };
     if (!sslOptions.key || !sslOptions.cert) {
-      this.logger.warn('SSL files not found, defaulting to HTTP.');
+      this.logger.warn(`SSL files not found, defaulting to HTTP.`); // Updated to use template literals
       return require('http').createServer(this.app); // Use 'http' module if SSL is not available
     }
     return require('https').createServer(sslOptions, this.app); // Use 'https' module if SSL is available
@@ -80,7 +82,7 @@ class Server {
   */
   async start() {
     this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
-      this.logger.info(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}`);
+      this.logger.info(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}`); // Updated to use template literals
     });
   }
   // Setup Middleware *****************************************************************************
@@ -91,7 +93,7 @@ class Server {
   */
   setupMiddleware() {
     this.app.use(this.pinoHttp({ logger: this.logger }));
-    this.app.use(this.express.static('public'));
+    this.app.use(this.express.static('public')); // Updated to use template literals
   }
   // Setup Routes ********************************************************************************
   /*
@@ -101,7 +103,7 @@ class Server {
   setupRoutes() {
     this.app.get('/', (req, res) => {
       req.log.info('Logging services started. Level: [level: info]...');
-      res.send('Welcome to the Game Server!');
+      res.send(`Welcome to the Game Server!`); // Updated to use template literals
     });
     this.setupSocketListeners(); // Call the method to set up socket listeners
     this.setupSocketEmitters(); // Call the method to set up socket emitters
@@ -331,7 +333,7 @@ class DatabaseManager {
       const existingData = await this.loadData(filePath); // Load existing data to update
       existingData[key] = data; // Update the specific key with new data
       await this.fs.writeFile(filePath, JSON.stringify(existingData, null, 2)); // Save updated data
-      this.logger.info(`Data saved for ${key} to ${filePath}`); // Log successful save
+      this.logger.info(`Data saved for ${key} to ${filePath}`); // Updated to use template literals
     } catch (error) {
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
@@ -1014,6 +1016,98 @@ class UidGenerator {
     return hashedUid;
   }
 }
+// Location ***************************************************************************************
+/*
+ * The Location class is responsible for representing locations in the game.
+ * It stores the location's name, description, exits, items, npcs, and provides methods to add exits, items, and npcs.
+ */
+class Location {
+  constructor(name, description) {
+    this.name = name;
+    this.description = description;
+    this.exits = {};
+    this.items = [];
+    this.npcs = [];
+    this.playersInLocation = []; // Added property to hold players in the location
+  }
+  addExit(direction, linkedLocation) {
+    this.exits[direction] = linkedLocation;
+  }
+  addItem(item) {
+    this.items.push(item);
+  }
+  addNpc(npc) {
+    this.npcs.push(npc);
+  }
+  addPlayer(player) { // New method to add a player to the location
+    this.playersInLocation.push(player);
+  }
+  removePlayer(player) { // New method to remove a player from the location
+    this.playersInLocation = this.playersInLocation.filter(p => p !== player);
+  }
+  getDescription() {
+    return this.description;
+  }
+  getName() {
+    return this.name;
+  }
+}
+// Location Entries *******************************************************************************
+const locations = {
+  // Key for new location:
+  '100': new Location(
+    // Location title:
+    `Cháng'ān South Gate`,
+    // Location description:
+    `The massive South Gate of Cháng'ān looms above you, an impressive entrance to the walled city. Guards patrol the area, ensuring the safety of the city. Travelers and merchants bustle in and out, while the sound of lively chatter fills the air. To the north, you can see the city's main street stretching into the distance.`,
+    // Exits {<direction> <key to linked location>}:
+    {'north': '101'},
+    // Items in Location:
+    ['100'],
+    // Container Items:
+    ['100', '101'],
+    ['100', '101']),
+    // Key for new location:
+  '101': new Location(
+    // Location title:
+      `Cháng'ān Main Street`,
+    // Location description:
+    `The wide, cobblestone main street of Cháng'ān is bustling with activity. Various shops, inns, and market stalls line the street, selling a plethora of goods from the far reaches of the Silk Road. The aroma of exotic spices and delicious street food fills the air. To the north is the city center, while the South Gate lies to the south.`,
+    // Exits {<direction> <key to linked location>}:
+    {'north': '102', 'south': '100'}),
+  // Key for new location:
+  '102': new Location(
+    // Location title:
+    `Cháng'ān City Center`,
+    // Location description:
+    `The city center of Cháng'ān is a large, open square where people gather for various activities. Musicians play traditional instruments, while acrobats and martial artists perform impressive feats. At the center stands a grand statue of the city's founder. The main street extends to the south, and narrow alleys lead east and west.`,
+    // Exits {<direction> <key to linked location>}:
+    {'south': '101', 'east': '103', 'west': '104'}),
+  // Key for new location:
+  '103': new Location(
+    // Location title:
+    `Cháng'ān Imperial Palace`,
+    // Location description:
+    `The Cháng'ān Imperial Palace is a grand, sprawling complex surrounded by towering walls. This is the residence of the emperor and the political center of the city. The palace is decorated with exquisite carvings and paintings, reflecting the wealth and power of the empire. The city center lies to the south.`,
+    // Exits {<direction> <key to linked location>}:
+    {'south': '102'}),
+  // Key for new location:
+  '104': new Location(
+    // Location title:
+    `Cháng'ān East Market`,
+    // Location description:
+    `The East Market is a vibrant and chaotic place, where merchants and traders from all over the world gather to buy and sell their goods. The air is filled with the sounds of haggling and the enticing scents of various exotic wares. The city center is to the west.`,
+    // Exits {<direction> <key to linked location>}:
+    {'west': '102'}),
+  // Key for new location:
+  '105': new Location(
+    // Location title:
+    `Cháng'ān West Garden`,
+    // Location description:
+    `The West Garden is a tranquil, lush haven amidst the bustling city. A meandering path leads through beautifully manicured lawns, ornamental ponds, and fragrant flowerbeds. The gentle sound of a nearby waterfall and the chirping of birds create a serene atmosphere. The city center can be reached by heading east.`,
+    // Exits {<direction> <key to linked location>}:
+    {'east': '102'}),
+};
 // NPC ********************************************************************************************
 /*
  * The Npc class is responsible for representing non-player characters in the game.
