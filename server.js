@@ -1,38 +1,16 @@
 /*
  * The Server class is the main entry point for the game server. It is responsible for initializing
-the server environment, setting up middleware, and managing the game loop. The class handles the
-following key functionalities:
- *
- * 1. **Module Initialization**: It imports necessary modules such as configuration settings,
- *    logging utilities, file system operations, and web server frameworks.
- *
- * 2. **Middleware Setup**: It configures middleware for logging, HTTP requests, and serving
- *    static files.
- *
- * 3. **Route Management**: It defines the main route for the server, providing a welcome message
- *    to users.
- *
- * 4. **Game Data Loading**: It loads essential game data, including player, npcs, and item
- *    information, from the database to ensure the game state is ready for interaction.
- *
- * 5. **Queue Management**: It initializes a queue manager to handle asynchronous tasks related to
- *    game events.
- *
- * 6. **Server Creation**: It sets up the server to run in HTTPS or HTTP mode based on the
- *    availability of SSL certificates, ensuring secure communication when possible.
- *
- * 7. **Server Start**: It starts the server and listens for incoming connections, logging the
- *    server's operational status and address for easy access.
+ * the server environment, setting up middleware, and managing the game loop.
  */
 // Server *****************************************************************************************
 class Server {
   constructor() {
-    this.logger = null;
+    this.logger = null; // Logger instance for logging server activities
     this.initializeModules(); // Ensure modules are initialized first
   }
   // Initialize Modules ***************************************************************************
   /*
-  * The initializeModules method is responsible for loading and initializing the server modules.
+  * The initializeModules method loads and initializes the server modules.
   * It ensures that all necessary modules are imported and ready for use.
   * The order of initialization is crucial for proper functionality.
   */
@@ -79,7 +57,7 @@ class Server {
   }
   // Start Server *********************************************************************************
   /*
-  * The start method is responsible for starting the server and listening for incoming connections.
+  * The start method starts the server and listens for incoming connections.
   * It logs the server's operational status and address for easy access.
   */
   async start() {
@@ -90,9 +68,8 @@ class Server {
   }
   // Setup Middleware *****************************************************************************
   /*
-  * The setupMiddleware method is responsible for configuring middleware for the server.
-  * It uses the PinoHttp middleware for logging and the Express static middleware for serving
-  * static files from the 'public' directory.
+  * The setupMiddleware method configures middleware for the server.
+  * It uses PinoHttp middleware for logging and Express static middleware for serving static files.
   */
   setupMiddleware() {
     this.app.use(this.pinoHttp({ logger: this.logger }));
@@ -100,7 +77,7 @@ class Server {
   }
   // Setup Routes ********************************************************************************
   /*
-  * The setupRoutes method is responsible for defining the routes for the server.
+  * The setupRoutes method defines the routes for the server.
   * It establishes the main route for the server, providing a welcome message to users.
   */
   setupRoutes() {
@@ -113,7 +90,7 @@ class Server {
   }
   // Setup Socket Listeners ***********************************************************************
   /*
-  * The setupSocketListeners method is responsible for setting up socket listeners.
+  * The setupSocketListeners method sets up socket listeners.
   * It listens for incoming socket connections and handles events.
   */
   setupSocketListeners() {
@@ -126,7 +103,7 @@ class Server {
   }
   // Setup Socket Emitters ***********************************************************************
   /*
-  * The setupSocketEmitters method is responsible for setting up socket emitters.
+  * The setupSocketEmitters method sets up socket emitters.
   * It emits events to the socket listeners.
   *
   * Use io for broadcasting to all clients:
@@ -140,7 +117,7 @@ class Server {
   }
   // Load Game Data *******************************************************************************
   /*
-  * The loadGameData method is responsible for loading essential game data from the database.
+  * The loadGameData method loads essential game data from the database.
   * It retrieves location, NPC, and item data to ensure the game state is ready for interaction.
   */
   loadGameData() {
@@ -153,7 +130,7 @@ class Server {
   }
   // Initialize Queue *****************************************************************************
   /*
-  * The initializeQueue method is responsible for creating a new queue instance for the server.
+  * The initializeQueue method creates a new queue instance for the server.
   * It assigns the queue instance to the queueManager for managing asynchronous tasks.
   */
   initializeQueue() { // Changed to synchronous
@@ -161,7 +138,7 @@ class Server {
   }
   // Initialize Server ******************************************************************************
   /*
-  * The initializeServer method is responsible for initializing the server.
+  * The initializeServer method initializes the server.
   */
   async initializeServer() {
     this.server = new Server();
@@ -170,23 +147,23 @@ class Server {
 // Method Call to Start an instance of Server
 new Server();
 // Object Pool ************************************************************************************
-  /*
-  * The ObjectPool class is designed for efficient memory management and performance optimization,
-  * by reusing objects instead of creating and destroying them frequently. This approach helps
-  * reduce the overhead associated with memory allocation and garbage collection, which can be
-  * particularly beneficial in performance-sensitive applications, such as games.
-  */
+/*
+ * The ObjectPool class is designed for efficient memory management and performance optimization,
+ * by reusing objects instead of creating and destroying them frequently. This approach helps
+ * reduce the overhead associated with memory allocation and garbage collection, which can be
+ * particularly beneficial in performance-sensitive applications.
+ */
 class ObjectPool {
   constructor(createFunc, size) {
-    this.createFunc = createFunc;
-    this.pool = Array.from({ length: size }, this.createFunc);
-    this.available = [];
+    this.createFunc = createFunc; // Function to create new objects
+    this.pool = Array.from({ length: size }, this.createFunc); // Preallocate objects in the pool
+    this.available = []; // Array to track available objects for reuse
   }
   acquire() {
-    return this.available.length > 0 ? this.available.pop() : this.pool.pop();
+    return this.available.length > 0 ? this.available.pop() : this.pool.pop(); // Acquire an object from the pool
   }
   release(object) {
-    this.available.push(object);
+    this.available.push(object); // Release an object back to the pool
   }
 }
 // Task Class ************************************************************************************
@@ -196,10 +173,10 @@ class ObjectPool {
 */
 class Task {
   constructor(name) {
-    this.name = name;
+    this.name = name; // Name of the task
     this.execute = null; // Placeholder for the task execution function
   }
-  async run() { // Added execute method
+  async run() { // Method to execute the task
     if (this.execute) {
       await this.execute(); // Execute the assigned function
     }
@@ -212,13 +189,13 @@ class Task {
 */
 class QueueManager {
   constructor() {
-    this.queue = [];
+    this.queue = []; // Array to hold tasks in the queue
     this.isProcessing = false; // Track if the queue is currently processing
-    this.taskPool = new ObjectPool(() => new Task(''), 10);
+    this.taskPool = new ObjectPool(() => new Task(''), 10); // Object pool for task management
   }
   addTask(task) {
-    this.logger.debug(`Adding task: ${task.name}`); // Added debug message
-    this.queue.push(task);
+    this.logger.debug(`Adding task: ${task.name}`); // Log task addition
+    this.queue.push(task); // Add task to the queue
     this.processQueue(); // Start processing the queue when a new task is added
   }
   async processQueue() {
@@ -237,77 +214,77 @@ class QueueManager {
   async executeTask(task) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve();
+        resolve(); // Resolve the promise after a delay
       }, 1000); // Adjust time as needed
     });
   }
   // Methods to add tasks
   addDataLoadTask(filePath, key) {
-    const task = this.taskPool.acquire();
-    task.name = 'Data Load Task';
+    const task = this.taskPool.acquire(); // Acquire a task from the pool
+    task.name = 'Data Load Task'; // Set task name
     task.execute = async () => {
-      const data = await this.databaseManager.loadData(filePath, key); // Corrected to use instance method
-      this.taskPool.release(task);
+      const data = await this.databaseManager.loadData(filePath, key); // Load data using the database manager
+      this.taskPool.release(task); // Release the task back to the pool
     };
-    this.addTask(task);
+    this.addTask(task); // Add the task to the queue
   }
   addDataSaveTask(filePath, key, data) {
-    const task = this.taskPool.acquire();
-    task.name = 'Data Save Task';
+    const task = this.taskPool.acquire(); // Acquire a task from the pool
+    task.name = 'Data Save Task'; // Set task name
     task.execute = async () => {
-      await this.databaseManager.saveData(filePath, key, data); // Corrected to use instance method
-      this.taskPool.release(task);
+      await this.databaseManager.saveData(filePath, key, data); // Save data using the database manager
+      this.taskPool.release(task); // Release the task back to the pool
     };
-    this.addTask(task);
+    this.addTask(task); // Add the task to the queue
   }
   addCombatActionTask(player, target) {
-    const task = this.taskPool.acquire();
-    task.name = 'Combat Action Task';
+    const task = this.taskPool.acquire(); // Acquire a task from the pool
+    task.name = 'Combat Action Task'; // Set task name
     task.execute = async () => {
-      player.attackNpc(target);
-      this.taskPool.release(task);
+      player.attackNpc(target); // Execute combat action
+      this.taskPool.release(task); // Release the task back to the pool
     };
-    this.addTask(task);
+    this.addTask(task); // Add the task to the queue
   }
   addEventProcessingTask(event) {
-    const task = this.taskPool.acquire();
-    task.name = 'Event Processing Task';
+    const task = this.taskPool.acquire(); // Acquire a task from the pool
+    task.name = 'Event Processing Task'; // Set task name
     task.execute = async () => {
       // Process the event (e.g., day/night transition)
-      this.taskPool.release(task);
+      this.taskPool.release(task); // Release the task back to the pool
     };
-    this.addTask(task);
+    this.addTask(task); // Add the task to the queue
   }
   addHealthRegenerationTask(player) {
-    const task = this.taskPool.acquire();
-    task.name = 'Health Regeneration Task';
+    const task = this.taskPool.acquire(); // Acquire a task from the pool
+    task.name = 'Health Regeneration Task'; // Set task name
     task.execute = async () => {
-      player.startHealthRegeneration();
-      this.taskPool.release(task);
+      player.startHealthRegeneration(); // Start health regeneration for the player
+      this.taskPool.release(task); // Release the task back to the pool
     };
-    this.addTask(task);
+    this.addTask(task); // Add the task to the queue
   }
   addInventoryManagementTask(player, action, item) {
-    const task = this.taskPool.acquire();
-    task.name = 'Inventory Management Task';
+    const task = this.taskPool.acquire(); // Acquire a task from the pool
+    task.name = 'Inventory Management Task'; // Set task name
     task.execute = async () => {
       if (action === 'pickup') {
-        player.addToInventory(item);
+        player.addToInventory(item); // Add item to player's inventory
       } else if (action === 'drop') {
-        player.removeFromInventory(item);
+        player.removeFromInventory(item); // Remove item from player's inventory
       }
-      this.taskPool.release(task);
+      this.taskPool.release(task); // Release the task back to the pool
     };
-    this.addTask(task);
+    this.addTask(task); // Add the task to the queue
   }
   addNotificationTask(player, message) {
-    const task = this.taskPool.acquire();
-    task.name = 'Notification Task';
+    const task = this.taskPool.acquire(); // Acquire a task from the pool
+    task.name = 'Notification Task'; // Set task name
     task.execute = async () => {
-      MessageManager.notify(player, message);
-      this.taskPool.release(task);
+      MessageManager.notify(player, message); // Send notification to the player
+      this.taskPool.release(task); // Release the task back to the pool
     };
-    this.addTask(task);
+    this.addTask(task); // Add the task to the queue
   }
   cleanup() { // New cleanup method
     this.queue = []; // Clear the queue
@@ -330,7 +307,6 @@ import { GameManager } from './GameManager.js'; // Ensure this file exists
 import { QueueManager } from './QueueManager.js'; // Ensure this file exists
 import { ObjectPool } from './ObjectPool.js'; // Ensure this file exists
 import { Task } from './Task.js'; // Ensure this file exists
-
 class DatabaseManager {
   constructor() {
     this.fs = import('fs').promises; // Use promises API for file system operations
@@ -339,10 +315,10 @@ class DatabaseManager {
     const data = {};
     await Promise.all(filePaths.map(async (filePath) => {
       try {
-        const fileContent = await this.fs.readFile(filePath, 'utf-8');
-        data[filePath] = JSON.parse(fileContent);
+        const fileContent = await this.fs.readFile(filePath, 'utf-8'); // Read file content
+        data[filePath] = JSON.parse(fileContent); // Parse JSON data
       } catch (error) {
-        MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`);
+        MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`); // Notify error
         data[filePath] = {}; // Default to empty object on error
       }
     }));
@@ -353,164 +329,164 @@ class DatabaseManager {
       const existingData = await this.loadData([filePath]); // Load existing data
       existingData[filePath][key] = data; // Update the specific key with new data
       await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Save updated data
-      this.logger.info(`Data saved for ${key} to ${filePath}`); // Updated to use template literals
+      this.logger.info(`Data saved for ${key} to ${filePath}`); // Log successful save
     } catch (error) {
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
   }
   async loadPlayerData(username) {
-    return this.loadData(PLAYER_DATA_PATH, username);
+    return this.loadData(PLAYER_DATA_PATH, username); // Load player data
   }
   async savePlayerData(playerData) {
-    await this.saveData(PLAYER_DATA_PATH, playerData.username, playerData);
+    await this.saveData(PLAYER_DATA_PATH, playerData.username, playerData); // Save player data
   }
   async loadLocationData(locationId) {
-    return this.loadData(LOCATION_DATA_PATH, locationId);
+    return this.loadData(LOCATION_DATA_PATH, locationId); // Load location data
   }
   async saveLocationData(locationData) {
-    await this.saveData(LOCATION_DATA_PATH, locationData.id, locationData);
+    await this.saveData(LOCATION_DATA_PATH, locationData.id, locationData); // Save location data
   }
   loadNpcData(npcId) { // Removed async
-    return this.loadData(NPC_DATA_PATH, npcId);
+    return this.loadData(NPC_DATA_PATH, npcId); // Load NPC data
   }
   saveNpcData(npcData) { // Removed async
-    this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Removed await
+    this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Save NPC data
   }
   loadItemData(itemId) { // Removed async
-    return this.loadData(ITEM_DATA_PATH, itemId);
+    return this.loadData(ITEM_DATA_PATH, itemId); // Load item data
   }
   saveItemData(itemData) { // Removed async
-    this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Removed await
+    this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Save item data
   }
 }
 // Game Manager ***********************************************************************************
 /*
 * The GameManager class is responsible for managing the game state and its components.
-* It provides methods to start and stop the game, add players, manage locations and Npcs,
+* It provides methods to start and stop the game, add players, manage locations and NPCs,
 * and handle game events.
 */
 class GameManager {
-  #gameLoopInterval = null; // Declare the private field here
-  #gameTime = 0; // Declare the private field
-  #isRunning = false; // Add this line to declare the private field
-  #combatManager;
+  #gameLoopInterval = null; // Declare the private field for game loop interval
+  #gameTime = 0; // Declare the private field for game time
+  #isRunning = false; // Add this line to declare the private field for game state
+  #combatManager; // Private field for combat manager instance
   constructor() {
-    this.players = new Map(); // Changed from Array to Map
-    this.locations = new Map(); // Changed from Array to Map
-    this.npcs = new Map(); // Changed from Array to Map
-    this.#combatManager = new CombatManager(this);
-    this.eventEmitter = new EventEmitter();
+    this.players = new Map(); // Map to store players
+    this.locations = new Map(); // Map to store locations
+    this.npcs = new Map(); // Map to store NPCs
+    this.#combatManager = new CombatManager(this); // Initialize combat manager
+    this.eventEmitter = new EventEmitter(); // Initialize event emitter for handling events
   }
   getGameTime() {
-    return this.#gameTime;
+    return this.#gameTime; // Return current game time
   }
   setGameTime(newTime) {
-    this.#gameTime = newTime;
+    this.#gameTime = newTime; // Set new game time
   }
   async startGame() {
     try {
-      MessageManager.notifyGameInitialization(this);
-      this.eventEmitter.emit('gameStarted');
-      this.startGameLoop(); // Call the public method
-      this.#isRunning = true;
-      MessageManager.notifyGameInitializedSuccessfully(this);
+      MessageManager.notifyGameInitialization(this); // Notify game initialization
+      this.eventEmitter.emit('gameStarted'); // Emit game started event
+      this.startGameLoop(); // Call the public method to start the game loop
+      this.#isRunning = true; // Mark game as running
+      MessageManager.notifyGameInitializedSuccessfully(this); // Notify successful game initialization
     } catch (error) {
-      MessageManager.notifyError(this, `Error initializing game: ${error}`);
-      throw error;
+      MessageManager.notifyError(this, `Error initializing game: ${error}`); // Notify error during initialization
+      throw error; // Rethrow error
     }
   }
   async shutdownGame() {
     try {
-      this.stopGameLoop(); // Call the public method
+      this.stopGameLoop(); // Call the public method to stop the game loop
       for (const player of this.players.values()) {
-        await player.save();
+        await player.save(); // Save each player's state
       }
-      MessageManager.notifyGameShutdownSuccess(this);
+      MessageManager.notifyGameShutdownSuccess(this); // Notify successful game shutdown
     } catch (error) {
-      MessageManager.notifyError(this, `Error shutting down game: ${error}`);
-      throw error;
+      MessageManager.notifyError(this, `Error shutting down game: ${error}`); // Notify error during shutdown
+      throw error; // Rethrow error
     }
   }
   addPlayer(player) {
-    this.players.set(player.getId(), player); // Efficient insertion
+    this.players.set(player.getId(), player); // Efficient insertion of player
   }
   getPlayer(playerId) {
-    return this.players.get(playerId); // Efficient lookup
+    return this.players.get(playerId); // Efficient lookup of player
   }
   removePlayer(playerId) {
-    this.players.delete(playerId); // Efficient removal
+    this.players.delete(playerId); // Efficient removal of player
   }
   addLocation(location) {
-    this.locations.set(location.getId(), location);
+    this.locations.set(location.getId(), location); // Efficient insertion of location
   }
   getLocation(locationId) {
-    return this.locations.get(locationId);
+    return this.locations.get(locationId); // Efficient lookup of location
   }
   addNpc(npc) {
-    this.npcs.set(npc.getId(), npc); // Efficient insertion
+    this.npcs.set(npc.getId(), npc); // Efficient insertion of NPC
   }
   getNpc(npcId) {
-    return this.npcs.get(npcId); // Efficient lookup
+    return this.npcs.get(npcId); // Efficient lookup of NPC
   }
   removeNpc(npcId) {
-    this.npcs.delete(npcId); // Efficient removal
+    this.npcs.delete(npcId); // Efficient removal of NPC
   }
   startGameLoop() { // Public method to start the game loop
-    this.startGameLoopInternal(); // Calls a public method
+    this.startGameLoopInternal(); // Calls a public method to start the internal loop
   }
   stopGameLoop() { // Public method to stop the game loop
-    this.stopGameLoopInternal(); // Calls a public method
+    this.stopGameLoopInternal(); // Calls a public method to stop the internal loop
   }
   incrementGameTime() { // Public method to increment game time
-    this.incrementGameTimeInternal(); // Calls a public method
+    this.incrementGameTimeInternal(); // Calls a public method to increment the internal game time
   }
   getCurrentGameTime() { // Public method to get current game time
-    return this.getGameTime(); // Calls the public getter
+    return this.getGameTime(); // Calls the public getter for game time
   }
-  startGameLoopInternal() { this._startGameLoop(); } // New public method
-  stopGameLoopInternal() { this._stopGameLoop(); } // New public method
-  incrementGameTimeInternal() { this._updateGameTime(); } // New public method
+  startGameLoopInternal() { this._startGameLoop(); } // New public method to start the internal game loop
+  stopGameLoopInternal() { this._stopGameLoop(); } // New public method to stop the internal game loop
+  incrementGameTimeInternal() { this._updateGameTime(); } // New public method to update the internal game time
   _startGameLoop() {
-    this.#gameLoopInterval = setInterval(() => this._gameTick(), TICK_RATE); // Corrected to call the private method
+    this.#gameLoopInterval = setInterval(() => this._gameTick(), TICK_RATE); // Start the game loop at defined tick rate
   }
   _stopGameLoop() {
     if (this.#gameLoopInterval) {
-      clearInterval(this.#gameLoopInterval);
-      this.#gameLoopInterval = null;
+      clearInterval(this.#gameLoopInterval); // Clear the game loop interval
+      this.#gameLoopInterval = null; // Reset interval reference
     }
   }
   _gameTick() {
     // Update all NPCs in the game
-    this._updateNpcs();
+    this._updateNpcs(); // Update NPC states
     // Update player status effects and conditions
-    this._updatePlayerAffects();
+    this._updatePlayerAffects(); // Update player status effects
     // Check and handle any world events that need to occur
-    this._updateWorldEvents();
+    this._updateWorldEvents(); // Handle world events
     // Emit a tick event with the current game time for any listeners
-    this.eventEmitter.emit("tick", this.#gameTime);
+    this.eventEmitter.emit("tick", this.#gameTime); // Emit tick event
   }
   _updateGameTime() {
     // Increment the game time by one minute
-    this.setGameTime(this.getGameTime() + 1);
+    this.setGameTime(this.getGameTime() + 1); // Increment game time
     // Check if a full day (1440 minutes) has passed
     if (this.getGameTime() >= 1440) {
       // Reset the game time to zero for a new day
-      this.setGameTime(0);
+      this.setGameTime(0); // Reset game time
       // Emit an event to signal the start of a new day
-      this.eventEmitter.emit("newDay");
+      this.eventEmitter.emit("newDay"); // Emit new day event
     }
   }
   _updateNpcs() {
     for (const npc of this.npcs.values()) {
       if (npc.hasChangedState()) { // Check if NPC state has changed
-        npc.update(this.#gameTime);
+        npc.update(this.#gameTime); // Update NPC state
       }
     }
   }
   _updatePlayerAffects() {
     for (const player of this.players.values()) {
       if (player.hasChangedState()) { // Check if player state has changed
-        player.updateAffects();
+        player.updateAffects(); // Update player status effects
       }
     }
   }
@@ -550,10 +526,10 @@ class GameManager {
   }
   autoLootNpc(npc, player) {
     if (npc.inventory && npc.inventory.length > 0) {
-      const lootedItems = [...npc.inventory];
-      player.inventory.push(...lootedItems.map(itemId => items[itemId])); // Assuming items is a global or accessible object
+      const lootedItems = [...npc.inventory]; // Clone NPC's inventory
+      player.inventory.push(...lootedItems.map(itemId => items[itemId])); // Add looted items to player's inventory
       npc.inventory = []; // Clear NPC's inventory after looting
-      return MessageManager.createAutoLootMessage(player, npc, lootedItems);
+      return MessageManager.createAutoLootMessage(player, npc, lootedItems); // Create and return auto loot message
     }
     return null; // No items to loot
   }
@@ -567,20 +543,20 @@ class GameManager {
     // Implementation for checking if the player levels up
   }
   moveEntity(entity, newLocationId) { // New method to handle movement
-    const oldLocationId = entity.currentLocation;
-    const oldLocation = this.getLocation(oldLocationId);
-    const newLocation = this.getLocation(newLocationId);
+    const oldLocationId = entity.currentLocation; // Store old location ID
+    const oldLocation = this.getLocation(oldLocationId); // Get old location
+    const newLocation = this.getLocation(newLocationId); // Get new location
     if (oldLocation) {
-      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
-      const direction = Utility.getDirectionTo(newLocationId);
-      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
+      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId); // Notify leaving old location
+      const direction = Utility.getDirectionTo(newLocationId); // Get direction to new location
+      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`); // Notify entity of movement
     }
-    entity.currentLocation = newLocationId;
+    entity.currentLocation = newLocationId; // Update entity's current location
     if (newLocation) {
-      newLocation.addEntity(entity, "players"); // Adjust based on entity type
-      MessageManager.notifyEnteringLocation(entity, newLocationId);
-      const direction = Utility.getDirectionFrom(oldLocationId);
-      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
+      newLocation.addEntity(entity, "players"); // Add entity to new location
+      MessageManager.notifyEnteringLocation(entity, newLocationId); // Notify entering new location
+      const direction = Utility.getDirectionFrom(oldLocationId); // Get direction from old location
+      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`); // Notify entity of arrival
     }
   }
 }
@@ -591,22 +567,22 @@ class GameManager {
 */
 class EventEmitter {
   constructor() {
-    this.events = {};
+    this.events = {}; // Object to store event listeners
   }
   on(event, listener) {
     if (!this.events[event]) {
-      this.events[event] = [];
+      this.events[event] = []; // Initialize event array if it doesn't exist
     }
-    this.events[event].push(listener);
+    this.events[event].push(listener); // Add listener to the event
   }
   emit(event, ...args) {
     if (this.events[event]) {
-      this.events[event].forEach(listener => listener(...args));
+      this.events[event].forEach(listener => listener(...args)); // Call each listener with arguments
     }
   }
   off(event, listener) {
     if (this.events[event]) {
-      this.events[event] = this.events[event].filter(l => l !== listener);
+      this.events[event] = this.events[event].filter(l => l !== listener); // Remove listener from the event
     }
   }
 }
@@ -617,18 +593,18 @@ class EventEmitter {
 */
 class CreateNewPlayer {
   constructor(name, age) {
-    this.name = name;
-    this.age = age;
+    this.name = name; // Player's name
+    this.age = age; // Player's age
   }
   static fromPlayerData(uid, playerData, bcrypt) {
-    const player = new Player(uid, playerData.name, bcrypt);
-    player.updateData(playerData);
-    return player;
+    const player = new Player(uid, playerData.name, bcrypt); // Create a new player instance
+    player.updateData(playerData); // Update player data
+    return player; // Return the created player
   }
   updateData(updatedData) {
-    if (updatedData.health !== undefined) this.setHealth(updatedData.health);
-    if (updatedData.experience !== undefined) this.setExperience(updatedData.experience);
-    if (updatedData.level !== undefined) this.setLevel(updatedData.level);
+    if (updatedData.health !== undefined) this.setHealth(updatedData.health); // Update health if provided
+    if (updatedData.experience !== undefined) this.setExperience(updatedData.experience); // Update experience if provided
+    if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
   }
 }
 // Player *****************************************************************************************
@@ -637,252 +613,252 @@ class CreateNewPlayer {
 * It contains various properties and methods related to the player's state and actions.
 */
 class Player {
-  #uid;
-  #name;
-  #inventory = [];
-  #lastAttacker;
-  #colorPreferences;
-  #bcrypt;
-  #healthRegenerator;
+  #uid; // Unique identifier for the player
+  #name; // Player's name
+  #inventory = []; // Array to hold player's inventory items
+  #lastAttacker; // Reference to the last attacker
+  #colorPreferences; // Player's color preferences
+  #bcrypt; // Bcrypt instance for password hashing
+  #healthRegenerator; // Instance of health regenerator for health management
   constructor(uid, name, bcrypt) {
-    this.#bcrypt = bcrypt;
-    this.#uid = uid;
-    this.#name = name;
-    this.password = "";
-    this.description = "";
-    this.title = "";
-    this.reputation = "";
-    this.profession = "";
-    this.sex = "";
-    this.age = 0;
-    this.health = 100;
-    this.maxHealth = 100;
-    this.level = 0;
-    this.csml = 0;
-    this.attackPower = 10;
-    this.defensePower = 0;
-    this.experience = 0;
-    this.currentLocation = "100";
-    this.coordinates = {};
-    this.skills = [];
-    this.status = "standing";
-    this.affects = [];
-    this.killer = true;
-    this.autoLoot = true;
-    this.lastRegenTime = Date.now();
-    this.failedLoginAttempts = 0;
-    this.consecutiveFailedAttempts = 0;
-    this.lastLoginTime = Date.now();
-    this.totalPlayingTime = 0;
-    this.colorPreferences = {};
-    this.#healthRegenerator = new HealthRegenerator(this);
+    this.#bcrypt = bcrypt; // Initialize bcrypt instance
+    this.#uid = uid; // Set unique identifier
+    this.#name = name; // Set player's name
+    this.password = ""; // Player's password
+    this.description = ""; // Player's description
+    this.title = ""; // Player's title
+    this.reputation = ""; // Player's reputation
+    this.profession = ""; // Player's profession
+    this.sex = ""; // Player's sex
+    this.age = 0; // Player's age
+    this.health = 100; // Player's current health
+    this.maxHealth = 100; // Player's maximum health
+    this.level = 0; // Player's level
+    this.csml = 0; // Player's CSML (Combat Skill Mastery Level)
+    this.attackPower = 10; // Player's attack power
+    this.defensePower = 0; // Player's defense power
+    this.experience = 0; // Player's experience points
+    this.currentLocation = "100"; // Player's current location ID
+    this.coordinates = {}; // Player's coordinates
+    this.skills = []; // Array to hold player's skills
+    this.status = "standing"; // Player's current status
+    this.affects = []; // Array to hold status effects
+    this.killer = true; // Flag indicating if the player is a killer
+    this.autoLoot = true; // Flag indicating if auto-loot is enabled
+    this.lastRegenTime = Date.now(); // Timestamp of the last health regeneration
+    this.failedLoginAttempts = 0; // Count of failed login attempts
+    this.consecutiveFailedAttempts = 0; // Count of consecutive failed attempts
+    this.lastLoginTime = Date.now(); // Timestamp of the last login
+    this.totalPlayingTime = 0; // Total time spent playing
+    this.colorPreferences = {}; // Object to hold color preferences
+    this.#healthRegenerator = new HealthRegenerator(this); // Initialize health regenerator
     this.previousState = { health: this.health, status: this.status }; // Track previous state
   }
   getId() {
-    return this.#uid;
+    return this.#uid; // Return unique identifier
   }
   getName() {
-    return this.#name;
+    return this.#name; // Return player's name
   }
   getHealth() {
-    return this.health;
+    return this.health; // Return current health
   }
   setHealth(newHealth) {
-    this.health = newHealth;
+    this.health = newHealth; // Set new health value
   }
   getStatus() {
-    return this.status;
+    return this.status; // Return current status
   }
   setStatus(newStatus) {
-    this.status = newStatus;
+    this.status = newStatus; // Set new status
   }
   getPossessivePronoun() {
-    return this.sex === 'male' ? 'his' : 'her';
+    return this.sex === 'male' ? 'his' : 'her'; // Return possessive pronoun based on sex
   }
   addToInventory(item) {
-    Utility.addToInventory(this, item);
+    Utility.addToInventory(this, item); // Add item to inventory using utility function
   }
   removeFromInventory(item) {
-    Utility.removeFromInventory(this, item);
+    Utility.removeFromInventory(this, item); // Remove item from inventory using utility function
   }
   canAddToInventory(item) {
-    return this.#inventory.length < this.getInventoryCapacity() && item.isValid();
+    return this.#inventory.length < this.getInventoryCapacity() && item.isValid(); // Check if item can be added to inventory
   }
   getInventoryCapacity() {
-    return INVENTORY_CAPACITY;
+    return INVENTORY_CAPACITY; // Return maximum inventory capacity
   }
   async authenticate(password) {
-    const isPasswordValid = await this.#bcrypt.compare(password, this.password);
+    const isPasswordValid = await this.#bcrypt.compare(password, this.password); // Compare provided password with stored password
     if (isPasswordValid) {
-      this.resetFailedLoginAttempts();
-      return true;
+      this.resetFailedLoginAttempts(); // Reset failed login attempts on success
+      return true; // Return true if authentication is successful
     }
-    this.incrementFailedLoginAttempts();
-    return false;
+    this.incrementFailedLoginAttempts(); // Increment failed login attempts on failure
+    return false; // Return false if authentication fails
   }
   attackNpc(target) {
-    const location = gameManager.getLocation(this.currentLocation);
-    if (!location) return;
+    const location = gameManager.getLocation(this.currentLocation); // Get current location
+    if (!location) return; // Return if location is not found
     const npcId = target
-      ? Utility.getNpcIdByName(target, location.npcs)
-      : Utility.getFirstAvailableNpcId(location.npcs);
+      ? Utility.getNpcIdByName(target, location.npcs) // Get NPC ID by name if target is specified
+      : Utility.getFirstAvailableNpcId(location.npcs); // Get first available NPC ID if no target is specified
     if (npcId) {
-      const npc = gameManager.getNpc(npcId);
-      if (!npc) return;
+      const npc = gameManager.getNpc(npcId); // Get NPC instance
+      if (!npc) return; // Return if NPC is not found
       if (npc.isUnconsciousOrDead()) {
-        MessageManager.notifyNpcAlreadyInStatus(this, npc);
+        MessageManager.notifyNpcAlreadyInStatus(this, npc); // Notify if NPC is already in a specific status
       } else {
-        CombatManager.startCombat(npcId, this, !target);
-        MessageManager.notifyPlayersInLocation(this.currentLocation, MessageManager.notifyCombatInitiation(this, npc.getName()));
+        CombatManager.startCombat(npcId, this, !target); // Start combat with the NPC
+        MessageManager.notifyPlayersInLocation(this.currentLocation, MessageManager.notifyCombatInitiation(this, npc.getName())); // Notify players of combat initiation
       }
     } else if (target) {
-      MessageManager.notifyTargetNotFound(this, target);
+      MessageManager.notifyTargetNotFound(this, target); // Notify if target NPC is not found
     } else {
-      MessageManager.notifyNoConsciousEnemies(this);
+      MessageManager.notifyNoConsciousEnemies(this); // Notify if no conscious enemies are available
     }
   }
   incrementFailedLoginAttempts() {
-    this.failedLoginAttempts++;
-    this.consecutiveFailedAttempts++;
+    this.failedLoginAttempts++; // Increment failed login attempts
+    this.consecutiveFailedAttempts++; // Increment consecutive failed attempts
     if (this.consecutiveFailedAttempts >= 3) {
-      MessageManager.notifyDisconnectionDueToFailedAttempts(this);
-      gameManager.disconnectPlayer(this.#uid);
+      MessageManager.notifyDisconnectionDueToFailedAttempts(this); // Notify disconnection due to failed attempts
+      gameManager.disconnectPlayer(this.#uid); // Disconnect player from the game
     }
   }
   showInventory() {
-    const inventoryList = this.#inventory.map(item => item.name).join(", ");
-    MessageManager.notifyInventoryStatus(this, inventoryList);
+    const inventoryList = this.#inventory.map(item => item.name).join(", "); // Create a list of inventory items
+    MessageManager.notifyInventoryStatus(this, inventoryList); // Notify player of inventory status
   }
   lootSpecifiedNpc(target) {
-    const location = gameManager.getLocation(this.currentLocation);
-    if (!location) return;
-    const targetLower = target.toLowerCase();
-    const targetEntity = location.entities.find(entity => entity.name.toLowerCase() === targetLower);
+    const location = gameManager.getLocation(this.currentLocation); // Get current location
+    if (!location) return; // Return if location is not found
+    const targetLower = target.toLowerCase(); // Convert target name to lowercase
+    const targetEntity = location.entities.find(entity => entity.name.toLowerCase() === targetLower); // Find target entity in location
     if (targetEntity) {
-      MessageManager.notifyLootAction(this, targetEntity);
+      MessageManager.notifyLootAction(this, targetEntity); // Notify loot action
     } else {
-      MessageManager.notifyTargetNotFoundInLocation(this, target);
+      MessageManager.notifyTargetNotFoundInLocation(this, target); // Notify if target is not found in location
     }
   }
   moveToLocation(newLocationId) {
-    Utility.notifyPlayerMovement(this, this.currentLocation, newLocationId);
+    Utility.notifyPlayerMovement(this, this.currentLocation, newLocationId); // Notify player movement
   }
   notify(message) {
-    MessageManager.notify(this, message);
+    MessageManager.notify(this, message); // Send notification to player
   }
   resetFailedLoginAttempts() {
-    this.failedLoginAttempts = 0;
-    this.consecutiveFailedAttempts = 0;
-    this.lastLoginTime = Date.now();
+    this.failedLoginAttempts = 0; // Reset failed login attempts
+    this.consecutiveFailedAttempts = 0; // Reset consecutive failed attempts
+    this.lastLoginTime = Date.now(); // Update last login time
   }
   async save() {
-    QueueManager.addDataSaveTask(DatabaseManager.PLAYER_DATA_PATH, this.getId(), this);
+    QueueManager.addDataSaveTask(DatabaseManager.PLAYER_DATA_PATH, this.getId(), this); // Add save task to queue
   }
   // @ todo: add code for this.
   score() {
-    const stats = `Level: ${this.level}, XP: ${this.experience}, Health: ${this.health}/${this.maxHealth}`;
-    MessageManager.notifyStats(this, stats);
+    const stats = `Level: ${this.level}, XP: ${this.experience}, Health: ${this.health}/${this.maxHealth}`; // Create score string
+    MessageManager.notifyStats(this, stats); // Notify player of their stats
   }
   updateData(updatedData) {
-    if (updatedData.health !== undefined) this.setHealth(updatedData.health);
-    if (updatedData.experience !== undefined) this.setExperience(updatedData.experience);
-    if (updatedData.level !== undefined) this.setLevel(updatedData.level);
+    if (updatedData.health !== undefined) this.setHealth(updatedData.health); // Update health if provided
+    if (updatedData.experience !== undefined) this.setExperience(updatedData.experience); // Update experience if provided
+    if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
   }
   async hashUid() {
-    this.hashedUid = await this.#bcrypt.hash(this.#uid, 5);
+    this.hashedUid = await this.#bcrypt.hash(this.#uid, 5); // Hash the unique identifier
   }
   async login(inputPassword) {
-    const isAuthenticated = await this.authenticate(inputPassword);
+    const isAuthenticated = await this.authenticate(inputPassword); // Authenticate user
     if (isAuthenticated) {
-      MessageManager.notifyLoginSuccess(this);
-      return true;
+      MessageManager.notifyLoginSuccess(this); // Notify successful login
+      return true; // Return true if login is successful
     } else {
-      MessageManager.notifyIncorrectPassword(this);
-      return false;
+      MessageManager.notifyIncorrectPassword(this); // Notify incorrect password
+      return false; // Return false if login fails
     }
   }
   startHealthRegeneration() {
-    this.#healthRegenerator.start();
+    this.#healthRegenerator.start(); // Start health regeneration process
   }
   checkAndRemoveExpiredAffects() {
-    const now = Date.now();
+    const now = Date.now(); // Get current time
     this.affects = this.affects.filter(affect => {
       if (affect.endTime && affect.endTime <= now) {
-        affect.remove(this);
-        return false;
+        affect.remove(this); // Remove expired affect
+        return false; // Filter out expired affects
       }
-      return true;
+      return true; // Keep active affects
     });
   }
   meditate() {
     if (this.status !== "sitting") {
-      this.startHealthRegeneration();
-      MessageManager.notifyMeditationAction(this);
+      this.startHealthRegeneration(); // Start health regeneration if not sitting
+      MessageManager.notifyMeditationAction(this); // Notify meditation action
       return;
     }
-    this.status = "meditating";
-    MessageManager.notifyMeditationStart(this);
+    this.status = "meditating"; // Set status to meditating
+    MessageManager.notifyMeditationStart(this); // Notify meditation start
   }
   sleep() {
-    this.startHealthRegeneration();
-    this.status = "sleeping";
-    MessageManager.notifySleepAction(this);
+    this.startHealthRegeneration(); // Start health regeneration
+    this.status = "sleeping"; // Set status to sleeping
+    MessageManager.notifySleepAction(this); // Notify sleep action
   }
   sit() {
     if (this.status === "sitting") {
-      MessageManager.notifyAlreadySitting(this);
+      MessageManager.notifyAlreadySitting(this); // Notify if already sitting
     } else if (this.status === "standing") {
-      this.startHealthRegeneration();
-      this.status = "sitting";
-      MessageManager.notifySittingDown(this);
+      this.startHealthRegeneration(); // Start health regeneration
+      this.status = "sitting"; // Set status to sitting
+      MessageManager.notifySittingDown(this); // Notify sitting down action
     } else {
-      MessageManager.notifyStoppingMeditation(this);
+      MessageManager.notifyStoppingMeditation(this); // Notify stopping meditation
     }
   }
   stand() {
     if (this.status === "lying unconscious") {
-      this.status = "standing";
-      MessageManager.notifyStandingUp(this);
+      this.status = "standing"; // Set status to standing
+      MessageManager.notifyStandingUp(this); // Notify standing up action
     } else {
-      MessageManager.notifyAlreadyStanding(this);
+      MessageManager.notifyAlreadyStanding(this); // Notify if already standing
     }
   }
   wake() {
     if (this.status === "lying unconscious") {
-      this.status = "standing";
-      MessageManager.notifyStandingUp(this);
+      this.status = "standing"; // Set status to standing
+      MessageManager.notifyStandingUp(this); // Notify standing up action
     } else if (this.status === "sleeping") {
-      this.status = "standing";
-      MessageManager.notifyWakingUp(this);
+      this.status = "standing"; // Set status to standing
+      MessageManager.notifyWakingUp(this); // Notify waking up action
     } else {
-      MessageManager.notifyAlreadyAwake(this);
+      MessageManager.notifyAlreadyAwake(this); // Notify if already awake
     }
   }
   autoLootToggle() {
-    this.autoLoot = !this.autoLoot;
-    MessageManager.notifyAutoLootToggle(this, this.autoLoot);
+    this.autoLoot = !this.autoLoot; // Toggle auto-loot setting
+    MessageManager.notifyAutoLootToggle(this, this.autoLoot); // Notify auto-loot toggle
   }
   lookIn(containerName) {
-    const location = gameManager.getLocation(this.currentLocation);
-    const containerId = this.getContainerId(containerName) || findEntity(containerName, location.items, 'item');
+    const location = gameManager.getLocation(this.currentLocation); // Get current location
+    const containerId = this.getContainerId(containerName) || findEntity(containerName, location.items, 'item'); // Get container ID
     if (!containerId) {
-      MessageManager.notifyNoContainerHere(this, containerName);
+      MessageManager.notifyNoContainerHere(this, containerName); // Notify if no container found
       return;
     }
-    const container = items[containerId];
+    const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      const itemsInContainer = container.inventory.map(itemId => items[itemId].name);
-      MessageManager.notifyLookInContainer(this, container.name, itemsInContainer);
+      const itemsInContainer = container.inventory.map(itemId => items[itemId].name); // Get items in container
+      MessageManager.notifyLookInContainer(this, container.name, itemsInContainer); // Notify items in container
     } else {
-      MessageManager.notifyNotAContainer(this, container.name);
+      MessageManager.notifyNotAContainer(this, container.name); // Notify if not a container
     }
   }
   hasChangedState() {
-    const hasChanged = this.health !== this.previousState.health || this.status !== this.previousState.status;
+    const hasChanged = this.health !== this.previousState.health || this.status !== this.previousState.status; // Check if state has changed
     if (hasChanged) {
       this.previousState = { health: this.health, status: this.status }; // Update previous state
     }
-    return hasChanged;
+    return hasChanged; // Return if state has changed
   }
 }
 // Health Regenerator ****************************************************************************
@@ -892,41 +868,41 @@ class Player {
  */
 class HealthRegenerator {
   constructor(player) {
-    this.player = player;
-    this.regenInterval = null;
+    this.player = player; // Reference to the player instance
+    this.regenInterval = null; // Interval for health regeneration
   }
   start() {
     if (!this.regenInterval) {
-      this.regenInterval = setInterval(() => this.regenerate(), REGEN_INTERVAL);
+      this.regenInterval = setInterval(() => this.regenerate(), REGEN_INTERVAL); // Start regeneration interval
     }
   }
   regenerate() {
-    const now = Date.now();
-    const timeSinceLastRegen = (now - this.player.lastRegenTime) / 1000;
-    const regenAmount = (this.getRegenAmountPerMinute() / 60) * timeSinceLastRegen;
+    const now = Date.now(); // Get current time
+    const timeSinceLastRegen = (now - this.player.lastRegenTime) / 1000; // Calculate time since last regeneration
+    const regenAmount = (this.getRegenAmountPerMinute() / 60) * timeSinceLastRegen; // Calculate regeneration amount
     if (regenAmount > 0 && this.player.health < this.player.maxHealth) {
-      this.player.health = Math.min(this.player.health + regenAmount, this.player.maxHealth);
-      this.player.lastRegenTime = now;
+      this.player.health = Math.min(this.player.health + regenAmount, this.player.maxHealth); // Regenerate health
+      this.player.lastRegenTime = now; // Update last regeneration time
     }
     if (this.player.health >= this.player.maxHealth) {
-      this.stop();
+      this.stop(); // Stop regeneration if max health is reached
     }
   }
   getRegenAmountPerMinute() {
     const regenRates = {
-      "in combat": CONFIG.REGEN_RATES.IN_COMBAT,
-      "standing": CONFIG.REGEN_RATES.STANDING,
-      "sitting": CONFIG.REGEN_RATES.SITTING,
-      "sleeping": CONFIG.REGEN_RATES.SLEEPING,
-      "lying unconscious": CONFIG.REGEN_RATES.UNCONSCIOUS,
-      "meditating": CONFIG.REGEN_RATES.MEDITATING,
+      "in combat": CONFIG.REGEN_RATES.IN_COMBAT, // Regeneration rate while in combat
+      "standing": CONFIG.REGEN_RATES.STANDING, // Regeneration rate while standing
+      "sitting": CONFIG.REGEN_RATES.SITTING, // Regeneration rate while sitting
+      "sleeping": CONFIG.REGEN_RATES.SLEEPING, // Regeneration rate while sleeping
+      "lying unconscious": CONFIG.REGEN_RATES.UNCONSCIOUS, // Regeneration rate while unconscious
+      "meditating": CONFIG.REGEN_RATES.MEDITATING, // Regeneration rate while meditating
     };
-    return (regenRates[this.player.status] || 0) * this.player.maxHealth;
+    return (regenRates[this.player.status] || 0) * this.player.maxHealth; // Return regeneration amount based on status
   }
   stop() {
     if (this.regenInterval) {
-      clearInterval(this.regenInterval);
-      this.regenInterval = null;
+      clearInterval(this.regenInterval); // Clear regeneration interval
+      this.regenInterval = null; // Reset interval reference
     }
   }
 }
@@ -937,45 +913,45 @@ class HealthRegenerator {
  */
 class LookAt {
   constructor(player) {
-    this.player = player;
+    this.player = player; // Reference to the player instance
   }
   look(target) {
-    const location = gameManager.getLocation(this.player.currentLocation);
-    if (!location) return;
-    const targetLower = target.toLowerCase();
-    const playerNameLower = this.player.getName().toLowerCase();
+    const location = gameManager.getLocation(this.player.currentLocation); // Get current location
+    if (!location) return; // Return if location is not found
+    const targetLower = target.toLowerCase(); // Convert target name to lowercase
+    const playerNameLower = this.player.getName().toLowerCase(); // Convert player name to lowercase
     if (targetLower === 'self' || targetLower === playerNameLower || playerNameLower.startsWith(targetLower)) {
-      this.lookAtSelf();
+      this.lookAtSelf(); // Look at self if target is self
       return;
     }
-    const itemInInventory = this.player.inventory.find(item => item.aliases.includes(targetLower));
+    const itemInInventory = this.player.inventory.find(item => item.aliases.includes(targetLower)); // Find item in inventory
     if (itemInInventory) {
-      MessageManager.notifyLookAtItemInInventory(this.player, itemInInventory);
+      MessageManager.notifyLookAtItemInInventory(this.player, itemInInventory); // Notify looking at item in inventory
       return;
     }
-    const itemInLocation = location.items.find(item => item.aliases.includes(targetLower));
+    const itemInLocation = location.items.find(item => item.aliases.includes(targetLower)); // Find item in location
     if (itemInLocation) {
-      MessageManager.notifyLookAtItemInLocation(this.player, itemInLocation);
+      MessageManager.notifyLookAtItemInLocation(this.player, itemInLocation); // Notify looking at item in location
       return;
     }
     const npcId = location.npcs.find(npcId => {
-      const npc = gameManager.getNpc(npcId);
-      return npc && npc.aliases.includes(targetLower);
+      const npc = gameManager.getNpc(npcId); // Get NPC instance
+      return npc && npc.aliases.includes(targetLower); // Check if NPC matches target
     });
     if (npcId) {
-      const npc = gameManager.getNpc(npcId);
-      MessageManager.notifyLookAtNpc(this.player, npc);
+      const npc = gameManager.getNpc(npcId); // Get NPC instance
+      MessageManager.notifyLookAtNpc(this.player, npc); // Notify looking at NPC
       return;
     }
-    const otherPlayer = location.playersInLocation.find(player => player.name.toLowerCase() === targetLower);
+    const otherPlayer = location.playersInLocation.find(player => player.name.toLowerCase() === targetLower); // Find other player in location
     if (otherPlayer) {
-      MessageManager.notifyLookAtOtherPlayer(this.player, otherPlayer);
+      MessageManager.notifyLookAtOtherPlayer(this.player, otherPlayer); // Notify looking at other player
       return;
     }
-    MessageManager.notifyTargetNotFoundInLocation(this.player, target);
+    MessageManager.notifyTargetNotFoundInLocation(this.player, target); // Notify if target is not found in location
   }
   lookAtSelf() {
-    MessageManager.notifyLookAtSelf(this.player);
+    MessageManager.notifyLookAtSelf(this.player); // Notify looking at self
   }
 }
 // Uid Generator **********************************************************************************
@@ -985,76 +961,76 @@ class LookAt {
  */
 class UidGenerator {
   static async generateUid() {
-    const uniqueValue = Date.now() + Math.random();
-    const hashedUid = await bcrypt.hash(uniqueValue.toString(), 5);
-    return hashedUid;
+    const uniqueValue = Date.now() + Math.random(); // Generate a unique value based on time and randomness
+    const hashedUid = await bcrypt.hash(uniqueValue.toString(), 5); // Hash the unique value
+    return hashedUid; // Return the hashed UID
   }
 }
 // Direction Manager ******************************************************************************
 /*
- * The DirectionManager class is responsible for partially generating Player and Npc movement
+ * The DirectionManager class is responsible for partially generating Player and NPC movement
  * message content based on directions. It provides methods to get the direction to a new location
  * and the direction from an old location.
  */
 class DirectionManager {
   static getDirectionTo(newLocationId) {
     const directionMap = {
-      'north': 'northward',
+      'north': 'northward', // Map direction to string
       'east': 'eastward',
       'west': 'westward',
       'south': 'southward',
       'up': 'upward',
       'down': 'downward',
     };
-    return directionMap[newLocationId] || 'unknown direction';
+    return directionMap[newLocationId] || 'unknown direction'; // Return direction string or default
   }
   static getDirectionFrom(oldLocationId) {
     const directionMap = {
-      'north': 'from the north',
+      'north': 'from the north', // Map direction to string
       'east': 'from the east',
       'west': 'from the west',
       'south': 'from the south',
       'up': 'from above',
       'down': 'from below',
     };
-    return directionMap[oldLocationId] || 'from an unknown direction';
+    return directionMap[oldLocationId] || 'from an unknown direction'; // Return direction string or default
   }
 }
 // Location ***************************************************************************************
 /*
  * The Location class is responsible for representing locations in the game.
- * It stores the location's name, description, exits, items, npcs, and provides methods to add exits, items, and npcs.
+ * It stores the location's name, description, exits, items, NPCs, and provides methods to add exits, items, and NPCs.
  */
 class Location {
   constructor(name, description) {
-    this.name = name;
-    this.description = description;
-    this.exits = new Map(); // Changed from Object to Map
-    this.items = new Set(); // Changed from Array to Set
-    this.npcs = new Set(); // Changed from Array to Set
-    this.playersInLocation = new Set(); // Changed from Array to Set
-    this.zone = [];
+    this.name = name; // Location name
+    this.description = description; // Location description
+    this.exits = new Map(); // Map to store exits
+    this.items = new Set(); // Set to store items
+    this.npcs = new Set(); // Set to store NPCs
+    this.playersInLocation = new Set(); // Set to store players in location
+    this.zone = []; // Array to store zone information
   }
   addExit(direction, linkedLocation) {
-    this.exits.set(direction, linkedLocation); // Efficient insertion
+    this.exits.set(direction, linkedLocation); // Add exit to the location
   }
   addItem(item) {
-    this.items.add(item); // Efficient insertion
+    this.items.add(item); // Add item to the location
   }
   addNpc(npc) {
-    this.npcs.add(npc); // Efficient insertion
+    this.npcs.add(npc); // Add NPC to the location
   }
   addPlayer(player) {
-    this.playersInLocation.add(player); // Efficient insertion
+    this.playersInLocation.add(player); // Add player to the location
   }
   removePlayer(player) {
-    this.playersInLocation.delete(player); // Efficient removal
+    this.playersInLocation.delete(player); // Remove player from the location
   }
   getDescription() {
-    return this.description;
+    return this.description; // Return location description
   }
   getName() {
-    return this.name;
+    return this.name; // Return location name
   }
 }
 // Location Entries *********************************************************************************
@@ -1139,24 +1115,24 @@ const locations = {
  */
 class Npc {
   constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile = false, zones = [], aliases) {
-    Object.assign(this, { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile, zones, aliases });
+    Object.assign(this, { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile, zones, aliases }); // Assign properties
     this.id = UidGenerator.generateUid(); // Use UidGenerator to generate UID
     this.previousState = { currHealth, status }; // Track previous state
     if (this.mobile) this.startMovement(); // Start movement if NPC is mobile
   }
   startMovement() {
     setInterval(() => {
-      if (this.status !== "engaged in combat") this.moveRandomly();
-    }, CONFIG.NPC_MOVEMENT_INTERVAL);
+      if (this.status !== "engaged in combat") this.moveRandomly(); // Move randomly if not in combat
+    }, CONFIG.NPC_MOVEMENT_INTERVAL); // Set movement interval
   }
   moveRandomly() {
-    const location = gameManager.getLocation(this.currentLocation);
+    const location = gameManager.getLocation(this.currentLocation); // Get current location
     const validDirections = Object.keys(location.exits).filter(direction =>
       this.zones.includes(location.zone[0]) // Check if the zone matches
     );
     if (validDirections.length > 0) {
-      const randomDirection = validDirections[Math.floor(Math.random() * validDirections.length)];
-      const newLocationId = location.exits[randomDirection];
+      const randomDirection = validDirections[Math.floor(Math.random() * validDirections.length)]; // Select a random direction
+      const newLocationId = location.exits[randomDirection]; // Get new location ID
       MessageManager.notifyNpcDeparture(this, Utility.getDirectionTo(newLocationId)); // Notify players of NPC departure
       this.currentLocation = newLocationId; // Update NPC's location
       const direction = Utility.getDirectionFrom(this.currentLocation); // Use getDirectionFrom method
@@ -1164,11 +1140,11 @@ class Npc {
     }
   }
   hasChangedState() {
-    const hasChanged = this.currHealth !== this.previousState.currHealth || this.status !== this.previousState.status;
+    const hasChanged = this.currHealth !== this.previousState.currHealth || this.status !== this.previousState.status; // Check if state has changed
     if (hasChanged) {
       this.previousState = { currHealth: this.currHealth, status: this.status }; // Update previous state
     }
-    return hasChanged;
+    return hasChanged; // Return if state has changed
   }
 }
 // NPC Entries *************************************************************************************
@@ -1184,7 +1160,7 @@ const npcs = {
 class Item {
   constructor(name, description, aliases) {
     this.uid = UidGenerator.generateUid(); // Use UidGenerator to generate UID
-    Object.assign(this, { name, description, aliases, bcrypt });
+    Object.assign(this, { name, description, aliases }); // Assign properties
   }
 }
 // Container Item *********************************************************************************
@@ -1194,8 +1170,8 @@ class Item {
  */
 class ContainerItem extends Item {
   constructor(name, description, aliases) {
-    super(name, description, aliases);
-    this.inventory = [];
+    super(name, description, aliases); // Call parent constructor
+    this.inventory = []; // Initialize inventory array
   }
 }
 // Weapon Item ************************************************************************************
@@ -1205,22 +1181,22 @@ class ContainerItem extends Item {
  */
 class WeaponItem extends Item {
   constructor(name, description, aliases) {
-    super(name, description, aliases);
-    this.damage = 0;
+    super(name, description, aliases); // Call parent constructor
+    this.damage = 0; // Initialize damage value
   }
 }
 // Item Entries ***********************************************************************************
 const items = {
-  '100': new Item('Health Potion', 'A potion that restores health.', ['potion', 'heal']),
+  '100': new Item('Health Potion', 'A potion that restores health.', ['potion', 'heal']), // Example item
 };
 // Container Item Entries *************************************************************************
 const containerItems = {
-  '100': new ContainerItem('Backpack', 'A sturdy backpack for carrying items.', ['pack', 'bag']),
-  '101': new ContainerItem('Treasure Chest', 'A large chest filled with treasures.', ['chest', 'treasure']),
+  '100': new ContainerItem('Backpack', 'A sturdy backpack for carrying items.', ['pack', 'bag']), // Example container item
+  '101': new ContainerItem('Treasure Chest', 'A large chest filled with treasures.', ['chest', 'treasure']), // Example container item
 };
 // Weapon Item Entries ****************************************************************************
 const weaponItems = {
-  '100': new WeaponItem('Rusty Sword', 'An old sword that has seen better days.', ['sword', 'rusty']),
+  '100': new WeaponItem('Rusty Sword', 'An old sword that has seen better days.', ['sword', 'rusty']), // Example weapon item
 };
 // Inventory Manager ******************************************************************************
 /*
@@ -1229,248 +1205,248 @@ const weaponItems = {
  */
 class InventoryManager {
   constructor(player) {
-    this.player = player;
-    this.messageManager = new MessageManager();
+    this.player = player; // Reference to the player instance
+    this.messageManager = new MessageManager(); // Initialize message manager
   }
   getAllItemsFromLocation() {
-    this.getItemsFromSource(location[this.player.currentLocation].items, 'location');
+    this.getItemsFromSource(location[this.player.currentLocation].items, 'location'); // Get all items from current location
   }
   getAllItemsFromContainer(containerName) {
-    const containerId = this.getContainerId(containerName);
-    if (!containerId) return;
-    const container = items[containerId];
+    const containerId = this.getContainerId(containerName); // Get container ID
+    if (!containerId) return; // Return if container not found
+    const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      this.getItemsFromSource(container.inventory, 'container', container.name);
+      this.getItemsFromSource(container.inventory, 'container', container.name); // Get items from container
     }
   }
   getSingleItemFromContainer(itemName, containerName) {
-    const containerId = this.getContainerId(containerName);
-    if (!containerId) return;
-    const container = items[containerId];
+    const containerId = this.getContainerId(containerName); // Get container ID
+    if (!containerId) return; // Return if container not found
+    const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      const item = container.inventory.find(i => items[i].name.toLowerCase() === itemName.toLowerCase());
+      const item = container.inventory.find(i => items[i].name.toLowerCase() === itemName.toLowerCase()); // Find item in container
       if (item) {
-        this.transferItem(item, container, 'container');
+        this.transferItem(item, container, 'container'); // Transfer item from container to player
       } else {
-        this.messageManager.notifyNoItemInContainer(this.player, itemName, container.name);
+        this.messageManager.notifyNoItemInContainer(this.player, itemName, container.name); // Notify if item not found
       }
     }
   }
   getSingleItemFromLocation(target1) {
-    const itemId = Utility.findEntity(target1, location[this.player.currentLocation].items, 'item');
+    const itemId = Utility.findEntity(target1, location[this.player.currentLocation].items, 'item'); // Find item in location
     if (itemId) {
-      this.transferItem(itemId, location[this.player.currentLocation], 'location');
+      this.transferItem(itemId, location[this.player.currentLocation], 'location'); // Transfer item from location to player
     } else {
-      this.messageManager.notifyNoItemHere(this.player, target1);
+      this.messageManager.notifyNoItemHere(this.player, target1); // Notify if item not found
     }
   }
   dropAllItems() {
-    this.dropItems(this.player.inventory, 'all');
+    this.dropItems(this.player.inventory, 'all'); // Drop all items from inventory
   }
   dropAllSpecificItems(itemType) {
-    const itemsToDrop = this.player.inventory.filter(item => Utility.itemMatchesType(item, itemType));
-    this.dropItems(itemsToDrop, 'specific', itemType);
+    const itemsToDrop = this.player.inventory.filter(item => Utility.itemMatchesType(item, itemType)); // Filter items by type
+    this.dropItems(itemsToDrop, 'specific', itemType); // Drop specific items
   }
   dropSingleItem(target1) {
-    const item = this.player.inventory.find(i => i.name.toLowerCase() === target1.toLowerCase());
+    const item = this.player.inventory.find(i => i.name.toLowerCase() === target1.toLowerCase()); // Find item in inventory
     if (item) {
-      this.transferItem(item, location[this.player.currentLocation], 'drop');
+      this.transferItem(item, location[this.player.currentLocation], 'drop'); // Transfer item from player to location
     } else {
-      this.messageManager.notifyNoItemToDrop(this.player, target1);
+      this.messageManager.notifyNoItemToDrop(this.player, target1); // Notify if item not found
     }
   }
   putSingleItem(itemName, containerName) {
-    const item = this.getItemFromInventory(itemName);
-    if (!item) return;
-    const containerId = this.getContainerId(containerName);
-    if (!containerId) return;
-    const container = items[containerId];
+    const item = this.getItemFromInventory(itemName); // Get item from inventory
+    if (!item) return; // Return if item not found
+    const containerId = this.getContainerId(containerName); // Get container ID
+    if (!containerId) return; // Return if container not found
+    const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      container.inventory.push(item.uid);
-      this.player.inventory = this.player.inventory.filter(i => i !== item);
-      this.messageManager.notifyItemPutInContainer(this.player, item.name, container.name);
+      container.inventory.push(item.uid); // Add item to container's inventory
+      this.player.inventory = this.player.inventory.filter(i => i !== item); // Remove item from player's inventory
+      this.messageManager.notifyItemPutInContainer(this.player, item.name, container.name); // Notify item placement
     }
   }
   putAllItems(containerName) {
-    const containerId = this.getContainerId(containerName);
-    if (!containerId) return;
-    const container = items[containerId];
+    const containerId = this.getContainerId(containerName); // Get container ID
+    if (!containerId) return; // Return if container not found
+    const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      const itemsToPut = this.player.inventory.filter(item => item !== container);
+      const itemsToPut = this.player.inventory.filter(item => item !== container); // Filter items to put in container
       if (itemsToPut.length === 0) {
-        this.messageManager.notifyNoItemsToPut(this.player, container.name);
+        this.messageManager.notifyNoItemsToPut(this.player, container.name); // Notify if no items to put
         return;
       }
-      container.inventory.push(...itemsToPut.map(item => item.uid));
-      this.player.inventory = this.player.inventory.filter(item => item === container);
-      this.messageManager.notifyItemsPutInContainer(this.player, itemsToPut, container.name);
+      container.inventory.push(...itemsToPut.map(item => item.uid)); // Add items to container's inventory
+      this.player.inventory = this.player.inventory.filter(item => item === container); // Remove items from player's inventory
+      this.messageManager.notifyItemsPutInContainer(this.player, itemsToPut, container.name); // Notify items placement
     }
   }
   putAllSpecificItemsIntoContainer(itemType, containerName) {
-    const error = this.containerErrorMessage(containerName, 'hold');
+    const error = this.containerErrorMessage(containerName, 'hold'); // Check for container errors
     if (error) {
-      this.messageManager.notify(this.player, error);
+      this.messageManager.notify(this.player, error); // Notify container error
       return;
     }
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
-    const container = items[containerId];
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
+    const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      const itemsToPut = this.player.inventory.filter(item => item !== container && Utility.itemMatchesType(item, itemType));
+      const itemsToPut = this.player.inventory.filter(item => item !== container && Utility.itemMatchesType(item, itemType)); // Filter items by type
       if (itemsToPut.length === 0) {
-        this.messageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name);
+        this.messageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name); // Notify if no specific items to put
         return;
       }
-      container.inventory.push(...itemsToPut.map(item => item.uid));
-      this.player.inventory = this.player.inventory.filter(item => !itemsToPut.includes(item));
-      this.messageManager.notifyItemsPutInContainer(this.player, itemsToPut, container.name);
+      container.inventory.push(...itemsToPut.map(item => item.uid)); // Add items to container's inventory
+      this.player.inventory = this.player.inventory.filter(item => !itemsToPut.includes(item)); // Remove items from player's inventory
+      this.messageManager.notifyItemsPutInContainer(this.player, itemsToPut, container.name); // Notify items placement
     }
   }
   getAllSpecificItemsFromLocation(itemType) {
-    const currentLocation = location[this.player.currentLocation];
+    const currentLocation = location[this.player.currentLocation]; // Get current location
     if (currentLocation.items && currentLocation.items.length > 0) {
-      const itemsTaken = currentLocation.items.filter(itemId => Utility.itemMatchesType(items[itemId], itemType));
+      const itemsTaken = currentLocation.items.filter(itemId => Utility.itemMatchesType(items[itemId], itemType)); // Filter items by type
       if (itemsTaken.length > 0) {
-        this.player.inventory.push(...itemsTaken.map(itemId => items[itemId]));
-        currentLocation.items = currentLocation.items.filter(itemId => !itemsTaken.includes(itemId));
-        this.messageManager.notifyItemsTaken(this.player, itemsTaken);
+        this.player.inventory.push(...itemsTaken.map(itemId => items[itemId])); // Add items to player's inventory
+        currentLocation.items = currentLocation.items.filter(itemId => !itemsTaken.includes(itemId)); // Remove items from location
+        this.messageManager.notifyItemsTaken(this.player, itemsTaken); // Notify items taken
       } else {
-        this.messageManager.notifyNoSpecificItemsHere(this.player, itemType);
+        this.messageManager.notifyNoSpecificItemsHere(this.player, itemType); // Notify if no specific items found
       }
     } else {
-      this.messageManager.notifyNoItemsHere(this.player);
+      this.messageManager.notifyNoItemsHere(this.player); // Notify if no items found
     }
   }
   getAllSpecificItemsFromContainer(itemType, containerName) {
-    const error = this.containerErrorMessage(containerName, 'hold');
+    const error = this.containerErrorMessage(containerName, 'hold'); // Check for container errors
     if (error) {
-      this.messageManager.notify(this.player, error);
+      this.messageManager.notify(this.player, error); // Notify container error
       return;
     }
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
-    const container = items[containerId];
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
+    const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      const itemsTaken = container.inventory.filter(itemId => Utility.itemMatchesType(items[itemId], itemType));
+      const itemsTaken = container.inventory.filter(itemId => Utility.itemMatchesType(items[itemId], itemType)); // Filter items by type
       if (itemsTaken.length > 0) {
-        this.player.inventory.push(...itemsTaken.map(itemId => items[itemId]));
-        container.inventory = container.inventory.filter(itemId => !itemsTaken.includes(itemId));
-        this.messageManager.notifyItemsTakenFromContainer(this.player, itemsTaken, container.name);
+        this.player.inventory.push(...itemsTaken.map(itemId => items[itemId])); // Add items to player's inventory
+        container.inventory = container.inventory.filter(itemId => !itemsTaken.includes(itemId)); // Remove items from container
+        this.messageManager.notifyItemsTakenFromContainer(this.player, itemsTaken, container.name); // Notify items taken from container
       } else {
-        this.messageManager.notifyNoSpecificItemsInContainer(this.player, itemType, container.name);
+        this.messageManager.notifyNoSpecificItemsInContainer(this.player, itemType, container.name); // Notify if no specific items found
       }
     }
   }
   autoLootNPC(npc) {
     if (npc.inventory && npc.inventory.length > 0) {
-      const lootedItems = [...npc.inventory];
-      this.player.inventory.push(...lootedItems.map(itemId => items[itemId]));
-      npc.inventory = [];
-      return this.messageManager.createAutoLootMessage(this.player, npc, lootedItems);
+      const lootedItems = [...npc.inventory]; // Clone NPC's inventory
+      this.player.inventory.push(...lootedItems.map(itemId => items[itemId])); // Add looted items to player's inventory
+      npc.inventory = []; // Clear NPC's inventory
+      return this.messageManager.createAutoLootMessage(this.player, npc, lootedItems); // Create and return auto loot message
     }
-    return null;
+    return null; // No items to loot
   }
   lootNPC(target1) {
-    const npcId = Utility.findEntity(target1, location[this.player.currentLocation].npcs, 'npc');
+    const npcId = Utility.findEntity(target1, location[this.player.currentLocation].npcs, 'npc'); // Find NPC in location
     if (npcId) {
-      const npc = npcs[npcId];
+      const npc = npcs[npcId]; // Get NPC instance
       if (npc.status === "lying unconscious" || npc.status === "lying dead") {
         if (npc.inventory && npc.inventory.length > 0) {
-          const lootedItems = [...npc.inventory];
-          this.player.inventory.push(...lootedItems.map(itemId => items[itemId]));
-          npc.inventory = [];
-          this.messageManager.notifyLootedNPC(this.player, npc, lootedItems);
+          const lootedItems = [...npc.inventory]; // Clone NPC's inventory
+          this.player.inventory.push(...lootedItems.map(itemId => items[itemId])); // Add looted items to player's inventory
+          npc.inventory = []; // Clear NPC's inventory
+          this.messageManager.notifyLootedNPC(this.player, npc, lootedItems); // Notify looted NPC
         } else {
-          this.messageManager.notifyNothingToLoot(this.player, npc);
+          this.messageManager.notifyNothingToLoot(this.player, npc); // Notify if nothing to loot
         }
       } else {
-        this.messageManager.notifyCannotLootNPC(this.player, npc);
+        this.messageManager.notifyCannotLootNPC(this.player, npc); // Notify if NPC cannot be looted
       }
     } else {
-      this.messageManager.notifyNoNPCToLoot(this.player, target1);
+      this.messageManager.notifyNoNPCToLoot(this.player, target1); // Notify if no NPC found to loot
     }
   }
   lootAllNPCs() {
-    const currentLocation = location[this.player.currentLocation];
+    const currentLocation = location[this.player.currentLocation]; // Get current location
     if (!currentLocation.npcs || currentLocation.npcs.length === 0) {
-      this.messageManager.notifyNoNPCsToLoot(this.player);
+      this.messageManager.notifyNoNPCsToLoot(this.player); // Notify if no NPCs to loot
       return;
     }
-    const lootedItems = [];
-    const lootedNPCs = [];
+    const lootedItems = []; // Array to hold looted items
+    const lootedNPCs = []; // Array to hold names of looted NPCs
     currentLocation.npcs.forEach(npcId => {
-      const npc = npcs[npcId];
+      const npc = npcs[npcId]; // Get NPC instance
       if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory && npc.inventory.length > 0) {
-        lootedItems.push(...npc.inventory);
-        this.player.inventory.push(...npc.inventory.map(itemId => items[itemId]));
-        lootedNPCs.push(npc.name);
-        npc.inventory = [];
+        lootedItems.push(...npc.inventory); // Add looted items to array
+        this.player.inventory.push(...npc.inventory.map(itemId => items[itemId])); // Add items to player's inventory
+        lootedNPCs.push(npc.name); // Add NPC name to looted NPCs
+        npc.inventory = []; // Clear NPC's inventory
       }
     });
     if (lootedItems.length > 0) {
-      this.messageManager.notifyLootedAllNPCs(this.player, lootedNPCs, lootedItems);
+      this.messageManager.notifyLootedAllNPCs(this.player, lootedNPCs, lootedItems); // Notify looted NPCs
     } else {
-      this.messageManager.notifyNothingToLootFromNPCs(this.player);
+      this.messageManager.notifyNothingToLootFromNPCs(this.player); // Notify if nothing to loot from NPCs
     }
   }
   containerErrorMessage(containerName, action) {
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
     if (!containerId) {
-      return `${this.player.getName()} doesn't have a ${containerName} to ${action}.`;
+      return `${this.player.getName()} doesn't have a ${containerName} to ${action}.`; // Return error message if container not found
     }
     if (!items[containerId].inventory) {
-      return MessageManager.notifyNotAContainer(this.player, items[containerId].name, action);
+      return MessageManager.notifyNotAContainer(this.player, items[containerId].name, action); // Return error message if not a container
     }
-    return null;
+    return null; // No error
   }
   itemNotFoundMessage(itemName, location) {
-    return MessageManager.notifyItemNotInInventory(this.player, itemName, location)
+    return MessageManager.notifyItemNotInInventory(this.player, itemName, location) // Notify if item not found in inventory
   }
   getItemsFromSource(source, sourceType, containerName) {
     if (source && source.length > 0) {
-      const itemsTaken = source.map(itemId => items[itemId]);
-      this.player.inventory.push(...itemsTaken);
+      const itemsTaken = source.map(itemId => items[itemId]); // Get items from source
+      this.player.inventory.push(...itemsTaken); // Add items to player's inventory
       if (sourceType === 'location') {
-        location[this.player.currentLocation].items = [];
+        location[this.player.currentLocation].items = []; // Clear items from location
       } else {
-        items[containerName].inventory = [];
+        items[containerName].inventory = []; // Clear items from container
       }
-      this.messageManager.notifyItemsTaken(this.player, itemsTaken);
+      this.messageManager.notifyItemsTaken(this.player, itemsTaken); // Notify items taken
     } else {
-      this.messageManager.notifyNoItemsHere(this.player);
+      this.messageManager.notifyNoItemsHere(this.player); // Notify if no items found
     }
   }
   dropItems(itemsToDrop, type, itemType) {
     if (itemsToDrop.length > 0) {
       if (!location[this.player.currentLocation].items) {
-        location[this.player.currentLocation].items = [];
+        location[this.player.currentLocation].items = []; // Initialize items array if not present
       }
-      location[this.player.currentLocation].items.push(...itemsToDrop.map(item => item.uid));
-      this.player.inventory = this.player.inventory.filter(item => !itemsToDrop.includes(item));
-      this.messageManager.notifyItemsDropped(this.player, itemsToDrop);
+      location[this.player.currentLocation].items.push(...itemsToDrop.map(item => item.uid)); // Add items to location
+      this.player.inventory = this.player.inventory.filter(item => !itemsToDrop.includes(item)); // Remove items from player's inventory
+      this.messageManager.notifyItemsDropped(this.player, itemsToDrop); // Notify items dropped
     } else {
-      this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
+      this.messageManager.notifyNoItemsToDrop(this.player, type, itemType); // Notify if no items to drop
     }
   }
   getContainerId(containerName) {
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
     if (!containerId) {
-      this.messageManager.notifyNoContainer(this.player, containerName);
-      return null;
+      this.messageManager.notifyNoContainer(this.player, containerName); // Notify if no container found
+      return null; // Return null if not found
     }
     if (!items[containerId].inventory) {
-      this.messageManager.notifyNotAContainer(this.player, items[containerId].name);
-      return null;
+      this.messageManager.notifyNotAContainer(this.player, items[containerId].name); // Notify if not a container
+      return null; // Return null if not a container
     }
-    return containerId;
+    return containerId; // Return container ID
   }
   getItemFromInventory(itemName) {
-    const item = this.player.inventory.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    const item = this.player.inventory.find(i => i.name.toLowerCase() === itemName.toLowerCase()); // Find item in inventory
     if (!item) {
-      this.messageManager.notifyItemNotInInventory(this.player, itemName);
+      this.messageManager.notifyItemNotInInventory(this.player, itemName); // Notify if item not found
     }
-    return item;
+    return item; // Return found item or undefined
   }
   transferItem(itemId, source, sourceType) {
-    Utility.transferItem(itemId, source, sourceType, this.player);
+    Utility.transferItem(itemId, source, sourceType, this.player); // Transfer item using utility function
   }
 }
 // Combat Manager *********************************************************************************
@@ -1479,14 +1455,13 @@ class InventoryManager {
 * It handles the initiation, execution, and termination of combat, as well as the generation
 * of combat messages and the handling of combat outcomes.
 */
-// @ todo: Introduce more complex combat mechanics (e.g., special abilities, combos).
 class CombatManager {
-  #combatOrder = new Set();
-  #defeatedNpcs = new Set();
-  #combatInitiatedNpcs = new Set();
+  #combatOrder = new Set(); // Set to track combat order
+  #defeatedNpcs = new Set(); // Set to track defeated NPCs
+  #combatInitiatedNpcs = new Set(); // Set to track initiated combat NPCs
   constructor(gameManager) {
-    this.gameManager = gameManager;
-    this.techniques = this.initializeTechniques();
+    this.gameManager = gameManager; // Reference to the game manager instance
+    this.techniques = this.initializeTechniques(); // Initialize combat techniques
   }
   initializeTechniques() {
     return [
@@ -1522,104 +1497,105 @@ class CombatManager {
       "whipping elbow", "whipping fist", "whipping hammer fist", "whipping hand",
       "whipping knee", "whipping kick", "whipping palm", "whipping shoulder strike",
       "whipping strike"
-    ];
+    ]; // List of combat techniques
   }
   initiateCombatWithNpc(npcId, player, playerInitiated = false) { // Public method to initiate combat
-    this.startCombat(npcId, player, playerInitiated); // Calls the private method
+    this.startCombat(npcId, player, playerInitiated); // Calls the private method to start combat
   }
   endCombatForPlayer(player) { // Public method to end combat for a player
-    this.endCombat(player); // Calls the private method
+    this.endCombat(player); // Calls the private method to end combat
   }
   checkForAggressiveNpcs(player) { // Public method to check for aggressive NPCs
-    this.checkAggressiveNpcs(player); // Calls a public method
+    this.checkAggressiveNpcs(player); // Calls a public method to check aggressive NPCs
   }
-  checkAggressiveNpcs(player) { this._checkForAggressiveNpcs(player); } // New public method
+  checkAggressiveNpcs(player) { this._checkForAggressiveNpcs(player); } // New public method to check aggressive NPCs
   startCombat(npcId, player, playerInitiated) {
-    const npc = this.gameManager.getNpc(npcId);
-    if (!npc || this.#combatOrder.has(npcId)) return;
-    this.#combatOrder.add(npcId);
+    const npc = this.gameManager.getNpc(npcId); // Get NPC instance
+    if (!npc || this.#combatOrder.has(npcId)) return; // Return if NPC not found or already in combat
+    this.#combatOrder.add(npcId); // Add NPC to combat order
     player.status !== "in combat"
-      ? this.initiateCombat(player, npc, playerInitiated)
-      : this.notifyCombatJoin(npc, player);
-    npc.status = "engaged in combat";
+      ? this.initiateCombat(player, npc, playerInitiated) // Initiate combat if player is not in combat
+      : this.notifyCombatJoin(npc, player); // Notify if player joins combat
+    npc.status = "engaged in combat"; // Set NPC status to engaged
   }
   initiateCombat(player, npc, playerInitiated) {
-    player.status = "in combat";
+    player.status = "in combat"; // Set player status to in combat
     const message = playerInitiated
-      ? MessageManager.notifyCombatInitiation(player, npc.getName())
-      : MessageManager.notifyCombatInitiation(npc, player.getName());
-    MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), message.content);
+      ? MessageManager.notifyCombatInitiation(player, npc.getName()) // Notify combat initiation by player
+      : MessageManager.notifyCombatInitiation(npc, player.getName()); // Notify combat initiation by NPC
+    MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), message.content); // Notify players in location
     if (!playerInitiated) {
-      player.lastAttacker = npc.id;
-      this.#combatInitiatedNpcs.add(npc.id);
+      player.lastAttacker = npc.id; // Set last attacker for player
+      this.#combatInitiatedNpcs.add(npc.id); // Add NPC to initiated combat set
     }
-    this.startCombatLoop(player);
+    this.startCombatLoop(player); // Start combat loop for player
   }
   notifyCombatJoin(npc, player) {
     MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), {
       type: "combat",
-      content: MessageManager.notifyCombatJoin(npc.getName()).content
+      content: MessageManager.notifyCombatJoin(npc.getName()).content // Notify players of NPC joining combat
     });
-    this.#combatInitiatedNpcs.add(npc.id);
+    this.#combatInitiatedNpcs.add(npc.id); // Add NPC to initiated combat set
   }
   startCombatLoop(player) {
     if (player.status === "in combat" && !player.combatInterval) {
-      player.combatInterval = setInterval(() => this.executeCombatRound(player), 1500);
+      player.combatInterval = setInterval(() => this.executeCombatRound(player), 1500); // Start combat round interval
     }
   }
   executeCombatRound(player) {
     while (true) {
       if (player.status !== "in combat") {
-        this.endCombat(player);
+        this.endCombat(player); // End combat if player is not in combat
         return;
       }
-      const npc = this.getNextNpcInCombatOrder();
+      const npc = this.getNextNpcInCombatOrder(); // Get next NPC in combat order
       if (npc) {
         // Display health percentages
-        const playerHealthPercentage = Utility.calculateHealthPercentage(player.health, player.maxHealth);
-        const npcHealthPercentage = Utility.calculateHealthPercentage(npc.health, npc.maxHealth);
+        const playerHealthPercentage = Utility.calculateHealthPercentage(player.health, player.maxHealth); // Calculate player's health percentage
+        const npcHealthPercentage = Utility.calculateHealthPercentage(npc.health, npc.maxHealth); // Calculate NPC's health percentage
         // Notify players of health status
         MessageManager.notifyPlayersInLocation(player.currentLocation,
-          MessageManager.createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage)
+          MessageManager.createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage) // Notify health status
         );
-        const result = this.performCombatAction(player, npc, true);
+        const result = this.performCombatAction(player, npc, true); // Perform combat action
         if (npc.health <= 0) {
-          this.handleNpcDefeat(npc, player);
+          this.handleNpcDefeat(npc, player); // Handle NPC defeat
         }
       }
       if (player.health <= 0) {
-        this.handlePlayerDefeat(npc, player);
+        this.handlePlayerDefeat(npc, player); // Handle player defeat
       }
     }
   }
   handlePlayerDefeat(defeatingNpc, player) {
-    player.status = "lying unconscious";
-    this.endCombat(player);
+    player.status = "lying unconscious"; // Set player status to lying unconscious
+    this.endCombat(player); // End combat for player
     MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), {
       type: "combat",
-      content: MessageManager.notifyDefeat(player, defeatingNpc.getName()).content
+      content: MessageManager.notifyDefeat(player, defeatingNpc.getName()).content // Notify players of player defeat
     });
   }
   handleNpcDefeat(npc, player) {
-    npc.status = player.killer ? "lying dead" : "lying unconscious";
-    player.status = "standing";
-    player.experience += npc.experienceReward;
-    const messages = this.generateDefeatMessages(player, npc);
-    MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), { type: "combat", content: messages.join("<br>") });
+    npc.status = player.killer ? "lying dead" : "lying unconscious"; // Set NPC status based on player
+    player.status = "standing"; // Set player status to standing
+    player.experience += npc.experienceReward; // Add experience reward to player
+    const messages = this.generateDefeatMessages(player, npc); // Generate defeat messages
+    MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), { type: "combat", content: messages.join("<br>") }); // Notify players of defeat
   }
   generateDefeatMessages(player, npc) {
-    const messages = [MessageManager.notifyVictory(player, npc.getName()).content];
-    const levelUpMessage = this.gameManager.checkLevelUp(player);
-    if (levelUpMessage) messages.push(levelUpMessage);
+    const messages = [MessageManager.notifyVictory(player, npc.getName()).content]; // Create victory message
+    const levelUpMessage = this.gameManager.checkLevelUp(player); // Check for level up
+    if (levelUpMessage) messages.push(levelUpMessage); // Add level up message if applicable
     if (player.autoLoot) {
-      const lootMessage = this.gameManager.autoLootNpc(npc, player);
-      if (lootMessage) messages.push(lootMessage);
+      const lootMessage = this.gameManager.autoLootNpc(npc, player); // Attempt to auto loot NPC
+      if (lootMessage) messages.push(lootMessage); // Add loot message if applicable
     }
-    this.#combatOrder.delete(npc.id);
+    this.#combatOrder.delete(npc.id); // Remove NPC from combat order
     this.#defeatedNpcs.add(npc.id);
     return messages;
   }
   endCombat(player) {
+    // Ends combat for the specified player, clearing combat states and resetting status
     if (player.combatInterval) {
       clearInterval(player.combatInterval);
       player.combatInterval = null;
@@ -1627,45 +1603,49 @@ class CombatManager {
     this.#combatOrder.clear();
     this.#defeatedNpcs.clear();
     this.#combatInitiatedNpcs.clear();
-    player.status = "standing";
-    this.gameManager.fullStateSync(player);
-    this.checkAggressiveNpcs(player);
+    player.status = "standing"; // Reset player status to standing
+    this.gameManager.fullStateSync(player); // Sync player state with the game manager
+    this.checkAggressiveNpcs(player); // Check for aggressive NPCs in the player's location
   }
   _checkForAggressiveNpcs(player) {
+    // Checks for aggressive NPCs in the player's current location and initiates combat if found
     if (player.health > 0) {
       const location = this.gameManager.getLocation(player.currentLocation);
       if (location && location.npcs) {
         for (const npcId of location.npcs) {
           const npc = this.gameManager.getNpc(npcId);
           if (this._isAggressiveNpc(npc, player)) {
-            this.startCombat(npcId, player, false);
+            this.startCombat(npcId, player, false); // Start combat with aggressive NPC
           }
         }
       }
     }
   }
   _isAggressiveNpc(npc, player) {
+    // Determines if the specified NPC is aggressive towards the player
     return npc && npc.aggressive &&
       npc.status !== "lying unconscious" &&
       npc.status !== "lying dead" &&
       player.status !== "lying unconscious" &&
-      !this.#defeatedNpcs.has(npc.id);
+      !this.#defeatedNpcs.has(npc.id); // Check if NPC is not defeated
   }
   performCombatAction(attacker, defender, isPlayer) {
+    // Executes a combat action between the attacker and defender, returning the result message
     const outcome = Utility.calculateAttackOutcome(attacker, defender);
     const technique = Utility.getRandomElement(this.techniques);
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
     let description = this.getCombatDescription(outcome, attacker, defender, technique);
     if (outcome === "critical success") {
-      damage *= 2;
+      damage *= 2; // Double damage on critical success
     }
     if (damage > resistDamage) {
-      defender.health -= damage - resistDamage;
+      defender.health -= damage - resistDamage; // Apply damage to defender's health
     }
-    return FormatMessageManager.createMessageData(`<span id="combat-message-${isPlayer ? "player" : "npc"}">${description}</span>`);
+    return FormatMessageManager.createMessageData(`<span id="combat-message-${isPlayer ? "player" : "npc"}">${description}</span>`); // Return formatted combat message
   }
   getCombatDescription(outcome, attacker, defender, technique) {
+    // Generates a description of the combat action based on the outcome
     const descriptions = {
       "attack is evaded": `${attacker.getName()} attacks ${defender.getName()} with a ${technique}, but ${defender.getName()} evades the strike!`,
       "attack is trapped": `${attacker.getName()} attacks ${defender.getName()} with a ${technique}, but ${defender.getName()} traps the strike!`,
@@ -1675,38 +1655,42 @@ class CombatManager {
       "critical success": `${attacker.getName()} attacks ${defender.getName()} with a devastatingly catastrophic ${technique}.<br>The strike critically hits ${defender.getName()}!`,
       "knockout": `${attacker.getName()} strikes ${defender.getName()} with a spectacularly phenomenal blow!<br>${defender.getName()}'s body goes limp and collapses to the ground!`,
     };
-    return FormatMessageManager.createMessageData(descriptions[outcome] || `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`);
+    return FormatMessageManager.createMessageData(descriptions[outcome] || `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`); // Return combat description
   }
   attackNpc(player, target1) {
+    // Initiates an attack on the specified NPC by the player
     const location = this.gameManager.getLocation(player.currentLocation);
-    if (!location) return;
+    if (!location) return; // Return if location is not found
     const npcId = target1
-      ? this.gameManager.findEntity(target1, location.npcs, "npc")
-      : this.getAvailableNpcId(location.npcs);
+      ? this.gameManager.findEntity(target1, location.npcs, "npc") // Find NPC by name if specified
+      : this.getAvailableNpcId(location.npcs); // Get available NPC ID if no target specified
     if (npcId) {
       const npc = this.gameManager.getNpc(npcId);
-      if (!npc) return;
+      if (!npc) return; // Return if NPC is not found
       if (npc.isUnconsciousOrDead()) {
-        MessageManager.notifyNpcAlreadyInStatus(player, npc);
+        MessageManager.notifyNpcAlreadyInStatus(player, npc); // Notify player if NPC is already in a non-combat state
       } else {
-        this.startCombat(npcId, player, true);
+        this.startCombat(npcId, player, true); // Start combat with the NPC
       }
     } else if (target1) {
-      MessageManager.notifyTargetNotFound(player, target1);
+      MessageManager.notifyTargetNotFound(player, target1); // Notify player if target NPC is not found
     } else {
-      MessageManager.notifyNoConsciousEnemies(player);
+      MessageManager.notifyNoConsciousEnemies(player); // Notify player if no conscious enemies are available
     }
   }
   getAvailableNpcId(npcs) {
+    // Returns the ID of the first available NPC that is not unconscious or dead
     return npcs.find(id => {
       const npc = this.gameManager.getNpc(id);
-      return npc && !npc.isUnconsciousOrDead();
+      return npc && !npc.isUnconsciousOrDead(); // Check if NPC is available for combat
     });
   }
   getCombatOrder() {
-    return this.#combatOrder;
+    // Returns the current combat order
+    return this.#combatOrder; // Return the set of NPCs in combat order
   }
   getNextNpcInCombatOrder() {
+    // Returns the first NPC in the combat order
     return Array.from(this.#combatOrder)[0]; // Returns the first NPC in combat order
   }
 }
@@ -1718,25 +1702,25 @@ class CombatManager {
  */
 class DescribeLocationManager {
   constructor(player) {
-    this.player = player;
+    this.player = player; // Reference to the player instance
   }
   describe() {
-    const location = gameManager.getLocation(this.player.currentLocation);
+    const location = gameManager.getLocation(this.player.currentLocation); // Get current location
     if (!location) {
-      MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`);
+      MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`); // Notify if location is unknown
       return;
     }
-    const description = this.formatDescription(location);
-    MessageManager.notify(this.player, description);
+    const description = this.formatDescription(location); // Format location description
+    MessageManager.notify(this.player, description); // Send description to player
   }
   formatDescription(location) {
-    const title = { cssid: `location-title`, text: location.getName() };
-    const desc = { cssid: `location-description`, text: location.getDescription() };
-    const exits = { cssid: `location-exits`, text: 'Exits:' };
-    const exitsList = this.getExitsDescription(location);
-    const items = this.getItemsDescription(location);
-    const npcs = this.getNpcsDescription(location);
-    const players = this.getPlayersDescription(location);
+    const title = { cssid: `location-title`, text: location.getName() }; // Title of the location
+    const desc = { cssid: `location-description`, text: location.getDescription() }; // Description of the location
+    const exits = { cssid: `location-exits`, text: 'Exits:' }; // Exits information
+    const exitsList = this.getExitsDescription(location); // Get exits description
+    const items = this.getItemsDescription(location); // Get items description
+    const npcs = this.getNpcsDescription(location); // Get NPCs description
+    const players = this.getPlayersDescription(location); // Get players description
     return {
       title,
       desc,
@@ -1749,26 +1733,26 @@ class DescribeLocationManager {
   }
   getExitsDescription(location) {
     return Object.entries(location.exits).map(([direction, linkedLocation]) => ({
-      cssid: `exit-${direction}`,
-      text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`,
+      cssid: `exit-${direction}`, // CSS ID for exit
+      text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`, // Exit description
     }));
   }
   getItemsDescription(location) {
     return location.items.map(item => ({
-      cssid: `item-${item.uid}`,
-      text: `A ${item.name} is lying here.`,
+      cssid: `item-${item.uid}`, // CSS ID for item
+      text: `A ${item.name} is lying here.`, // Item description
     }));
   }
   getNpcsDescription(location) {
     return location.npcs.map(npcId => {
-      const npc = gameManager.getNpc(npcId);
-      return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null;
-    }).filter(npc => npc);
+      const npc = gameManager.getNpc(npcId); // Get NPC instance
+      return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null; // NPC description
+    }).filter(npc => npc); // Filter out null values
   }
   getPlayersDescription(location) {
     return location.playersInLocation.map(otherPlayer => ({
-      cssid: `player`,
-      text: `${otherPlayer.getName()} is ${otherPlayer.getStatus()} here.`,
+      cssid: `player`, // CSS ID for player
+      text: `${otherPlayer.getName()} is ${otherPlayer.getStatus()} here.`, // Player description
     }));
   }
 }
@@ -1784,49 +1768,49 @@ class DescribeLocationManager {
  */
 class FormatMessageManager {
   static createMessageData(cssid = '', message) {
-    return Utility.createMessageData(cssid, message);
+    return Utility.createMessageData(cssid, message); // Create message data with CSS ID
   }
   static getIdForMessage(type) {
     const messageIds = {
-      loginSuccess: 'player-name',
-      incorrectPassword: 'error-message',
-      inventoryStatus: 'inventory-list',
-      lootAction: 'combat-message',
-      targetNotFound: 'error-message',
-      combatInitiation: 'combat-message-player',
-      combatJoin: 'combat-message-npc',
-      combatMessageHealth: 'combat-message-health',
-      defeat: 'combat-message-npc',
-      victory: 'combat-message-player',
-      meditationAction: 'combat-message',
-      meditationStart: 'combat-message',
-      sleepAction: 'combat-message',
-      standingUp: 'combat-message',
-      wakingUp: 'combat-message',
-      alreadySitting: 'error-message',
-      alreadyStanding: 'error-message',
-      disconnectionFailedAttempts: 'error-message',
-      stats: 'combat-message',
-      invalidItemAddition: 'error-message',
-      inventoryFull: 'error-message',
-      itemNotFoundInInventory: 'error-message',
-      leavingLocation: 'combat-message',
-      enteringLocation: 'combat-message',
-      combatActionMessage: 'combat-message',
-      dataLoadError: 'error-message',
-      dataSaveError: 'error-message',
-      generalError: 'error-message',
-      lookAtSelf: 'combat-message', // New message ID for looking at self
-      lookAtItem: 'combat-message', // New message ID for looking at item
-      lookAtNpc: 'combat-message', // New message ID for looking at NPC
-      lookAtOtherPlayer: 'combat-message', // New message ID for looking at other player
+      loginSuccess: 'player-name', // ID for login success message
+      incorrectPassword: 'error-message', // ID for incorrect password message
+      inventoryStatus: 'inventory-list', // ID for inventory status message
+      lootAction: 'combat-message', // ID for loot action message
+      targetNotFound: 'error-message', // ID for target not found message
+      combatInitiation: 'combat-message-player', // ID for combat initiation message
+      combatJoin: 'combat-message-npc', // ID for combat join message
+      combatMessageHealth: 'combat-message-health', // ID for combat health status message
+      defeat: 'combat-message-npc', // ID for defeat message
+      victory: 'combat-message-player', // ID for victory message
+      meditationAction: 'combat-message', // ID for meditation action message
+      meditationStart: 'combat-message', // ID for meditation start message
+      sleepAction: 'combat-message', // ID for sleep action message
+      standingUp: 'combat-message', // ID for standing up message
+      wakingUp: 'combat-message', // ID for waking up message
+      alreadySitting: 'error-message', // ID for already sitting message
+      alreadyStanding: 'error-message', // ID for already standing message
+      disconnectionFailedAttempts: 'error-message', // ID for disconnection due to failed attempts
+      stats: 'combat-message', // ID for stats message
+      invalidItemAddition: 'error-message', // ID for invalid item addition message
+      inventoryFull: 'error-message', // ID for inventory full message
+      itemNotFoundInInventory: 'error-message', // ID for item not found in inventory message
+      leavingLocation: 'combat-message', // ID for leaving location message
+      enteringLocation: 'combat-message', // ID for entering location message
+      combatActionMessage: 'combat-message', // ID for combat action message
+      dataLoadError: 'error-message', // ID for data load error message
+      dataSaveError: 'error-message', // ID for data save error message
+      generalError: 'error-message', // ID for general error message
+      lookAtSelf: 'combat-message', // ID for looking at self message
+      lookAtItem: 'combat-message', // ID for looking at item message
+      lookAtNpc: 'combat-message', // ID for looking at NPC message
+      lookAtOtherPlayer: 'combat-message', // ID for looking at other player message
     };
-    return messageIds[type] || '';
+    return messageIds[type] || ''; // Return message ID or empty string
   }
 }
 // Message Manager ********************************************************************************
 /*
- * MessageManager is responsible for handling communication of messages to players within the
+ * The MessageManager class is responsible for handling communication of messages to players within the
  * game. This centralizes message handling, ensuring consistency in how messages are constructed,
  * and sent to players. Centralizing all messages in one place is convenient for editing
  * purposes. Each method formats the message with cssid. This is used by the client to style HTML
@@ -1836,224 +1820,224 @@ class FormatMessageManager {
 class MessageManager {
   // Notification Methods *************************************************************************
   static notify(player, message, cssid = '') {
-    this.logger.info(`Message to ${player.getName()}: ${message}`);
-    return Utility.createMessageData(cssid, message); // Updated to use Utility
+    this.logger.info(`Message to ${player.getName()}: ${message}`); // Log message to player
+    return Utility.createMessageData(cssid, message); // Create message data using Utility
   }
   // Login Notifications **************************************************************************
   static notifyLoginSuccess(player) {
-    return this.notify(player, `${player.getName()} has logged in successfully!`, this.getIdForMessage('loginSuccess'));
+    return this.notify(player, `${player.getName()} has logged in successfully!`, this.getIdForMessage('loginSuccess')); // Notify player of successful login
   }
   static notifyIncorrectPassword(player) {
-    return this.notify(player, `Incorrect password. Please try again.`, this.getIdForMessage('incorrectPassword'));
+    return this.notify(player, `Incorrect password. Please try again.`, this.getIdForMessage('incorrectPassword')); // Notify player of incorrect password
   }
   static notifyDisconnectionDueToFailedAttempts(player) {
-    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, this.getIdForMessage('disconnectionFailedAttempts'));
+    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, this.getIdForMessage('disconnectionFailedAttempts')); // Notify player of disconnection
   }
   // Player Notifications *************************************************************************
   static notifyPlayersInLocation(location, message) {
-    if (!location || !location.playersInLocation) return;
+    if (!location || !location.playersInLocation) return; // Return if location or players are not found
     location.playersInLocation.forEach(player => {
-      this.notify(player, message);
+      this.notify(player, message); // Notify each player in location
     });
   }
   // Inventory Notifications **********************************************************************
   static notifyInventoryStatus(player) {
-    return this.notify(player, `${player.getName()}'s inventory:`, this.getIdForMessage('inventoryStatus'));
+    return this.notify(player, `${player.getName()}'s inventory:`, this.getIdForMessage('inventoryStatus')); // Notify player of inventory status
   }
   static notifyPickupItem(player, itemName) {
-    return this.notify(player, `${player.getName()} picks up ${itemName}.`, this.getIdForMessage('pickupItem'));
+    return this.notify(player, `${player.getName()} picks up ${itemName}.`, this.getIdForMessage('pickupItem')); // Notify player of item pickup
   }
   static notifyDropItem(player, itemName) {
-    return this.notify(player, `${player.getName()} drops ${itemName}.`, this.getIdForMessage('dropItem'));
+    return this.notify(player, `${player.getName()} drops ${itemName}.`, this.getIdForMessage('dropItem')); // Notify player of item drop
   }
   static notifyInventoryFull(player) {
-    return this.notify(player, `${player.getName()}'s inventory is full.`, this.getIdForMessage('inventoryFull'));
+    return this.notify(player, `${player.getName()}'s inventory is full.`, this.getIdForMessage('inventoryFull')); // Notify player of full inventory
   }
   static notifyItemNotFoundInInventory(player) {
-    return this.notify(player, `Item not found in ${player.getName()}'s inventory.`, this.getIdForMessage('itemNotFoundInInventory'));
+    return this.notify(player, `Item not found in ${player.getName()}'s inventory.`, this.getIdForMessage('itemNotFoundInInventory')); // Notify player of item not found
   }
   static notifyInvalidItemAddition(player, itemName) {
-    return this.notify(player, `Cannot add invalid item: ${itemName}`, this.getIdForMessage('invalidItemAddition'));
+    return this.notify(player, `Cannot add invalid item: ${itemName}`, this.getIdForMessage('invalidItemAddition')); // Notify player of invalid item addition
   }
   // Combat Notifications *************************************************************************
   static notifyCombatInitiation(attacker, defenderName) {
-    return this.notify(attacker, `${attacker.getName()} attacks ${defenderName}.`, this.getIdForMessage('combatInitiation'));
+    return this.notify(attacker, `${attacker.getName()} attacks ${defenderName}.`, this.getIdForMessage('combatInitiation')); // Notify combat initiation
   }
   static notifyCombatJoin(npc, player) {
-    return this.notify(null, `${npc.getName()} attacks ${player.getName()}!`, this.getIdForMessage('combatJoin'));
+    return this.notify(null, `${npc.getName()} attacks ${player.getName()}!`, this.getIdForMessage('combatJoin')); // Notify combat join
   }
   static createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage) {
     return FormatMessageManager.createMessageData(
       '',
-      `${player.getName()}: ${playerHealthPercentage.toFixed(2)}% | ${npc.getName()}: ${npcHealthPercentage.toFixed(2)}%`
+      `${player.getName()}: ${playerHealthPercentage.toFixed(2)}% | ${npc.getName()}: ${npcHealthPercentage.toFixed(2)}%` // Create health status message
     );
   }
   static notifyDefeat(player, defeatingNpcName) {
-    return this.notify(player, `${player.getName()} has been defeated by ${defeatingNpcName}.`, this.getIdForMessage('defeat'));
+    return this.notify(player, `${player.getName()} has been defeated by ${defeatingNpcName}.`, this.getIdForMessage('defeat')); // Notify player of defeat
   }
   static notifyVictory(player, defeatedNpcName) {
-    return this.notify(player, `${player.getName()} has defeated ${defeatingNpcName}!`, this.getIdForMessage('victory'));
+    return this.notify(player, `${player.getName()} has defeated ${defeatedNpcName}!`, this.getIdForMessage('victory')); // Notify player of victory
   }
   static notifyCombatActionMessage(player, message) {
-    return this.notify(player, message, this.getIdForMessage('combatActionMessage'));
+    return this.notify(player, message, this.getIdForMessage('combatActionMessage')); // Notify player of combat action
   }
   static notifyNpcAlreadyInStatus(player, npc) {
-    const pronoun = npc.getPronoun();
-    return this.notify(player, `${npc.getName()} is already ${npc.getStatus()}. It would be dishonorable to attack ${pronoun} now.`);
+    const pronoun = npc.getPronoun(); // Get NPC pronoun
+    return this.notify(player, `${npc.getName()} is already ${npc.getStatus()}. It would be dishonorable to attack ${pronoun} now.`); // Notify player of NPC status
   }
   // Inventory Notifications **********************************************************************
   static notifyNoItemInContainer(player, itemName, containerName) {
-    return this.notify(player, `There doesn't seem to be any ${itemName} in the ${containerName}.`);
+    return this.notify(player, `There doesn't seem to be any ${itemName} in the ${containerName}.`); // Notify player of no item in container
   }
   static notifyNoItemHere(player, itemName) {
-    return this.notify(player, `There doesn't seem to be any ${itemName} here.`);
+    return this.notify(player, `There doesn't seem to be any ${itemName} here.`); // Notify player of no item here
   }
   static notifyNoItemToDrop(player, itemName) {
-    return this.notify(player, `${player.getName()} doesn't seem to have any ${itemName}'s to drop.`);
+    return this.notify(player, `${player.getName()} doesn't seem to have any ${itemName}'s to drop.`); // Notify player of no item to drop
   }
   static notifyItemPutInContainer(player, itemName, containerName) {
-    return this.notify(player, `${player.getName()} places a ${itemName} into a ${containerName}.`);
+    return this.notify(player, `${player.getName()} places a ${itemName} into a ${containerName}.`); // Notify player of item placement in container
   }
   static notifyNoItemsToPut(player, containerName) {
-    return this.notify(player, `${player.getName()} has nothing to put in the ${containerName}.`);
+    return this.notify(player, `${player.getName()} has nothing to put in the ${containerName}.`); // Notify player of no items to put
   }
   static notifyItemsPutInContainer(player, items, containerName) {
-    const itemsList = items.map(item => item.name).join(", ");
-    return this.notify(player, `${player.getName()} places the following items into the ${containerName}: ${itemsList}`);
+    const itemsList = items.map(item => item.name).join(", "); // Create list of item names
+    return this.notify(player, `${player.getName()} places the following items into the ${containerName}: ${itemsList}`); // Notify player of items placed in container
   }
   static notifyNoSpecificItemsToPut(player, itemType, containerName) {
-    return this.notify(player, `${player.getName()} has no ${itemType} to put in the ${containerName}.`);
+    return this.notify(player, `${player.getName()} has no ${itemType} to put in the ${containerName}.`); // Notify player of no specific items to put
   }
   static notifyItemsTaken(player, items) {
-    const itemsList = items.map(item => item.name).join(", ");
-    return this.notify(player, `${player.getName()} picks up: ${itemsList}`);
+    const itemsList = items.map(item => item.name).join(", "); // Create list of item names
+    return this.notify(player, `${player.getName()} picks up: ${itemsList}`); // Notify player of items taken
   }
   static notifyNoSpecificItemsHere(player, itemType) {
-    return this.notify(player, `There doesn't seem to be any ${itemType} here.`);
+    return this.notify(player, `There doesn't seem to be any ${itemType} here.`); // Notify player of no specific items here
   }
   static notifyNoItemsHere(player, itemType) {
-    return this.notify(player, `There doesn't seem to be any ${itemType} to take here.`);
+    return this.notify(player, `There doesn't seem to be any ${itemType} to take here.`); // Notify player of no items here
   }
   static notifyItemsTakenFromContainer(player, items, containerName) {
-    const itemsList = items.map(itemId => items[itemId].name).join(", ");
-    return this.notify(player, `${player.getName()} retrieves the following items from a ${containerName}: ${itemsList}`);
+    const itemsList = items.map(itemId => items[itemId].name).join(", "); // Create list of item names
+    return this.notify(player, `${player.getName()} retrieves the following items from a ${containerName}: ${itemsList}`); // Notify player of items taken from container
   }
   static notifyNoSpecificItemsInContainer(player, itemType, containerName) {
-    return this.notify(player, `There doesn't seem to be any ${itemType} in the ${containerName}.`);
+    return this.notify(player, `There doesn't seem to be any ${itemType} in the ${containerName}.`); // Notify player of no specific items in container
   }
   static createAutoLootMessage(player, npc, lootedItems) {
-    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", ");
-    return `${player.getName()} searches ${npc.getName()} and grabs: ${itemsList}`;
+    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", "); // Create list of looted item names
+    return `${player.getName()} searches ${npc.getName()} and grabs: ${itemsList}`; // Create auto loot message
   }
   static notifyLootedNPC(player, npc, lootedItems) {
-    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", ");
-    return this.notify(player, `${player.getName()} searches ${npc.getName()} and grabs ${itemsList}`);
+    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", "); // Create list of looted item names
+    return this.notify(player, `${player.getName()} searches ${npc.getName()} and grabs ${itemsList}`); // Notify player of looted NPC
   }
   static notifyNothingToLoot(player, npc) {
-    return this.notify(player, `${player.getName()} searches diligently, but finds nothing worth looting from ${npc.getName()}.`);
+    return this.notify(player, `${player.getName()} searches diligently, but finds nothing worth looting from ${npc.getName()}.`); // Notify player of nothing to loot
   }
   static notifyCannotLootNPC(player, npc) {
-    return this.notify(player, `${npc.getName()} is not unconscious or dead. ${player.getName()} it would be dishonorable to loot them.`);
+    return this.notify(player, `${npc.getName()} is not unconscious or dead. ${player.getName()} it would be dishonorable to loot them.`); // Notify player of looting restrictions
   }
   static notifyNoNPCToLoot(player, target) {
-    return this.notify(player, `There doesn't seem to be any ${target} here to loot.`);
+    return this.notify(player, `There doesn't seem to be any ${target} here to loot.`); // Notify player of no NPC to loot
   }
   static notifyNoNPCsToLoot(player) {
-    return this.notify(player, `There doesn't seem to be anyone here to loot.`);
+    return this.notify(player, `There doesn't seem to be anyone here to loot.`); // Notify player of no NPCs to loot
   }
   static notifyLootedAllNPCs(player, lootedNPCs, lootedItems) {
-    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", ");
-    return this.notify(player, `${player.getName()} searches ${lootedNPCs.join(", ")} and grabs: ${itemsList}`);
+    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", "); // Create list of looted item names
+    return this.notify(player, `${player.getName()} searches ${lootedNPCs.join(", ")} and grabs: ${itemsList}`); // Notify player of looted NPCs
   }
   static notifyNothingToLootFromNPCs(player) {
-    return this.notify(player, `${player.getName()} searches diligently, but finds nothing worth looting.`);
+    return this.notify(player, `${player.getName()} searches diligently, but finds nothing worth looting.`); // Notify player of nothing to loot from NPCs
   }
   static notifyItemsDropped(player, items) {
-    const itemsList = items.map(item => item.name).join(", ");
-    return this.notify(player, `${player.getName()} drops: ${itemsList}`);
+    const itemsList = items.map(item => item.name).join(", "); // Create list of item names
+    return this.notify(player, `${player.getName()} drops: ${itemsList}`); // Notify player of items dropped
   }
   static notifyNoItemsToDrop(player, type, itemType) {
-    const itemTypeText = type === 'all' ? 'items' : itemType;
-    return this.notify(player, `${player.getName()} has no ${itemTypeText} to drop.`);
+    const itemTypeText = type === 'all' ? 'items' : itemType; // Determine item type text
+    return this.notify(player, `${player.getName()} has no ${itemTypeText} to drop.`); // Notify player of no items to drop
   }
   static notifyNoContainer(player, containerName) {
-    return this.notify(player, `${player.getName()} doesn't seem to have any ${containerName}.`);
+    return this.notify(player, `${player.getName()} doesn't seem to have any ${containerName}.`); // Notify player of no container
   }
   static notifyNotAContainer(player, itemName, action) {
-    return this.notify(player, `The ${itemName} is not a container.`);
+    return this.notify(player, `The ${itemName} is not a container.`); // Notify player of non-container item
   }
   static notifyItemNotInInventory(player, itemName, location) {
-    return this.notify(player, `${player.getName()} doesn't seem to have any ${itemName} in ${player.getPossessivePronoun()} inventory.`);
+    return this.notify(player, `${player.getName()} doesn't seem to have any ${itemName} in ${player.getPossessivePronoun()} inventory.`); // Notify player of item not in inventory
   }
   static notifyItemTaken(player, itemName) {
-    return this.notify(player, `${player.getName()} grabs a ${itemName}.`);
+    return this.notify(player, `${player.getName()} grabs a ${itemName}.`); // Notify player of item taken
   }
   // Look Notifications ***************************************************************************
   static notifyLookAtSelf(player) { // New method for looking at self
-    return this.notify(player, `${player.getName()} looks at themselves, feeling a sense of self-awareness.`, this.getIdForMessage('lookAtSelf'));
+    return this.notify(player, `${player.getName()} looks at themselves, feeling a sense of self-awareness.`, this.getIdForMessage('lookAtSelf')); // Notify player of self-examination
   }
   static notifyLookAtItemInInventory(player, item) {
-    return this.notify(player, `${player.getName()} looks at ${item.name} in their inventory.`, this.getIdForMessage('lookAtItem'));
+    return this.notify(player, `${player.getName()} looks at ${item.name} in their inventory.`, this.getIdForMessage('lookAtItem')); // Notify player of item in inventory
   }
   static notifyLookAtItemInLocation(player, item) {
-    return this.notify(player, `${player.getName()} looks at the ${item.name} lying here.`, this.getIdForMessage('lookAtItem'));
+    return this.notify(player, `${player.getName()} looks at the ${item.name} lying here.`, this.getIdForMessage('lookAtItem')); // Notify player of item in location
   }
   static notifyLookAtNpc(player, npc) {
-    return this.notify(player, `${player.getName()} looks at ${npc.getName()}, who is currently ${npc.status}.`, this.getIdForMessage('lookAtNpc'));
+    return this.notify(player, `${player.getName()} looks at ${npc.getName()}, who is currently ${npc.status}.`, this.getIdForMessage('lookAtNpc')); // Notify player of NPC status
   }
   static notifyLookAtOtherPlayer(player, otherPlayer) {
-    return this.notify(player, `${player.getName()} looks at ${otherPlayer.getName()}, who is currently ${otherPlayer.getStatus()}.`, this.getIdForMessage('lookAtOtherPlayer'));
+    return this.notify(player, `${player.getName()} looks at ${otherPlayer.getName()}, who is currently ${otherPlayer.getStatus()}.`, this.getIdForMessage('lookAtOtherPlayer')); // Notify player of other player's status
   }
   static notifyLookInContainer(player, containerName, items) {
-    const itemsList = items.length > 0 ? items.join(", ") : 'nothing.';
-    return this.notify(player, `You look inside the ${containerName} and see: ${itemsList}`);
+    const itemsList = items.length > 0 ? items.join(", ") : 'nothing.'; // Create list of items or indicate nothing
+    return this.notify(player, `You look inside the ${containerName} and see: ${itemsList}`); // Notify player of container contents
   }
   static notifyNoContainerHere(player, containerName) {
-    return this.notify(player, `You don't see a ${containerName} here.`);
+    return this.notify(player, `You don't see a ${containerName} here.`); // Notify player of no container
   }
   static notifyNotAContainer(player, containerName) {
-    return this.notify(player, `The ${containerName} is not a container.`);
+    return this.notify(player, `The ${containerName} is not a container.`); // Notify player of non-container item
   }
   // Status Notifications *************************************************************************
   static notifyMeditationAction(player) {
-    return this.notify(player, `${player.getName()} starts meditating.`, this.getIdForMessage('meditationAction'));
+    return this.notify(player, `${player.getName()} starts meditating.`, this.getIdForMessage('meditationAction')); // Notify player of meditation action
   }
   static notifyMeditationStart(player) {
-    return this.notify(player, `${player.getName()} is now meditating.`, this.getIdForMessage('meditationStart'));
+    return this.notify(player, `${player.getName()} is now meditating.`, this.getIdForMessage('meditationStart')); // Notify player of meditation start
   }
   static notifySleepAction(player) {
-    return this.notify(player, `${player.getName()} goes to sleep.`, this.getIdForMessage('sleepAction'));
+    return this.notify(player, `${player.getName()} goes to sleep.`, this.getIdForMessage('sleepAction')); // Notify player of sleep action
   }
   static notifyStandingUp(player) {
-    return this.notify(player, `${player.getName()} stands up.`, this.getIdForMessage('standingUp'));
+    return this.notify(player, `${player.getName()} stands up.`, this.getIdForMessage('standingUp')); // Notify player of standing up
   }
   static notifyWakingUp(player) {
-    return this.notify(player, `${player.getName()} wakes up.`, this.getIdForMessage('wakingUp'));
+    return this.notify(player, `${player.getName()} wakes up.`, this.getIdForMessage('wakingUp')); // Notify player of waking up
   }
   static notifyAlreadySitting(player) {
-    return this.notify(player, `${player.getName()} is already sitting.`, this.getIdForMessage('alreadySitting'));
+    return this.notify(player, `${player.getName()} is already sitting.`, this.getIdForMessage('alreadySitting')); // Notify player of already sitting
   }
   static notifyAlreadyStanding(player) {
-    return this.notify(player, `${player.getName()} is already standing.`, this.getIdForMessage('alreadyStanding'));
+    return this.notify(player, `${player.getName()} is already standing.`, this.getIdForMessage('alreadyStanding')); // Notify player of already standing
   }
   // Location Notifications ***********************************************************************
   static notifyLeavingLocation(player, oldLocationId, newLocationId) {
-    const direction = player.getDirectionTo(newLocationId);
-    return this.notify(player, `${player.getName()} travels ${direction}.`, this.getIdForMessage('leavingLocation'));
+    const direction = player.getDirectionTo(newLocationId); // Get direction to new location
+    return this.notify(player, `${player.getName()} travels ${direction}.`, this.getIdForMessage('leavingLocation')); // Notify player of leaving location
   }
   static notifyEnteringLocation(player, newLocationId) {
-    const direction = player.getDirectionFrom(newLocationId);
-    return this.notify(player, `${player.getName()} arrives ${direction}.`, this.getIdForMessage('enteringLocation'));
+    const direction = player.getDirectionFrom(newLocationId); // Get direction from new location
+    return this.notify(player, `${player.getName()} arrives ${direction}.`, this.getIdForMessage('enteringLocation')); // Notify player of entering location
   }
   // Logger Error Notifications *******************************************************************
   static notifyDataLoadError(manager, logger, key, error) {
-    logger.error(`Error loading data for ${key}: ${error}`);
+    logger.error(`Error loading data for ${key}: ${error}`); // Log data load error
   }
   static notifyDataSaveError(manager, logger, filePath, error) {
-    logger.error(`Error saving data to ${filePath}: ${error}`);
+    logger.error(`Error saving data to ${filePath}: ${error}`); // Log data save error
   }
   static notifyError(manager, logger, message) {
-    logger.error(`Error: ${message}`);
+    logger.error(`Error: ${message}`); // Log general error
   }
   static notifyNpcDeparture(npc, direction) {
     return this.notify(null, `${npc.getName()} travels ${direction}.`); // Notify players of NPC departure
@@ -2070,87 +2054,78 @@ class Utility {
   static createMessageData(cssid = '', message) {
     return { cssid, content: message }; // Centralized message creation
   }
-
   static getRandomElement(array) {
     return array[Math.floor(Math.random() * array.length)]; // Random selection utility
   }
-
   static findEntity(target, collection, type) {
-    return collection.find(entity => entity.name.toLowerCase() === target.toLowerCase()); // Moved from CombatManager and other classes
+    return collection.find(entity => entity.name.toLowerCase() === target.toLowerCase()); // Find entity by name
   }
-
   static calculateHealthPercentage(currentHealth, maxHealth) {
     return (currentHealth / maxHealth) * 100; // Health percentage calculation
   }
-
   static transferItem(itemId, source, sourceType, player) {
-    player.inventory.push(items[itemId]);
+    player.inventory.push(items[itemId]); // Add item to player's inventory
     if (sourceType === 'location') {
-      source.items = source.items.filter(i => i !== itemId);
+      source.items = source.items.filter(i => i !== itemId); // Remove item from location
     } else {
-      source.inventory = source.inventory.filter(i => i !== itemId);
+      source.inventory = source.inventory.filter(i => i !== itemId); // Remove item from container
     }
-    MessageManager.notifyItemTaken(player, items[itemId].name);
+    MessageManager.notifyItemTaken(player, items[itemId].name); // Notify player of item taken
   }
-
   static calculateAttackValue(attacker, defender, roll) {
     if (attacker.level === defender.level) {
-      return roll + attacker.csml;
+      return roll + attacker.csml; // Equal levels
     } else if (attacker.level < defender.level) {
-      return (roll + attacker.csml) - (defender.level - attacker.level);
+      return (roll + attacker.csml) - (defender.level - attacker.level); // Attacker lower level
     } else {
-      return (roll + attacker.csml) + (attacker.level - defender.level);
+      return (roll + attacker.csml) + (attacker.level - defender.level); // Attacker higher level
     }
   }
-
   static calculateAttackOutcome(attacker, defender) {
-    const roll = Math.floor(Math.random() * 20) + 1;
-    let value = this.calculateAttackValue(attacker, defender, roll);
-    if (value >= 21 || value === 19) return "critical success";
-    if (value === 20) return "knockout";
-    if (value >= 13) return "attack hits";
-    if (value >= 10) return "attack is blocked";
-    if (value >= 7) return "attack is parried";
-    if (value >= 4) return "attack is trapped";
-    if (value >= 1) return "attack is evaded";
-    return "attack hits";
+    const roll = Math.floor(Math.random() * 20) + 1; // Roll a d20
+    let value = this.calculateAttackValue(attacker, defender, roll); // Calculate attack value
+    if (value >= 21 || value === 19) return "critical success"; // Critical success
+    if (value === 20) return "knockout"; // Knockout
+    if (value >= 13) return "attack hits"; // Attack hits
+    if (value >= 10) return "attack is blocked"; // Attack blocked
+    if (value >= 7) return "attack is parried"; // Attack parried
+    if (value >= 4) return "attack is trapped"; // Attack trapped
+    if (value >= 1) return "attack is evaded"; // Attack evaded
+    return "attack hits"; // Default case
   }
-
   static notifyPlayerMovement(entity, oldLocationId, newLocationId) {
-    const oldLocation = gameManager.getLocation(oldLocationId);
-    const newLocation = gameManager.getLocation(newLocationId);
+    const oldLocation = gameManager.getLocation(oldLocationId); // Get old location
+    const newLocation = gameManager.getLocation(newLocationId); // Get new location
     if (oldLocation) {
-      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
-      const direction = entity.getDirectionTo(newLocationId);
-      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
+      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId); // Notify leaving location
+      const direction = entity.getDirectionTo(newLocationId); // Get direction to new location
+      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`); // Notify player of travel
     }
-    entity.currentLocation = newLocationId;
+    entity.currentLocation = newLocationId; // Update entity's current location
     if (newLocation) {
-      newLocation.addEntity(entity, "players");
-      MessageManager.notifyEnteringLocation(entity, newLocationId);
-      const direction = entity.getDirectionFrom(oldLocationId);
-      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
+      newLocation.addEntity(entity, "players"); // Add entity to new location
+      MessageManager.notifyEnteringLocation(entity, newLocationId); // Notify entering location
+      const direction = entity.getDirectionFrom(oldLocationId); // Get direction from old location
+      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`); // Notify player of arrival
     }
   }
-
   static addToInventory(player, item) {
     if (!item.isValid()) {
-      MessageManager.notifyInvalidItemAddition(player, item.name);
+      MessageManager.notifyInvalidItemAddition(player, item.name); // Notify invalid item addition
       return;
     }
     if (player.canAddToInventory(item)) {
-      player.inventory.push(item);
+      player.inventory.push(item); // Add item to inventory
     } else {
-      MessageManager.notifyInventoryFull(player);
+      MessageManager.notifyInventoryFull(player); // Notify inventory full
     }
   }
-
   static removeFromInventory(player, item) {
-    const index = player.inventory.findIndex(i => i.uid === item.uid);
+    const index = player.inventory.findIndex(i => i.uid === item.uid); // Find item index
     if (index > -1) {
-      player.inventory.splice(index, 1);
+      player.inventory.splice(index, 1); // Remove item from inventory
     } else {
-      MessageManager.notifyItemNotFoundInInventory(player);
+      MessageManager.notifyItemNotFoundInInventory(player); // Notify item not found
     }
   }
 }

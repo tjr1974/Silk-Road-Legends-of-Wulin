@@ -1,4 +1,7 @@
 OPTIMIZE CODE:
+
+Comments: Concerning code, details and precise terminology are very important. Ensure every class and method has a clear and concise comment that accurately explains its intended functionality.
+
 Use Named Constants: Replace magic numbers and strings with named constants. This improves readability and maintainability. For example, define constants for paths, statuses, and other repeated values.
 
 Batch Database Operations: When loading or saving data, consider batching operations to minimize the number of I/O calls. For example, load all player data in one call instead of multiple calls for each player.
