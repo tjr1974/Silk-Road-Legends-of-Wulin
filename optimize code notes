@@ -1,0 +1,35 @@
+OPTIMIZE CODE:
+Use Named Constants: Replace magic numbers and strings with named constants. This improves readability and maintainability. For example, define constants for paths, statuses, and other repeated values.
+
+Batch Database Operations: When loading or saving data, consider batching operations to minimize the number of I/O calls. For example, load all player data in one call instead of multiple calls for each player.
+
+Use Efficient Data Structures: For collections of items (like players, NPCs, etc.), consider using Sets or Maps for faster lookups and insertions compared to arrays.
+
+Asynchronous Code: Ensure that all async functions are awaited where necessary. Check for unhandled promise rejections.
+
+Avoid Unnecessary Async/Await: If a function does not need to be asynchronous, avoid using async/await to reduce overhead.
+Optimize Game Loop: In the game loop, ensure that only necessary updates are performed. For example, only update NPCs or players that have changed state.
+
+Memory Management: Regularly clean up unused objects or references to prevent memory leaks, especially in long-running processes.
+
+
+MODULES:
+Module Existence: Check that all modules being imported actually in the specified paths If a module is missing, it will cause runtime errors.
+
+File Paths: Verify that the paths used in import statements are correct relative to file structure. Adjust paths as necessary.
+
+Import Statements: Ensure all import statements are correctly referencing the paths and modules.
+
+Exporting Functions/Classes: Ensure that all necessary functions or classes are exported from their respective modules.
+
+Export Statements: Use named exports or default exports appropriately for multiple exports in a file.
+
+Static Properties: Ensure that static properties in classes are correctly referenced and that CONFIG is imported correctly and contains the expected structure.
+
+Circular Dependencies: Be cautious of circular dependencies, as they can lead to unexpected behavior.
+
+Testing Imports: Add simple console logs in each module to they are being loaded correctly.
+
+
+CLIENT:
+Debounce or Throttle Events: For frequently triggered events (like combat actions), implement debouncing or throttling to limit how often they can be processed.

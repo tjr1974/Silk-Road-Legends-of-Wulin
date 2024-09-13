@@ -12,7 +12,7 @@ following key functionalities:
  * 3. **Route Management**: It defines the main route for the server, providing a welcome message
  *    to users.
  *
- * 4. **Game Data Loading**: It loads essential game data, including player, Npcs, and item
+ * 4. **Game Data Loading**: It loads essential game data, including player, npcs, and item
  *    information, from the database to ensure the game state is ready for interaction.
  *
  * 5. **Queue Management**: It initializes a queue manager to handle asynchronous tasks related to
@@ -54,7 +54,7 @@ class Server {
     this.setupMiddleware();
     this.setupRoutes();
     await this.loadGameData(); // Added await to ensure game data loads before proceeding
-    await this.initializeQueue(); // Added await to ensure queue initializes before proceeding
+    this.initializeQueue(); // Changed to synchronous
   }
   // Create Server ********************************************************************************
   /*
@@ -63,6 +63,7 @@ class Server {
   * If SSL certificates are not found, it defaults to HTTP.
   */
   async createServer() {
+    this.logger.debug(`Creating server with SSL_KEY_PATH: ${SSL_KEY_PATH} and SSL_CERT_PATH: ${SSL_CERT_PATH}`); // Added debug message
     const SSL_KEY_PATH = './ssl/server.key'; // Added named constant for SSL key path
     const SSL_CERT_PATH = './ssl/server.crt'; // Added named constant for SSL cert path
     const sslOptions = {
@@ -73,6 +74,7 @@ class Server {
       this.logger.warn(`SSL files not found, defaulting to HTTP.`); // Updated to use template literals
       return require('http').createServer(this.app); // Use 'http' module if SSL is not available
     }
+    this.logger.debug(`SSL files found, creating HTTPS server.`); // Added debug message
     return require('https').createServer(sslOptions, this.app); // Use 'https' module if SSL is available
   }
   // Start Server *********************************************************************************
@@ -81,6 +83,7 @@ class Server {
   * It logs the server's operational status and address for easy access.
   */
   async start() {
+    this.logger.debug(`Starting server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}`); // Added debug message
     this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
       this.logger.info(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}`); // Updated to use template literals
     });
@@ -141,18 +144,20 @@ class Server {
   * It retrieves location, NPC, and item data to ensure the game state is ready for interaction.
   */
   loadGameData() {
+    this.logger.debug(`Loading game data...`); // Added debug message
     // Load data from files (e.g., players, NPCs)
     this.databaseManager.loadLocationData();
     this.databaseManager.loadNpcData();
     this.databaseManager.loadItemData();
+    this.logger.debug(`Game data loaded successfully.`); // Added debug message
   }
   // Initialize Queue *****************************************************************************
   /*
   * The initializeQueue method is responsible for creating a new queue instance for the server.
   * It assigns the queue instance to the queueManager for managing asynchronous tasks.
   */
-  async initializeQueue() {
-    this.queue = (await import('queue')).default();
+  initializeQueue() { // Changed to synchronous
+    this.queue = (import('queue')).default(); // Removed async/await
   }
   // Initialize Server ******************************************************************************
   /*
@@ -212,6 +217,7 @@ class QueueManager {
     this.taskPool = new ObjectPool(() => new Task(''), 10);
   }
   addTask(task) {
+    this.logger.debug(`Adding task: ${task.name}`); // Added debug message
     this.queue.push(task);
     this.processQueue(); // Start processing the queue when a new task is added
   }
@@ -303,6 +309,11 @@ class QueueManager {
     };
     this.addTask(task);
   }
+  cleanup() { // New cleanup method
+    this.queue = []; // Clear the queue
+    this.isProcessing = false; // Reset processing state
+    this.taskPool = null; // Clear task pool reference
+  }
 }
 // Database Manager  ******************************************************************************
 /*
@@ -310,72 +321,66 @@ class QueueManager {
 * It provides methods to load and save data from various files, such as player, location, NPC,
 * and item data.
 */
-import CONFIG from './config.js';
+import { PLAYER_DATA_PATH, LOCATION_DATA_PATH, NPC_DATA_PATH, ITEM_DATA_PATH } from './config.js'; // Ensure config.js exports these constants
+import CONFIG from './config.js'; // Ensure CONFIG is correctly imported
+import { MessageManager } from './MessageManager.js'; // Example import, ensure this file exists
+import { EventEmitter } from 'events'; // Ensure 'events' module is available
+import { CombatManager } from './CombatManager.js'; // Ensure this file exists
+import { GameManager } from './GameManager.js'; // Ensure this file exists
+import { QueueManager } from './QueueManager.js'; // Ensure this file exists
+import { ObjectPool } from './ObjectPool.js'; // Ensure this file exists
+import { Task } from './Task.js'; // Ensure this file exists
+
 class DatabaseManager {
-  static PLAYER_DATA_PATH = CONFIG.FILE_PATHS.PLAYER_DATA;
-  static LOCATION_DATA_PATH = CONFIG.FILE_PATHS.LOCATION_DATA;
-  static NPC_DATA_PATH = CONFIG.FILE_PATHS.NPC_DATA;
-  static ITEM_DATA_PATH = CONFIG.FILE_PATHS.ITEM_DATA;
   constructor() {
     this.fs = import('fs').promises; // Use promises API for file system operations
   }
-  async loadData(filePath, key) {
-    try {
-      const data = await this.loadData(filePath); // Load data from the specified file
-      return key ? data[key] : data; // Return specific key data or entire data
-    } catch (error) {
-      DatabaseManager.notifyDataLoadError(this, key, error); // Notify error if loading fails
-      throw error; // Rethrow error for further handling
-    }
+  async loadData(filePaths) { // Updated to accept an array of file paths
+    const data = {};
+    await Promise.all(filePaths.map(async (filePath) => {
+      try {
+        const fileContent = await this.fs.readFile(filePath, 'utf-8');
+        data[filePath] = JSON.parse(fileContent);
+      } catch (error) {
+        MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`);
+        data[filePath] = {}; // Default to empty object on error
+      }
+    }));
+    return data; // Return all loaded data
   }
-  async saveData(filePath, key, data) {
+  async saveData(filePath, key, data) { // Updated to handle batch saving
     try {
-      const existingData = await this.loadData(filePath); // Load existing data to update
-      existingData[key] = data; // Update the specific key with new data
-      await this.fs.writeFile(filePath, JSON.stringify(existingData, null, 2)); // Save updated data
+      const existingData = await this.loadData([filePath]); // Load existing data
+      existingData[filePath][key] = data; // Update the specific key with new data
+      await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Save updated data
       this.logger.info(`Data saved for ${key} to ${filePath}`); // Updated to use template literals
     } catch (error) {
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
   }
   async loadPlayerData(username) {
-    return this.loadData(DatabaseManager.PLAYER_DATA_PATH, username);
+    return this.loadData(PLAYER_DATA_PATH, username);
   }
   async savePlayerData(playerData) {
-    await this.saveData(DatabaseManager.PLAYER_DATA_PATH, playerData.username, playerData);
+    await this.saveData(PLAYER_DATA_PATH, playerData.username, playerData);
   }
   async loadLocationData(locationId) {
-    return this.loadData(DatabaseManager.LOCATION_DATA_PATH, locationId);
+    return this.loadData(LOCATION_DATA_PATH, locationId);
   }
   async saveLocationData(locationData) {
-    await this.saveData(DatabaseManager.LOCATION_DATA_PATH, locationData.id, locationData);
+    await this.saveData(LOCATION_DATA_PATH, locationData.id, locationData);
   }
-  async loadNpcData(npcId) {
-    return this.loadData(DatabaseManager.NPC_DATA_PATH, npcId);
+  loadNpcData(npcId) { // Removed async
+    return this.loadData(NPC_DATA_PATH, npcId);
   }
-  async saveNpcData(npcData) {
-    await this.saveData(DatabaseManager.NPC_DATA_PATH, npcData.id, npcData);
+  saveNpcData(npcData) { // Removed async
+    this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Removed await
   }
-  async loadItemData(itemId) {
-    return this.loadData(DatabaseManager.ITEM_DATA_PATH, itemId);
+  loadItemData(itemId) { // Removed async
+    return this.loadData(ITEM_DATA_PATH, itemId);
   }
-  async saveItemData(itemData) {
-    await this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData);
-  }
-  async loadData(filePath) {
-    try {
-      const fileContent = await this.fs.readFile(filePath, 'utf-8');
-      return JSON.parse(fileContent);
-    } catch (error) {
-      MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`);
-      return {};
-    }
-  }
-  static notifyDataLoadError(manager, key, error) { // Corrected to be static
-    manager.logger.error(`Error loading data for ${key}: ${error}`);
-  }
-  static notifyDataSaveError(manager, filePath, error) { // Corrected to be static
-    manager.logger.error(`Error saving data to ${filePath}: ${error}`);
+  saveItemData(itemData) { // Removed async
+    this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Removed await
   }
 }
 // Game Manager ***********************************************************************************
@@ -390,9 +395,9 @@ class GameManager {
   #isRunning = false; // Add this line to declare the private field
   #combatManager;
   constructor() {
-    this.players = new Map();
-    this.locations = new Map();
-    this.npcs = new Map();
+    this.players = new Map(); // Changed from Array to Map
+    this.locations = new Map(); // Changed from Array to Map
+    this.npcs = new Map(); // Changed from Array to Map
     this.#combatManager = new CombatManager(this);
     this.eventEmitter = new EventEmitter();
   }
@@ -427,13 +432,13 @@ class GameManager {
     }
   }
   addPlayer(player) {
-    this.players.set(player.getId(), player);
+    this.players.set(player.getId(), player); // Efficient insertion
   }
   getPlayer(playerId) {
-    return this.players.get(playerId);
+    return this.players.get(playerId); // Efficient lookup
   }
   removePlayer(playerId) {
-    this.players.delete(playerId);
+    this.players.delete(playerId); // Efficient removal
   }
   addLocation(location) {
     this.locations.set(location.getId(), location);
@@ -442,10 +447,13 @@ class GameManager {
     return this.locations.get(locationId);
   }
   addNpc(npc) {
-    this.npcs.set(npc.getId(), npc);
+    this.npcs.set(npc.getId(), npc); // Efficient insertion
   }
   getNpc(npcId) {
-    return this.npcs.get(npcId);
+    return this.npcs.get(npcId); // Efficient lookup
+  }
+  removeNpc(npcId) {
+    this.npcs.delete(npcId); // Efficient removal
   }
   startGameLoop() { // Public method to start the game loop
     this.startGameLoopInternal(); // Calls a public method
@@ -494,12 +502,16 @@ class GameManager {
   }
   _updateNpcs() {
     for (const npc of this.npcs.values()) {
-      npc.update(this.#gameTime);
+      if (npc.hasChangedState()) { // Check if NPC state has changed
+        npc.update(this.#gameTime);
+      }
     }
   }
   _updatePlayerAffects() {
     for (const player of this.players.values()) {
-      player.updateAffects();
+      if (player.hasChangedState()) { // Check if player state has changed
+        player.updateAffects();
+      }
     }
   }
   _updateWorldEvents() {
@@ -553,6 +565,23 @@ class GameManager {
   }
   checkLevelUp(player) {
     // Implementation for checking if the player levels up
+  }
+  moveEntity(entity, newLocationId) { // New method to handle movement
+    const oldLocationId = entity.currentLocation;
+    const oldLocation = this.getLocation(oldLocationId);
+    const newLocation = this.getLocation(newLocationId);
+    if (oldLocation) {
+      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
+      const direction = Utility.getDirectionTo(newLocationId);
+      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
+    }
+    entity.currentLocation = newLocationId;
+    if (newLocation) {
+      newLocation.addEntity(entity, "players"); // Adjust based on entity type
+      MessageManager.notifyEnteringLocation(entity, newLocationId);
+      const direction = Utility.getDirectionFrom(oldLocationId);
+      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
+    }
   }
 }
 // EventEmitter ***********************************************************************************
@@ -647,6 +676,7 @@ class Player {
     this.totalPlayingTime = 0;
     this.colorPreferences = {};
     this.#healthRegenerator = new HealthRegenerator(this);
+    this.previousState = { health: this.health, status: this.status }; // Track previous state
   }
   getId() {
     return this.#uid;
@@ -670,25 +700,10 @@ class Player {
     return this.sex === 'male' ? 'his' : 'her';
   }
   addToInventory(item) {
-    if (!item.isValid()) {
-      MessageManager.notifyInvalidItemAddition(this, item.name);
-      return;
-    }
-    if (this.canAddToInventory(item)) {
-      this.#inventory.push(item);
-      MessageManager.notifyPlayersInLocation(this.currentLocation, MessageManager.notifyPickupItem(this, item.name));
-    } else {
-      MessageManager.notifyInventoryFull(this);
-    }
+    Utility.addToInventory(this, item);
   }
   removeFromInventory(item) {
-    const index = this.#inventory.findIndex(i => i.uid === item.uid);
-    if (index > -1) {
-      this.#inventory.splice(index, 1);
-      MessageManager.notifyPlayersInLocation(this.currentLocation, MessageManager.notifyDropItem(this, item.name));
-    } else {
-      MessageManager.notifyItemNotFoundInInventory(this);
-    }
+    Utility.removeFromInventory(this, item);
   }
   canAddToInventory(item) {
     return this.#inventory.length < this.getInventoryCapacity() && item.isValid();
@@ -709,8 +724,8 @@ class Player {
     const location = gameManager.getLocation(this.currentLocation);
     if (!location) return;
     const npcId = target
-      ? this.getNpcIdByName(target, location.npcs)
-      : this.getFirstAvailableNpcId(location.npcs);
+      ? Utility.getNpcIdByName(target, location.npcs)
+      : Utility.getFirstAvailableNpcId(location.npcs);
     if (npcId) {
       const npc = gameManager.getNpc(npcId);
       if (!npc) return;
@@ -725,18 +740,6 @@ class Player {
     } else {
       MessageManager.notifyNoConsciousEnemies(this);
     }
-  }
-  getNpcIdByName(name, npcs) {
-    return npcs.find(npcId => {
-      const npc = gameManager.getNpc(npcId);
-      return npc && npc.getName().toLowerCase() === name.toLowerCase();
-    });
-  }
-  getFirstAvailableNpcId(npcs) {
-    return npcs.find(npcId => {
-      const npc = gameManager.getNpc(npcId);
-      return npc && !npc.isUnconsciousOrDead();
-    });
   }
   incrementFailedLoginAttempts() {
     this.failedLoginAttempts++;
@@ -762,43 +765,7 @@ class Player {
     }
   }
   moveToLocation(newLocationId) {
-    const oldLocationId = this.currentLocation;
-    const oldLocation = gameManager.getLocation(oldLocationId);
-    const newLocation = gameManager.getLocation(newLocationId);
-    if (oldLocation) {
-      MessageManager.notifyLeavingLocation(this, oldLocationId, newLocationId); // Updated to include newLocationId
-      const direction = this.getDirectionTo(newLocationId);
-      MessageManager.notify(this, `${this.getName()} travels ${direction}.`);
-    }
-    this.currentLocation = newLocationId;
-    if (newLocation) {
-      newLocation.addEntity(this, "players");
-      MessageManager.notifyEnteringLocation(this, newLocationId); // Updated to use newLocationId
-      const direction = this.getDirectionFrom(oldLocationId);
-      MessageManager.notify(this, `${this.getName()} arrives ${direction}.`);
-    }
-  }
-  getDirectionTo(newLocationId) {
-    const directionMap = {
-      'north': 'northward',
-      'east': 'eastward',
-      'west': 'westward',
-      'south': 'southward',
-      'up': 'upward',
-      'down': 'downward',
-    };
-    return directionMap[newLocationId] || 'unknown direction';
-  }
-  getDirectionFrom(oldLocationId) {
-    const directionMap = {
-      'north': 'from the north',
-      'east': 'from the east',
-      'west': 'from the west',
-      'south': 'from the south',
-      'up': 'from above',
-      'down': 'from below',
-    };
-    return directionMap[oldLocationId] || 'from an unknown direction';
+    Utility.notifyPlayerMovement(this, this.currentLocation, newLocationId);
   }
   notify(message) {
     MessageManager.notify(this, message);
@@ -910,6 +877,13 @@ class Player {
       MessageManager.notifyNotAContainer(this, container.name);
     }
   }
+  hasChangedState() {
+    const hasChanged = this.health !== this.previousState.health || this.status !== this.previousState.status;
+    if (hasChanged) {
+      this.previousState = { health: this.health, status: this.status }; // Update previous state
+    }
+    return hasChanged;
+  }
 }
 // Health Regenerator ****************************************************************************
 /*
@@ -1016,6 +990,36 @@ class UidGenerator {
     return hashedUid;
   }
 }
+// Direction Manager ******************************************************************************
+/*
+ * The DirectionManager class is responsible for partially generating Player and Npc movement
+ * message content based on directions. It provides methods to get the direction to a new location
+ * and the direction from an old location.
+ */
+class DirectionManager {
+  static getDirectionTo(newLocationId) {
+    const directionMap = {
+      'north': 'northward',
+      'east': 'eastward',
+      'west': 'westward',
+      'south': 'southward',
+      'up': 'upward',
+      'down': 'downward',
+    };
+    return directionMap[newLocationId] || 'unknown direction';
+  }
+  static getDirectionFrom(oldLocationId) {
+    const directionMap = {
+      'north': 'from the north',
+      'east': 'from the east',
+      'west': 'from the west',
+      'south': 'from the south',
+      'up': 'from above',
+      'down': 'from below',
+    };
+    return directionMap[oldLocationId] || 'from an unknown direction';
+  }
+}
 // Location ***************************************************************************************
 /*
  * The Location class is responsible for representing locations in the game.
@@ -1025,25 +1029,26 @@ class Location {
   constructor(name, description) {
     this.name = name;
     this.description = description;
-    this.exits = {};
-    this.items = [];
-    this.npcs = [];
-    this.playersInLocation = []; // Added property to hold players in the location
+    this.exits = new Map(); // Changed from Object to Map
+    this.items = new Set(); // Changed from Array to Set
+    this.npcs = new Set(); // Changed from Array to Set
+    this.playersInLocation = new Set(); // Changed from Array to Set
+    this.zone = [];
   }
   addExit(direction, linkedLocation) {
-    this.exits[direction] = linkedLocation;
+    this.exits.set(direction, linkedLocation); // Efficient insertion
   }
   addItem(item) {
-    this.items.push(item);
+    this.items.add(item); // Efficient insertion
   }
   addNpc(npc) {
-    this.npcs.push(npc);
+    this.npcs.add(npc); // Efficient insertion
   }
-  addPlayer(player) { // New method to add a player to the location
-    this.playersInLocation.push(player);
+  addPlayer(player) {
+    this.playersInLocation.add(player); // Efficient insertion
   }
-  removePlayer(player) { // New method to remove a player from the location
-    this.playersInLocation = this.playersInLocation.filter(p => p !== player);
+  removePlayer(player) {
+    this.playersInLocation.delete(player); // Efficient removal
   }
   getDescription() {
     return this.description;
@@ -1052,61 +1057,80 @@ class Location {
     return this.name;
   }
 }
-// Location Entries *******************************************************************************
+// Location Entries *********************************************************************************
 const locations = {
   // Key for new location:
   '100': new Location(
     // Location title:
-    `Cháng'ān South Gate`,
+    `Chang'an South Gate`,
     // Location description:
-    `The massive South Gate of Cháng'ān looms above you, an impressive entrance to the walled city. Guards patrol the area, ensuring the safety of the city. Travelers and merchants bustle in and out, while the sound of lively chatter fills the air. To the north, you can see the city's main street stretching into the distance.`,
+    `The massive South Gate of Chang'an looms above you, an impressive entrance to the walled city. Guards patrol the area, ensuring the safety of the city. Travelers and merchants bustle in and out, while the sound of lively chatter fills the air. To the north, you can see the city's main street stretching into the distance.`,
     // Exits {<direction> <key to linked location>}:
     {'north': '101'},
     // Items in Location:
     ['100'],
     // Container Items:
     ['100', '101'],
-    ['100', '101']),
-    // Key for new location:
+    // Weapon Items in Location:
+    ['100'],
+    // Zone:
+    [`Chang'an City`]
+  ), // Correctly close the location's definition
+  // Key for new location:
   '101': new Location(
     // Location title:
-      `Cháng'ān Main Street`,
+    `Chang'an Main Street`,
     // Location description:
-    `The wide, cobblestone main street of Cháng'ān is bustling with activity. Various shops, inns, and market stalls line the street, selling a plethora of goods from the far reaches of the Silk Road. The aroma of exotic spices and delicious street food fills the air. To the north is the city center, while the South Gate lies to the south.`,
+    `The wide, cobblestone main street of Chang'an is bustling with activity. Various shops, inns, and market stalls line the street, selling a plethora of goods from the far reaches of the Silk Road. The aroma of exotic spices and delicious street food fills the air. To the north is the city center, while the South Gate lies to the south.`,
     // Exits {<direction> <key to linked location>}:
-    {'north': '102', 'south': '100'}),
+    {'north': '102', 'south': '100'},
+    // Zone:
+    [`Chang'an City`]
+  ), // Correctly close the location's definition
   // Key for new location:
   '102': new Location(
     // Location title:
-    `Cháng'ān City Center`,
+    `Chang'an City Center`,
     // Location description:
-    `The city center of Cháng'ān is a large, open square where people gather for various activities. Musicians play traditional instruments, while acrobats and martial artists perform impressive feats. At the center stands a grand statue of the city's founder. The main street extends to the south, and narrow alleys lead east and west.`,
+    `The city center of Chang'an is a large, open square where people gather for various activities. Musicians play traditional instruments, while acrobats and martial artists perform impressive feats. At the center stands a grand statue of the city's founder. The main street extends to the south, and narrow alleys lead east and west.`,
     // Exits {<direction> <key to linked location>}:
-    {'south': '101', 'east': '103', 'west': '104'}),
+    {'south': '101', 'east': '103', 'west': '104'},
+    // Zone:
+    [`Chang'an City`]
+  ), // Correctly close the location's definition
   // Key for new location:
   '103': new Location(
     // Location title:
-    `Cháng'ān Imperial Palace`,
+    `Chang'an Imperial Palace`,
     // Location description:
-    `The Cháng'ān Imperial Palace is a grand, sprawling complex surrounded by towering walls. This is the residence of the emperor and the political center of the city. The palace is decorated with exquisite carvings and paintings, reflecting the wealth and power of the empire. The city center lies to the south.`,
+    `The Chang'an Imperial Palace is a grand, sprawling complex surrounded by towering walls. This is the residence of the emperor and the political center of the city. The palace is decorated with exquisite carvings and paintings, reflecting the wealth and power of the empire. The city center lies to the south.`,
     // Exits {<direction> <key to linked location>}:
-    {'south': '102'}),
+    {'south': '102'},
+    // Zone:
+    [`Chang'an City`]
+  ), // Correctly close the location's definition
   // Key for new location:
   '104': new Location(
     // Location title:
-    `Cháng'ān East Market`,
+    `Chang'an East Market`,
     // Location description:
     `The East Market is a vibrant and chaotic place, where merchants and traders from all over the world gather to buy and sell their goods. The air is filled with the sounds of haggling and the enticing scents of various exotic wares. The city center is to the west.`,
     // Exits {<direction> <key to linked location>}:
-    {'west': '102'}),
+    {'west': '102'},
+    // Zone:
+    [`Chang'an City`]
+  ), // Correctly close the location's definition
   // Key for new location:
   '105': new Location(
     // Location title:
-    `Cháng'ān West Garden`,
+    `Chang'an West Garden`,
     // Location description:
     `The West Garden is a tranquil, lush haven amidst the bustling city. A meandering path leads through beautifully manicured lawns, ornamental ponds, and fragrant flowerbeds. The gentle sound of a nearby waterfall and the chirping of birds create a serene atmosphere. The city center can be reached by heading east.`,
     // Exits {<direction> <key to linked location>}:
-    {'east': '102'}),
+    {'east': '102'},
+    // Zone:
+    [`Chang'an City`]
+  ), // Correctly close the location's definition
 };
 // NPC ********************************************************************************************
 /*
@@ -1114,15 +1138,43 @@ const locations = {
  * It stores the NPC's ID, name, sex, current health, maximum health, attack power, CSML, aggro, assist, status, current location, aliases, and mobile status.
  */
 class Npc {
-  constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, mobile = false) {
-    Object.assign(this, { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, mobile });
+  constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile = false, zones = [], aliases) {
+    Object.assign(this, { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile, zones, aliases });
     this.id = UidGenerator.generateUid(); // Use UidGenerator to generate UID
+    this.previousState = { currHealth, status }; // Track previous state
+    if (this.mobile) this.startMovement(); // Start movement if NPC is mobile
+  }
+  startMovement() {
+    setInterval(() => {
+      if (this.status !== "engaged in combat") this.moveRandomly();
+    }, CONFIG.NPC_MOVEMENT_INTERVAL);
+  }
+  moveRandomly() {
+    const location = gameManager.getLocation(this.currentLocation);
+    const validDirections = Object.keys(location.exits).filter(direction =>
+      this.zones.includes(location.zone[0]) // Check if the zone matches
+    );
+    if (validDirections.length > 0) {
+      const randomDirection = validDirections[Math.floor(Math.random() * validDirections.length)];
+      const newLocationId = location.exits[randomDirection];
+      MessageManager.notifyNpcDeparture(this, Utility.getDirectionTo(newLocationId)); // Notify players of NPC departure
+      this.currentLocation = newLocationId; // Update NPC's location
+      const direction = Utility.getDirectionFrom(this.currentLocation); // Use getDirectionFrom method
+      MessageManager.notifyNpcArrival(this, direction); // Pass direction to notifyNpcArrival
+    }
+  }
+  hasChangedState() {
+    const hasChanged = this.currHealth !== this.previousState.currHealth || this.status !== this.previousState.status;
+    if (hasChanged) {
+      this.previousState = { currHealth: this.currHealth, status: this.status }; // Update previous state
+    }
+    return hasChanged;
   }
 }
 // NPC Entries *************************************************************************************
 const npcs = {
-  '100': new Npc('Cityguard Ling', 'male', 100, 100, 10, 0, false, false, 'standing', '100', ['mob', 'npc', 'city']),
-  '101': new Npc('Peacekeeper Chen', 'male', 100, 100, 10, 0, true, false, 'standing', '100', ['mob', 'npc', 'peacekeeper', 'peace', 'keeper', 'pea', 'kee', 'chen', 'che']),
+  '100': new Npc('Cityguard Ling', 'male', 100, 100, 10, 0, false, false, 'standing', '100', false, [`Chang'an City`], ['mob', 'npc', 'city']),
+  '101': new Npc('Peacekeeper Chen', 'male', 100, 100, 10, 0, true, false, 'standing', '100', true, [`Chang'an City`], ['mob', 'npc', 'peacekeeper', 'peace', 'keeper', 'pea', 'kee', 'chen', 'che']),
 };
 // Item *******************************************************************************************
 /*
@@ -1205,7 +1257,7 @@ class InventoryManager {
     }
   }
   getSingleItemFromLocation(target1) {
-    const itemId = findEntity(target1, location[this.player.currentLocation].items, 'item');
+    const itemId = Utility.findEntity(target1, location[this.player.currentLocation].items, 'item');
     if (itemId) {
       this.transferItem(itemId, location[this.player.currentLocation], 'location');
     } else {
@@ -1216,7 +1268,7 @@ class InventoryManager {
     this.dropItems(this.player.inventory, 'all');
   }
   dropAllSpecificItems(itemType) {
-    const itemsToDrop = this.player.inventory.filter(item => this.itemMatchesType(item, itemType));
+    const itemsToDrop = this.player.inventory.filter(item => Utility.itemMatchesType(item, itemType));
     this.dropItems(itemsToDrop, 'specific', itemType);
   }
   dropSingleItem(target1) {
@@ -1260,10 +1312,10 @@ class InventoryManager {
       this.messageManager.notify(this.player, error);
       return;
     }
-    const containerId = findEntity(containerName, this.player.inventory, 'item');
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
     const container = items[containerId];
     if (container instanceof ContainerItem) {
-      const itemsToPut = this.player.inventory.filter(item => item !== container && this.itemMatchesType(item, itemType));
+      const itemsToPut = this.player.inventory.filter(item => item !== container && Utility.itemMatchesType(item, itemType));
       if (itemsToPut.length === 0) {
         this.messageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name);
         return;
@@ -1273,13 +1325,10 @@ class InventoryManager {
       this.messageManager.notifyItemsPutInContainer(this.player, itemsToPut, container.name);
     }
   }
-  itemMatchesType(item, itemType) {
-    return item.name.toLowerCase().includes(itemType) || item.aliases.some(alias => alias.toLowerCase().includes(itemType));
-  }
   getAllSpecificItemsFromLocation(itemType) {
     const currentLocation = location[this.player.currentLocation];
     if (currentLocation.items && currentLocation.items.length > 0) {
-      const itemsTaken = currentLocation.items.filter(itemId => this.itemMatchesType(items[itemId], itemType));
+      const itemsTaken = currentLocation.items.filter(itemId => Utility.itemMatchesType(items[itemId], itemType));
       if (itemsTaken.length > 0) {
         this.player.inventory.push(...itemsTaken.map(itemId => items[itemId]));
         currentLocation.items = currentLocation.items.filter(itemId => !itemsTaken.includes(itemId));
@@ -1297,10 +1346,10 @@ class InventoryManager {
       this.messageManager.notify(this.player, error);
       return;
     }
-    const containerId = findEntity(containerName, this.player.inventory, 'item');
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
     const container = items[containerId];
     if (container instanceof ContainerItem) {
-      const itemsTaken = container.inventory.filter(itemId => this.itemMatchesType(items[itemId], itemType));
+      const itemsTaken = container.inventory.filter(itemId => Utility.itemMatchesType(items[itemId], itemType));
       if (itemsTaken.length > 0) {
         this.player.inventory.push(...itemsTaken.map(itemId => items[itemId]));
         container.inventory = container.inventory.filter(itemId => !itemsTaken.includes(itemId));
@@ -1320,7 +1369,7 @@ class InventoryManager {
     return null;
   }
   lootNPC(target1) {
-    const npcId = findEntity(target1, location[this.player.currentLocation].npcs, 'npc');
+    const npcId = Utility.findEntity(target1, location[this.player.currentLocation].npcs, 'npc');
     if (npcId) {
       const npc = npcs[npcId];
       if (npc.status === "lying unconscious" || npc.status === "lying dead") {
@@ -1363,7 +1412,7 @@ class InventoryManager {
     }
   }
   containerErrorMessage(containerName, action) {
-    const containerId = findEntity(containerName, this.player.inventory, 'item');
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
     if (!containerId) {
       return `${this.player.getName()} doesn't have a ${containerName} to ${action}.`;
     }
@@ -1402,7 +1451,7 @@ class InventoryManager {
     }
   }
   getContainerId(containerName) {
-    const containerId = findEntity(containerName, this.player.inventory, 'item');
+    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item');
     if (!containerId) {
       this.messageManager.notifyNoContainer(this.player, containerName);
       return null;
@@ -1421,13 +1470,7 @@ class InventoryManager {
     return item;
   }
   transferItem(itemId, source, sourceType) {
-    this.player.inventory.push(items[itemId]);
-    if (sourceType === 'location') {
-      source.items = source.items.filter(i => i !== itemId);
-    } else {
-      source.inventory = source.inventory.filter(i => i !== itemId);
-    }
-    this.messageManager.notifyItemTaken(this.player, items[itemId].name);
+    Utility.transferItem(itemId, source, sourceType, this.player);
   }
 }
 // Combat Manager *********************************************************************************
@@ -1505,7 +1548,7 @@ class CombatManager {
     const message = playerInitiated
       ? MessageManager.notifyCombatInitiation(player, npc.getName())
       : MessageManager.notifyCombatInitiation(npc, player.getName());
-    MessageManager.notifyCombatActionMessage(this.gameManager.getLocation(player.currentLocation), message.content);
+    MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), message.content);
     if (!playerInitiated) {
       player.lastAttacker = npc.id;
       this.#combatInitiatedNpcs.add(npc.id);
@@ -1533,8 +1576,8 @@ class CombatManager {
       const npc = this.getNextNpcInCombatOrder();
       if (npc) {
         // Display health percentages
-        const playerHealthPercentage = (player.health / player.maxHealth) * 100;
-        const npcHealthPercentage = (npc.health / npc.maxHealth) * 100;
+        const playerHealthPercentage = Utility.calculateHealthPercentage(player.health, player.maxHealth);
+        const npcHealthPercentage = Utility.calculateHealthPercentage(npc.health, npc.maxHealth);
         // Notify players of health status
         MessageManager.notifyPlayersInLocation(player.currentLocation,
           MessageManager.createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage)
@@ -1609,8 +1652,8 @@ class CombatManager {
       !this.#defeatedNpcs.has(npc.id);
   }
   performCombatAction(attacker, defender, isPlayer) {
-    const outcome = this._calculateAttackOutcome(attacker, defender);
-    const technique = this._getRandomTechnique();
+    const outcome = Utility.calculateAttackOutcome(attacker, defender);
+    const technique = Utility.getRandomElement(this.techniques);
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
     let description = this.getCombatDescription(outcome, attacker, defender, technique);
@@ -1621,9 +1664,6 @@ class CombatManager {
       defender.health -= damage - resistDamage;
     }
     return FormatMessageManager.createMessageData(`<span id="combat-message-${isPlayer ? "player" : "npc"}">${description}</span>`);
-  }
-  _getRandomTechnique() {
-    return this.techniques[Math.floor(Math.random() * this.techniques.length)];
   }
   getCombatDescription(outcome, attacker, defender, technique) {
     const descriptions = {
@@ -1636,27 +1676,6 @@ class CombatManager {
       "knockout": `${attacker.getName()} strikes ${defender.getName()} with a spectacularly phenomenal blow!<br>${defender.getName()}'s body goes limp and collapses to the ground!`,
     };
     return FormatMessageManager.createMessageData(descriptions[outcome] || `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`);
-  }
-  _calculateAttackOutcome(attacker, defender) {
-    const roll = Math.floor(Math.random() * 20) + 1;
-    let value = this._calculateAttackValue(attacker, defender, roll);
-    if (value >= 21 || value === 19) return "critical success";
-    if (value === 20) return "knockout";
-    if (value >= 13) return "attack hits";
-    if (value >= 10) return "attack is blocked";
-    if (value >= 7) return "attack is parried";
-    if (value >= 4) return "attack is trapped";
-    if (value >= 1) return "attack is evaded";
-    return "attack hits";
-  }
-  _calculateAttackValue(attacker, defender, roll) {
-    if (attacker.level === defender.level) {
-      return roll + attacker.csml;
-    } else if (attacker.level < defender.level) {
-      return (roll + attacker.csml) - (defender.level - attacker.level);
-    } else {
-      return (roll + attacker.csml) + (attacker.level - defender.level);
-    }
   }
   attackNpc(player, target1) {
     const location = this.gameManager.getLocation(player.currentLocation);
@@ -1765,7 +1784,7 @@ class DescribeLocationManager {
  */
 class FormatMessageManager {
   static createMessageData(cssid = '', message) {
-    return { cssid, content: message }; // Return message with cssid
+    return Utility.createMessageData(cssid, message);
   }
   static getIdForMessage(type) {
     const messageIds = {
@@ -1818,7 +1837,7 @@ class MessageManager {
   // Notification Methods *************************************************************************
   static notify(player, message, cssid = '') {
     this.logger.info(`Message to ${player.getName()}: ${message}`);
-    return FormatMessageManager.createMessageData(cssid, message); // Return message with cssid
+    return Utility.createMessageData(cssid, message); // Updated to use Utility
   }
   // Login Notifications **************************************************************************
   static notifyLoginSuccess(player) {
@@ -2035,5 +2054,103 @@ class MessageManager {
   }
   static notifyError(manager, logger, message) {
     logger.error(`Error: ${message}`);
+  }
+  static notifyNpcDeparture(npc, direction) {
+    return this.notify(null, `${npc.getName()} travels ${direction}.`); // Notify players of NPC departure
+  }
+  static notifyNpcArrival(npc, direction) {
+    return this.notify(null, `${npc.getName()} arrives ${direction}.`); // Notify players of NPC arrival
+  }
+}
+// Utility Class **********************************************************************************
+/*
+ * The Utility class for commonly used and shared methods.
+ */
+class Utility {
+  static createMessageData(cssid = '', message) {
+    return { cssid, content: message }; // Centralized message creation
+  }
+
+  static getRandomElement(array) {
+    return array[Math.floor(Math.random() * array.length)]; // Random selection utility
+  }
+
+  static findEntity(target, collection, type) {
+    return collection.find(entity => entity.name.toLowerCase() === target.toLowerCase()); // Moved from CombatManager and other classes
+  }
+
+  static calculateHealthPercentage(currentHealth, maxHealth) {
+    return (currentHealth / maxHealth) * 100; // Health percentage calculation
+  }
+
+  static transferItem(itemId, source, sourceType, player) {
+    player.inventory.push(items[itemId]);
+    if (sourceType === 'location') {
+      source.items = source.items.filter(i => i !== itemId);
+    } else {
+      source.inventory = source.inventory.filter(i => i !== itemId);
+    }
+    MessageManager.notifyItemTaken(player, items[itemId].name);
+  }
+
+  static calculateAttackValue(attacker, defender, roll) {
+    if (attacker.level === defender.level) {
+      return roll + attacker.csml;
+    } else if (attacker.level < defender.level) {
+      return (roll + attacker.csml) - (defender.level - attacker.level);
+    } else {
+      return (roll + attacker.csml) + (attacker.level - defender.level);
+    }
+  }
+
+  static calculateAttackOutcome(attacker, defender) {
+    const roll = Math.floor(Math.random() * 20) + 1;
+    let value = this.calculateAttackValue(attacker, defender, roll);
+    if (value >= 21 || value === 19) return "critical success";
+    if (value === 20) return "knockout";
+    if (value >= 13) return "attack hits";
+    if (value >= 10) return "attack is blocked";
+    if (value >= 7) return "attack is parried";
+    if (value >= 4) return "attack is trapped";
+    if (value >= 1) return "attack is evaded";
+    return "attack hits";
+  }
+
+  static notifyPlayerMovement(entity, oldLocationId, newLocationId) {
+    const oldLocation = gameManager.getLocation(oldLocationId);
+    const newLocation = gameManager.getLocation(newLocationId);
+    if (oldLocation) {
+      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
+      const direction = entity.getDirectionTo(newLocationId);
+      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
+    }
+    entity.currentLocation = newLocationId;
+    if (newLocation) {
+      newLocation.addEntity(entity, "players");
+      MessageManager.notifyEnteringLocation(entity, newLocationId);
+      const direction = entity.getDirectionFrom(oldLocationId);
+      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
+    }
+  }
+
+  static addToInventory(player, item) {
+    if (!item.isValid()) {
+      MessageManager.notifyInvalidItemAddition(player, item.name);
+      return;
+    }
+    if (player.canAddToInventory(item)) {
+      player.inventory.push(item);
+    } else {
+      MessageManager.notifyInventoryFull(player);
+    }
+  }
+
+  static removeFromInventory(player, item) {
+    const index = player.inventory.findIndex(i => i.uid === item.uid);
+    if (index > -1) {
+      player.inventory.splice(index, 1);
+    } else {
+      MessageManager.notifyItemNotFoundInInventory(player);
+    }
   }
 }
