@@ -10,7 +10,7 @@ Replace magic numbers and strings with named constants. This improves readabilit
 When loading or saving data, consider batching operations to minimize the number of I/O calls. For example, load all player data in one call instead of multiple calls for each player.
 
 ## Use Efficient Data Structures
-For collections of items (like players, NPCs, etc.), consider using Sets or Maps for faster lookups and insertions compared to arrays.
+For collections of entities (like players, npcs, items.), consider using Sets or Maps for faster lookups and insertions compared to arrays.
 
 ## Asynchronous Code
 Ensure that all async functions are awaited where necessary. Check for unhandled promise rejections.
@@ -19,7 +19,7 @@ Ensure that all async functions are awaited where necessary. Check for unhandled
 If a function does not need to be asynchronous, avoid using async/await to reduce overhead.
 
 ## Optimize Game Loop
-In the game loop, ensure that only necessary updates are performed. For example, only update NPCs or players that have changed state.
+In the game loop, ensure that only necessary updates are performed. For example, only update npcs or players that have changed state.
 
 ## Memory Management
 Regularly clean up unused objects or references to prevent memory leaks, especially in long-running processes.
@@ -50,7 +50,7 @@ Regularly review and remove any unused variables, methods, or classes.
 - Identify methods that are defined but never called.
 - Identify classes that are defined but never instantiated.
 
-## Consider Design Patterns
+## Design Patterns
 Implement design patterns (like the Factory or Strategy pattern) where applicable to streamline object creation and behavior.
 
 ### Factory Pattern

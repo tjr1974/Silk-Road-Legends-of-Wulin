@@ -1,0 +1,32 @@
+{
+  "100": {
+    "name": "Cityguard Ling",
+    "sex": "male",
+    "currHealth": 100,
+    "maxHealth": 100,
+    "attackPower": 10,
+    "csml": 0,
+    "aggro": false,
+    "assist": false,
+    "status": "standing",
+    "currentLocation": "Chang'an City",
+    "mobile": false,
+    "zones": [],
+    "aliases": ["mob", "npc", "city"]
+  },
+  "101": {
+    "name": "Peacekeeper Chen",
+    "sex": "male",
+    "currHealth": 100,
+    "maxHealth": 100,
+    "attackPower": 10,
+    "csml": 0,
+    "aggro": false,
+    "assist": false,
+    "status": "standing",
+    "currentLocation": "Chang'an City",
+    "mobile": false,
+    "zones": [],
+    "aliases": ["mob", "npc", "peacekeeper", "peace", "keeper", "pea", "kee", "chen", "che"]
+  }
+}

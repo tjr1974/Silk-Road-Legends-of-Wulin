@@ -24,4 +24,9 @@ npm install pino pino-http
 npm install queue
 npm install body-parser
 ```
+## Create a `package.json` file
+If you haven't already, create a `package.json` file:
+```bash
+npm init -y
 ```
+This will help manage project dependencies and scripts.

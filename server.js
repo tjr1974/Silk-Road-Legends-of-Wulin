@@ -29,10 +29,11 @@ class Server {
     this.gameManager = new GameManager();
     await this.createServer(); // Added await to ensure server creation completes
     await this.start(); // Added await to ensure server starts before proceeding
-    this.setupMiddleware();
-    this.setupRoutes();
-    await this.loadGameData(); // Added await to ensure game data loads before proceeding
-    this.initializeQueue(); // Changed to synchronous
+    this.setupMiddleware(); // Ensure middleware is set up
+    this.setupRoutes(); // Ensure routes are set up
+    await this.loadGameData(); // Ensure game data loads before proceeding
+    this.initializeQueue(); // Ensure queue is initialized
+    this.startGameLoop(); // Ensure the game loop starts
   }
   // Create Server ********************************************************************************
   /*
@@ -71,6 +72,7 @@ class Server {
     this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
       this.logger.info(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}`);
     });
+    this.gameManager.startGame(); // Ensure the game starts
   }
   // Setup Middleware *****************************************************************************
   /*
@@ -127,16 +129,16 @@ class Server {
   * It retrieves location, NPC, and item data to ensure the game state is ready for interaction.
   */
   async loadGameData() {
-    this.logger.debug(`Loading game data...`);
+    this.logger.info(`Loading game data...`);
     try {
       await Promise.all([
-        this.databaseManager.loadLocationData(),
-        this.databaseManager.loadNpcData(),
-        this.databaseManager.loadItemData()
+        this.databaseManager.loadLocationData().then(() => this.logger.info(`Location data loaded successfully.`)).catch(error => this.logger.error(`Error loading location data: ${error}`)),
+        this.databaseManager.loadNpcData().then(() => this.logger.info(`Npc data loaded successfully.`)).catch(error => this.logger.error(`Error loading NPC data: ${error}`)),
+        this.databaseManager.loadItemData().then(() => this.logger.info(`Item data loaded successfully.`)).catch(error => this.logger.error(`Error loading item data: ${error}`))
       ]);
-      this.logger.debug(`Game data loaded successfully.`);
+      this.logger.info(`All game data loading attempts completed.`);
     } catch (error) {
-      this.logger.error(`Error loading game data: ${error}`);
+      this.logger.error(`Error during game data loading process: ${error}`);
     }
   }
   // Initialize Queue *****************************************************************************
@@ -153,6 +155,13 @@ class Server {
   */
   async initializeServer() {
     this.server = new Server();
+  }
+  // Start Game Loop ******************************************************************************
+  /*
+  * The startGameLoop method starts the game loop.
+  */
+  startGameLoop() {
+    this.gameManager.startGameLoop();
   }
 }
 // Method Call to Start an instance of Server
@@ -309,30 +318,27 @@ class QueueManager {
 * It provides methods to load and save data from various files, such as player, location, NPC,
 * and item data.
 */
-import { PLAYER_DATA_PATH, LOCATION_DATA_PATH, NPC_DATA_PATH, ITEM_DATA_PATH } from './config.js'; // Ensure config.js exports these constants
-import CONFIG from './config.js'; // Ensure CONFIG is correctly imported
-import { MessageManager } from './MessageManager.js'; // Example import, ensure this file exists
-import { EventEmitter } from 'events'; // Ensure 'events' module is available
-import { CombatManager } from './CombatManager.js'; // Ensure this file exists
-import { GameManager } from './GameManager.js'; // Ensure this file exists
-import { QueueManager } from './QueueManager.js'; // Ensure this file exists
-import { ObjectPool } from './ObjectPool.js'; // Ensure this file exists
-import { Task } from './Task.js'; // Ensure this file exists
 class DatabaseManager {
   constructor() {
     this.fs = import('fs').promises; // Use promises API for file system operations
   }
-  async loadData(filePaths) { // Updated to accept an array of file paths
+  async loadData(directoryPath) { // Updated to accept a directory path
     const data = {};
-    await Promise.all(filePaths.map(async (filePath) => {
-      try {
-        const fileContent = await this.fs.readFile(filePath, 'utf-8'); // Read file content
-        data[filePath] = JSON.parse(fileContent); // Parse JSON data
-      } catch (error) {
-        MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`); // Notify error
-        data[filePath] = {}; // Default to empty object on error
-      }
-    }));
+    try {
+        const fileNames = await this.fs.readdir(directoryPath); // Read all files in the directory
+        await Promise.all(fileNames.map(async (fileName) => {
+            const filePath = `${directoryPath}/${fileName}`; // Construct full file path
+            try {
+                const fileContent = await this.fs.readFile(filePath, 'utf-8'); // Read file content
+                data[fileName] = JSON.parse(fileContent); // Parse JSON data
+            } catch (error) {
+                MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`); // Notify error
+                data[fileName] = {}; // Default to empty object on error
+            }
+        }));
+    } catch (error) {
+        MessageManager.notifyError(this, `Error reading directory ${directoryPath}: ${error}`); // Notify directory read error
+    }
     return data; // Return all loaded data
   }
   async saveData(filePath, key, data) { // Updated to handle batch saving
@@ -345,29 +351,29 @@ class DatabaseManager {
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
   }
-  async loadPlayerData(username) {
-    return this.loadData(PLAYER_DATA_PATH, username); // Load player data
+  async loadPlayerData() {
+    return this.loadData(CONFIG.FILE_PATHS.PLAYER_DATA); // Use the path from config.js
   }
   async savePlayerData(playerData) {
     await this.saveData(PLAYER_DATA_PATH, playerData.username, playerData); // Save player data
   }
-  async loadLocationData(locationId) {
-    return this.loadData(LOCATION_DATA_PATH, locationId); // Load location data
+  async loadLocationData() {
+    return this.loadData(CONFIG.FILE_PATHS.LOCATION_DATA); // Use the path from config.js
   }
   async saveLocationData(locationData) {
     await this.saveData(LOCATION_DATA_PATH, locationData.id, locationData); // Save location data
   }
-  loadNpcData(npcId) { // Removed async
-    return this.loadData(NPC_DATA_PATH, npcId); // Load NPC data
+  async loadNpcData() {
+    return this.loadData(CONFIG.FILE_PATHS.NPC_DATA); // Use the path from config.js
   }
-  saveNpcData(npcData) { // Removed async
-    this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Save NPC data
+  async saveNpcData(npcData) {
+    await this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Save NPC data
   }
-  loadItemData(itemId) { // Removed async
-    return this.loadData(ITEM_DATA_PATH, itemId); // Load item data
+  async loadItemData() {
+    return this.loadData(CONFIG.FILE_PATHS.ITEM_DATA); // Use the path from config.js
   }
-  saveItemData(itemData) { // Removed async
-    this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Save item data
+  async saveItemData(itemData) {
+    await this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Save item data
   }
 }
 // Game Manager ***********************************************************************************
@@ -1057,81 +1063,6 @@ class Location {
     return this.name; // Return location name
   }
 }
-// Location Entries *********************************************************************************
-const locations = {
-  // Key for new location:
-  '100': new Location(
-    // Location title:
-    `Chang'an South Gate`,
-    // Location description:
-    `The massive South Gate of Chang'an looms above you, an impressive entrance to the walled city. Guards patrol the area, ensuring the safety of the city. Travelers and merchants bustle in and out, while the sound of lively chatter fills the air. To the north, you can see the city's main street stretching into the distance.`,
-    // Exits {<direction> <key to linked location>}:
-    {'north': '101'},
-    // Items in Location:
-    ['100'],
-    // Container Items:
-    ['100', '101'],
-    // Weapon Items in Location:
-    ['100'],
-    // Zone:
-    [`Chang'an City`]
-  ), // Correctly close the location's definition
-  // Key for new location:
-  '101': new Location(
-    // Location title:
-    `Chang'an Main Street`,
-    // Location description:
-    `The wide, cobblestone main street of Chang'an is bustling with activity. Various shops, inns, and market stalls line the street, selling a plethora of goods from the far reaches of the Silk Road. The aroma of exotic spices and delicious street food fills the air. To the north is the city center, while the South Gate lies to the south.`,
-    // Exits {<direction> <key to linked location>}:
-    {'north': '102', 'south': '100'},
-    // Zone:
-    [`Chang'an City`]
-  ), // Correctly close the location's definition
-  // Key for new location:
-  '102': new Location(
-    // Location title:
-    `Chang'an City Center`,
-    // Location description:
-    `The city center of Chang'an is a large, open square where people gather for various activities. Musicians play traditional instruments, while acrobats and martial artists perform impressive feats. At the center stands a grand statue of the city's founder. The main street extends to the south, and narrow alleys lead east and west.`,
-    // Exits {<direction> <key to linked location>}:
-    {'south': '101', 'east': '103', 'west': '104'},
-    // Zone:
-    [`Chang'an City`]
-  ), // Correctly close the location's definition
-  // Key for new location:
-  '103': new Location(
-    // Location title:
-    `Chang'an Imperial Palace`,
-    // Location description:
-    `The Chang'an Imperial Palace is a grand, sprawling complex surrounded by towering walls. This is the residence of the emperor and the political center of the city. The palace is decorated with exquisite carvings and paintings, reflecting the wealth and power of the empire. The city center lies to the south.`,
-    // Exits {<direction> <key to linked location>}:
-    {'south': '102'},
-    // Zone:
-    [`Chang'an City`]
-  ), // Correctly close the location's definition
-  // Key for new location:
-  '104': new Location(
-    // Location title:
-    `Chang'an East Market`,
-    // Location description:
-    `The East Market is a vibrant and chaotic place, where merchants and traders from all over the world gather to buy and sell their goods. The air is filled with the sounds of haggling and the enticing scents of various exotic wares. The city center is to the west.`,
-    // Exits {<direction> <key to linked location>}:
-    {'west': '102'},
-    // Zone:
-    [`Chang'an City`]
-  ), // Correctly close the location's definition
-  // Key for new location:
-  '105': new Location(
-    // Location title:
-    `Chang'an West Garden`,
-    // Location description:
-    `The West Garden is a tranquil, lush haven amidst the bustling city. A meandering path leads through beautifully manicured lawns, ornamental ponds, and fragrant flowerbeds. The gentle sound of a nearby waterfall and the chirping of birds create a serene atmosphere. The city center can be reached by heading east.`,
-    // Exits {<direction> <key to linked location>}:
-    {'east': '102'},
-    // Zone:
-    [`Chang'an City`]
-  ), // Correctly close the location's definition
-};
 // NPC ********************************************************************************************
 /*
  * The Npc class is responsible for representing non-player characters in the game.
@@ -1182,11 +1113,6 @@ class Npc extends Character {
     return hasChanged; // Return if state has changed
   }
 }
-// NPC Entries *************************************************************************************
-const npcs = {
-  '100': new Npc('Cityguard Ling', 'male', 100, 100, 10, 0, false, false, 'standing', '100', false, [`Chang'an City`], ['mob', 'npc', 'city']),
-  '101': new Npc('Peacekeeper Chen', 'male', 100, 100, 10, 0, true, false, 'standing', '100', true, [`Chang'an City`], ['mob', 'npc', 'peacekeeper', 'peace', 'keeper', 'pea', 'kee', 'chen', 'che']),
-};
 // Base Item ***************************************************************************************
 /*
  * The BaseItem class is responsible for representing items in the game.
@@ -1232,19 +1158,6 @@ class WeaponItem extends BaseItem {
     this.damage = 0; // Initialize damage value
   }
 }
-// Item Entries ***********************************************************************************
-const items = {
-  '100': new Item('Health Potion', 'A potion that restores health.', ['potion', 'heal']), // Example item
-};
-// Container Item Entries *************************************************************************
-const containerItems = {
-  '100': new ContainerItem('Backpack', 'A sturdy backpack for carrying items.', ['pack', 'bag']), // Example container item
-  '101': new ContainerItem('Treasure Chest', 'A large chest filled with treasures.', ['chest', 'treasure']), // Example container item
-};
-// Weapon Item Entries ****************************************************************************
-const weaponItems = {
-  '100': new WeaponItem('Rusty Sword', 'An old sword that has seen better days.', ['sword', 'rusty']), // Example weapon item
-};
 // Player Actions Class *****************************************************************************
 class PlayerActions {
   constructor(player) {
@@ -1784,7 +1697,6 @@ class CombatManager {
     return this.#combatOrder; // Return the set of NPCs in combat order
   }
   getNextNpcInCombatOrder() {
-    // Returns the first NPC in the combat order
     return Array.from(this.#combatOrder)[0]; // Returns the first NPC in combat order
   }
   notifyPlayersInLocation(locationId, content) {
