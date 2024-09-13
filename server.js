@@ -665,11 +665,17 @@ class Character {
 * It contains various properties and methods related to the player's state and actions.
 */
 class Player extends Character {
+  #uid; // Unique identifier for the player
+  #bcrypt; // Bcrypt instance for password hashing
+  #inventory; // Array to hold player's inventory items
+  #lastAttacker; // Reference to the last attacker
+  #colorPreferences; // Player's color preferences
+  #healthRegenerator; // Instance of health regenerator for health management
   constructor(uid, name, bcrypt) {
     super(name, 100); // Call the parent constructor
-    this.#uid = uid; // Unique identifier for the player
-    this.#bcrypt = bcrypt; // Bcrypt instance for password hashing
-    this.#inventory = []; // Array to hold player's inventory items
+    this.#uid = uid; // Initialize unique identifier
+    this.#bcrypt = bcrypt; // Initialize bcrypt instance
+    this.#inventory = []; // Initialize inventory array
     this.#lastAttacker; // Reference to the last attacker
     this.#colorPreferences; // Player's color preferences
     this.#healthRegenerator; // Instance of health regenerator for health management
