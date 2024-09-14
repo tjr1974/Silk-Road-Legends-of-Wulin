@@ -6,6 +6,8 @@
 class Server {
   constructor() {
     this.initializeModules(); // Ensure modules are initialized first
+    this.setupServer(); // Ensure server is setup
+    this.initializeGameComponents(); // Ensure game components are initialized
   }
   // Initialize Modules ***************************************************************************
   /*
@@ -14,22 +16,65 @@ class Server {
   * The order of initialization is crucial for proper functionality.
   */
   async initializeModules() {
+    console.log(`\nStart module imports...`);
+    console.log(`\nImport module config...`);
     this.CONFIG = await import('./config.js');
-    console.log(`Loaded config: HOST=${this.CONFIG.HOST}, PORT=${this.CONFIG.PORT}`);
+    if (!this.CONFIG.HOST || !this.CONFIG.PORT) {
+      throw new Error('HOST and PORT must be defined in config.js');
+    } else {
+      console.log(`Import module config successful: HOST=${this.CONFIG.HOST}, PORT=${this.CONFIG.PORT}`);
+    }
+    console.log(`\nImport module file system...`);
     this.fs = await import('fs').then(module => module.promises);
+    if (!this.fs) {
+      throw new Error('File system module not found!!!');
+    } else {
+      console.log(`Import module file system successful...`);
+    }
+    console.log(`\nImport module socket.io...`);
     this.io = await import('socket.io');
+    if (!this.io) {
+      throw new Error('Socket.io module not found!!!');
+    } else {
+      console.log(`Import module socket.io successful...`);
+    }
+    console.log(`\nImport module express...`);
     this.express = (await import('express')).default;
+    if (!this.express) {
+      throw new Error('Express module not found!!!');
+    } else {
+      console.log(`Import module express successful...`);
+    }
+    console.log(`\nFinished module imports...`);
+  }
+    // Setup Server *********************************************************************************
+  /*
+  * The setupServer method initializes the server setup process, including routes and server creation.
+  */
+  async setupServer() {
+    console.log(`\nStart server setup...`);
+    console.log(`\nSet up routes...`);
     this.app = this.express();
-    this.queueManager = new QueueManager();
-    this.databaseManager = new DatabaseManager();
-    this.gameManager = new GameManager();
-    await this.createServer(); // Added await to ensure server creation completes
-    await this.start(); // Added await to ensure server starts before proceeding
-    this.setupMiddleware(); // Ensure middleware is set up
-    this.setupRoutes(); // Ensure routes are set up
-    await this.loadGameData(); // Ensure game data loads before proceeding
-    this.initializeQueue(); // Ensure queue is initialized
-    this.startGameLoop(); // Ensure the game loop starts
+    if (!this.app) {
+      throw new Error('Set up routes unsuccessful!!!');
+    } else {
+      console.log(`Set up routes successful...`);
+    }
+    console.log(`\nCreate server...`);
+    await this.createServer(); // Ensure server creation completes
+    if (!this.server) {
+      throw new Error('Create server unsuccessful!!!');
+    } else {
+      console.log(`Create server successful...`);
+    }
+    console.log(`\nStart server...`);
+    await this.start(); // Ensure server starts before proceeding
+    if (!this.server) {
+      throw new Error('Start server unsuccessful!!!');
+    } else {
+      console.log(`Start server successful...`);
+    }
+    console.log(`\nFinished server setup...`);
   }
   // Create Server ********************************************************************************
   /*
@@ -40,26 +85,27 @@ class Server {
   async createServer() {
     const SSL_KEY_PATH = './ssl/server.key';
     const SSL_CERT_PATH = './ssl/server.crt';
-    console.log(`Creating server with SSL_KEY_PATH: ${SSL_KEY_PATH} and SSL_CERT_PATH: ${SSL_CERT_PATH}...`);
     const sslOptions = { key: null, cert: null };
     try {
       sslOptions.key = await this.fs.readFile(SSL_KEY_PATH);
     } catch (error) {
-      console.log(`Error reading SSL key: ${error}...`);
+      console.log(`WARNING: Read SSL key: ${error}...`);
     }
     try {
       sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH);
     } catch (error) {
-      console.log(`Error reading SSL cert: ${error}...`);
+      console.log(`WARNING: Read SSL cert: ${error}...`);
     }
     if (!sslOptions.key || !sslOptions.cert) {
-      console.log(`SSL files not found, defaulting to HTTP...`);
-      const http = await import('http'); // Use import for HTTP
-      return http.createServer(this.app);
+      console.log(`WARNING: SSL files not found, defaulting to HTTP...`);
+      const http = await import('http');
+      this.server = http.createServer(this.app); // Ensure server instance is assigned
+    } else {
+      console.log(`SSL files found, creating HTTPS server...`);
+      const https = await import('https');
+      this.server = https.createServer({ key: sslOptions.key, cert: sslOptions.cert }, this.app); // Ensure server instance is assigned
     }
-    console.log(`SSL files found, creating HTTPS server...`);
-    const https = await import('https'); // Use import for HTTPS
-    return https.createServer({ key: sslOptions.key, cert: sslOptions.cert }, this.app);
+    return this.server; // Ensure the server instance is returned
   }
   // Start Server *********************************************************************************
   /*
@@ -67,34 +113,32 @@ class Server {
   * It logs the server's operational status and address for easy access.
   */
   async start() {
-    console.log(`Starting server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
+    console.log(`Start server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
       console.log(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     });
     this.gameManager.startGame(); // Ensure the game starts
   }
-  // Setup Middleware *****************************************************************************
+  // Setup Express *****************************************************************************
   /*
-  * The setupMiddleware method configures middleware for the server.
+  * The setupExpress method sets up the express server.
   */
-  setupMiddleware() {
-    console.log(`Starting express...`);
+  setupExpress() {
     this.app.use(this.express.static('public'));
   }
   // Setup Routes ********************************************************************************
   /*
-  * The setupRoutes method defines the routes for the server.
-  * It establishes the main route for the server, providing a welcome message to users.
+  * The setupRoutes method sets up the routes for the server.
   */
   setupRoutes() {
     this.app.get('/', (req, res) => {
       console.log(`Routes established...`);
       res.send(`Welcome to the Game Server!`);
     });
-    console.log(`Starting socket listeners...`);
+    console.log(`Start socket listeners...`);
     this.setupSocketListeners(); // Call the method to set up socket listeners
     console.log(`Socket listeners started...`);
-    console.log(`Starting socket emitters...`);
+    console.log(`Start socket emitters...`);
     this.setupSocketEmitters(); // Call the method to set up socket emitters
     console.log(`Socket emitters started...`);
   }
@@ -149,7 +193,7 @@ class Server {
   * It assigns the queue instance to the queueManager for managing asynchronous tasks.
   */
   initializeQueue() {
-    console.log(`Starting queue initialization...`);
+    console.log(`Start queue initialization...`);
     this.queue = (import('queue')).default(); // Removed async/await
     console.log(`Finished queue initialization...`);
   }
@@ -158,20 +202,62 @@ class Server {
   * The initializeServer method initializes the server.
   */
   async initializeServer() {
-    console.log(`Starting server initialization...`);
+    console.log(`Start server initialization...`);
     this.server = new Server();
     console.log(`Finished server initialization...`);
   }
-  // Start Game Loop ******************************************************************************
+  // Initialize Game Components *********************************************************************
   /*
-  * The startGameLoop method starts the game loop.
+  * The initializeGameComponents method initializes the game components.
   */
-  startGameLoop() {
-    this.gameManager.startGameLoop();
+  async initializeGameComponents() { // New method to initialize game components
+    console.log(`\nStart queue manager...`);
+    this.queueManager = new QueueManager();
+    if (!this.queueManager) {
+      throw new Error('Start queue manager unsuccessful!!!');
+    } else {
+      console.log(`Start queue manager successful...`);
+    }
+    console.log(`\nStart database manager...`);
+    this.databaseManager = new DatabaseManager();
+    if (!this.databaseManager) {
+      throw new Error('Start database manager unsuccessful!!!');
+    } else {
+      console.log(`Start database manager successful...`);
+    }
+    console.log(`\nStart game manager...`);
+    this.gameManager = new GameManager();
+    if (!this.gameManager) {
+      throw new Error('Start game manager unsuccessful!!!');
+    } else {
+      console.log(`Start game manager successful...`);
+    }
+    console.log(`\nLoading game data...`);
+    await this.loadGameData(); // Ensure game data loads before proceeding
+    if (!this.gameData) {
+      throw new Error('Load game data unsuccessful!!!');
+    } else {
+      console.log(`Load game data successful...`);
+    }
+    console.log(`\nStart queue...`);
+    this.initializeQueue(); // Ensure queue is initialized
+    if (!this.queue) {
+      throw new Error('Start queue unsuccessful!!!');
+    } else {
+      console.log(`Start queue successful...`);
+    }
+    console.log(`\nStart game loop...`);
+    this.startGameLoop(); // Ensure the game loop starts
+    if (!this.gameLoop) {
+      throw new Error('Start game loop unsuccessful!!!');
+    } else {
+      console.log(`Start game loop successful...`);
+    }
   }
 }
 // Method Call to Start an instance of Server
 new Server();
+
 // Object Pool ************************************************************************************
 /*
  * The ObjectPool class is designed for efficient memory management and performance optimization,
@@ -331,19 +417,19 @@ class DatabaseManager {
   async loadData(directoryPath) { // Updated to accept a directory path
     const data = {};
     try {
-        const fileNames = await this.fs.readdir(directoryPath); // Read all files in the directory
-        await Promise.all(fileNames.map(async (fileName) => {
-            const filePath = `${directoryPath}/${fileName}`; // Construct full file path
-            try {
-                const fileContent = await this.fs.readFile(filePath, 'utf-8'); // Read file content
-                data[fileName] = JSON.parse(fileContent); // Parse JSON data
-            } catch (error) {
-                MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`); // Notify error
-                data[fileName] = {}; // Default to empty object on error
-            }
-        }));
+      const fileNames = await this.fs.readdir(directoryPath); // Read all files in the directory
+      await Promise.all(fileNames.map(async (fileName) => {
+        const filePath = `${directoryPath}/${fileName}`; // Construct full file path
+        try {
+          const fileContent = await this.fs.readFile(filePath, 'utf-8'); // Read file content
+          data[fileName] = JSON.parse(fileContent); // Parse JSON data
+        } catch (error) {
+          MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`); // Notify error
+          data[fileName] = {}; // Default to empty object on error
+        }
+      }));
     } catch (error) {
-        MessageManager.notifyError(this, `Error reading directory ${directoryPath}: ${error}`); // Notify directory read error
+      MessageManager.notifyError(this, `Error reading directory ${directoryPath}: ${error}`); // Notify directory read error
     }
     return data; // Return all loaded data
   }
@@ -412,7 +498,7 @@ class GameManager {
       this.startGameLoop(); // Call the public method to start the game loop
       this.#isRunning = true; // Mark game as running
     } catch (error) {
-      console.log(`Error starting game: ${error}`); // Log error
+      console.log(`Error Start game: ${error}`); // Log error
     }
   }
   async shutdownGame() {
@@ -1189,10 +1275,6 @@ class PlayerActions {
     MessageManager.notifyPlayersInLocation(this.player.currentLocation, MessageManager.notifyCombatInitiation(this.player, npc.getName())); // Notify players of combat initiation
   }
 }
-
-
-
-
 // Combat Actions Class ***************************************************************************
 class CombatActions {
   constructor(player) {
