@@ -5,7 +5,6 @@
 // Server *****************************************************************************************
 class Server {
   constructor() {
-    this.logger = null; // Logger instance for logging server activities
     this.initializeModules(); // Ensure modules are initialized first
   }
   // Initialize Modules ***************************************************************************
@@ -16,14 +15,11 @@ class Server {
   */
   async initializeModules() {
     this.CONFIG = await import('./config.js');
-    this.logger = (await import('pino')).default();
-    this.logger.level = 'debug'; // Set logging level to debug for testing; change to info for production.
-    this.pinoHttp = (await import('pino-http')).default(); // Added parentheses to invoke the function
+    console.log(`Loaded config: HOST=${this.CONFIG.HOST}, PORT=${this.CONFIG.PORT}`);
     this.fs = await import('fs').then(module => module.promises);
     this.io = await import('socket.io');
     this.express = (await import('express')).default;
     this.app = this.express();
-    this.app.use(this.pinoHttp({ logger: this.logger }));
     this.queueManager = new QueueManager();
     this.databaseManager = new DatabaseManager();
     this.gameManager = new GameManager();
@@ -42,25 +38,28 @@ class Server {
   * If SSL certificates are not found, it defaults to HTTP.
   */
   async createServer() {
-    this.logger.debug(`Creating server with SSL_KEY_PATH: ${SSL_KEY_PATH} and SSL_CERT_PATH: ${SSL_CERT_PATH}`); // Added debug message
-    const SSL_KEY_PATH = './ssl/server.key'; // Added named constant for SSL key path
-    const SSL_CERT_PATH = './ssl/server.crt'; // Added named constant for SSL cert path
-    const sslOptions = {
-      key: await this.fs.access(SSL_KEY_PATH).then(() => this.fs.readFile(SSL_KEY_PATH)).catch(error => {
-        this.logger.error(`Error reading SSL key: ${error}`); // Handle error
-        throw error; // Rethrow to ensure proper handling
-      }),
-      cert: await this.fs.access(SSL_CERT_PATH).then(() => this.fs.readFile(SSL_CERT_PATH)).catch(error => {
-        this.logger.error(`Error reading SSL cert: ${error}`); // Handle error
-        throw error; // Rethrow to ensure proper handling
-      }),
-    };
-    if (!sslOptions.key || !sslOptions.cert) {
-      this.logger.warn(`SSL files not found, defaulting to HTTP.`); // Updated to use template literals
-      return require('http').createServer(this.app); // Use 'http' module if SSL is not available
+    const SSL_KEY_PATH = './ssl/server.key';
+    const SSL_CERT_PATH = './ssl/server.crt';
+    console.log(`Creating server with SSL_KEY_PATH: ${SSL_KEY_PATH} and SSL_CERT_PATH: ${SSL_CERT_PATH}...`);
+    const sslOptions = { key: null, cert: null };
+    try {
+      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH);
+    } catch (error) {
+      console.log(`Error reading SSL key: ${error}...`);
     }
-    this.logger.debug(`SSL files found, creating HTTPS server.`); // Added debug message
-    return require('https').createServer(sslOptions, this.app); // Use 'https' module if SSL is available
+    try {
+      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH);
+    } catch (error) {
+      console.log(`Error reading SSL cert: ${error}...`);
+    }
+    if (!sslOptions.key || !sslOptions.cert) {
+      console.log(`SSL files not found, defaulting to HTTP...`);
+      const http = await import('http'); // Use import for HTTP
+      return http.createServer(this.app);
+    }
+    console.log(`SSL files found, creating HTTPS server...`);
+    const https = await import('https'); // Use import for HTTPS
+    return https.createServer({ key: sslOptions.key, cert: sslOptions.cert }, this.app);
   }
   // Start Server *********************************************************************************
   /*
@@ -68,19 +67,18 @@ class Server {
   * It logs the server's operational status and address for easy access.
   */
   async start() {
-    this.logger.debug(`Starting server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}`);
+    console.log(`Starting server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
-      this.logger.info(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}`);
+      console.log(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     });
     this.gameManager.startGame(); // Ensure the game starts
   }
   // Setup Middleware *****************************************************************************
   /*
   * The setupMiddleware method configures middleware for the server.
-  * It uses PinoHttp middleware for logging and Express static middleware for serving static files.
   */
   setupMiddleware() {
-    this.app.use(this.pinoHttp({ logger: this.logger }));
+    console.log(`Starting express...`);
     this.app.use(this.express.static('public'));
   }
   // Setup Routes ********************************************************************************
@@ -90,11 +88,15 @@ class Server {
   */
   setupRoutes() {
     this.app.get('/', (req, res) => {
-      req.log.info('Logging services started. Level: [level: info]...');
+      console.log(`Routes established...`);
       res.send(`Welcome to the Game Server!`);
     });
+    console.log(`Starting socket listeners...`);
     this.setupSocketListeners(); // Call the method to set up socket listeners
+    console.log(`Socket listeners started...`);
+    console.log(`Starting socket emitters...`);
     this.setupSocketEmitters(); // Call the method to set up socket emitters
+    console.log(`Socket emitters started...`);
   }
   // Setup Socket Listeners ***********************************************************************
   /*
@@ -129,16 +131,16 @@ class Server {
   * It retrieves location, NPC, and item data to ensure the game state is ready for interaction.
   */
   async loadGameData() {
-    this.logger.info(`Loading game data...`);
+    console.log(`Loading game data...`);
     try {
       await Promise.all([
-        this.databaseManager.loadLocationData().then(() => this.logger.info(`Location data loaded successfully.`)).catch(error => this.logger.error(`Error loading location data: ${error}`)),
-        this.databaseManager.loadNpcData().then(() => this.logger.info(`Npc data loaded successfully.`)).catch(error => this.logger.error(`Error loading NPC data: ${error}`)),
-        this.databaseManager.loadItemData().then(() => this.logger.info(`Item data loaded successfully.`)).catch(error => this.logger.error(`Error loading item data: ${error}`))
+        this.databaseManager.loadLocationData().then(() => console.log(`Start loading location data...`)).catch(error => console.log(`Error loading location data: ${error}`)),
+        this.databaseManager.loadNpcData().then(() => console.log(`Start loading NPC data...`)).catch(error => console.log(`Error loading npc data: ${error}`)),
+        this.databaseManager.loadItemData().then(() => console.log(`Start loading item data...`)).catch(error => console.log(`Error loading item data: ${error}`))
       ]);
-      this.logger.info(`All game data loading attempts completed.`);
+      console.log(`Finished loading all game data...`);
     } catch (error) {
-      this.logger.error(`Error during game data loading process: ${error}`);
+      console.log(`Error during game data loading process: ${error}`);
     }
   }
   // Initialize Queue *****************************************************************************
@@ -147,14 +149,18 @@ class Server {
   * It assigns the queue instance to the queueManager for managing asynchronous tasks.
   */
   initializeQueue() {
+    console.log(`Starting queue initialization...`);
     this.queue = (import('queue')).default(); // Removed async/await
+    console.log(`Finished queue initialization...`);
   }
   // Initialize Server ******************************************************************************
   /*
   * The initializeServer method initializes the server.
   */
   async initializeServer() {
+    console.log(`Starting server initialization...`);
     this.server = new Server();
+    console.log(`Finished server initialization...`);
   }
   // Start Game Loop ******************************************************************************
   /*
@@ -214,7 +220,7 @@ class QueueManager {
     this.taskPool = new ObjectPool(() => new Task(''), 10); // Object pool for task management
   }
   addTask(task) {
-    this.logger.debug(`Adding task: ${task.name}`); // Log task addition
+    console.log(`Adding task: ${task.name}`); // Log task addition
     this.queue.push(task); // Add task to the queue
     this.processQueue(); // Start processing the queue when a new task is added
   }
@@ -346,7 +352,7 @@ class DatabaseManager {
       const existingData = await this.loadData([filePath]); // Load existing data
       existingData[filePath][key] = data; // Update the specific key with new data
       await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Save updated data
-      this.logger.info(`Data saved for ${key} to ${filePath}`); // Log successful save
+      console.log(`Data saved for ${key} to ${filePath}`); // Log successful save
     } catch (error) {
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
@@ -402,14 +408,11 @@ class GameManager {
   }
   async startGame() {
     try {
-      MessageManager.notifyGameInitialization(this); // Notify game initialization
-      this.eventEmitter.emit('gameStarted'); // Emit game started event
+
       this.startGameLoop(); // Call the public method to start the game loop
       this.#isRunning = true; // Mark game as running
-      MessageManager.notifyGameInitializedSuccessfully(this); // Notify successful game initialization
     } catch (error) {
-      MessageManager.notifyError(this, `Error initializing game: ${error}`); // Notify error during initialization
-      throw error; // Rethrow error
+      console.log(`Error starting game: ${error}`); // Log error
     }
   }
   async shutdownGame() {
@@ -420,6 +423,7 @@ class GameManager {
       }
       MessageManager.notifyGameShutdownSuccess(this); // Notify successful game shutdown
     } catch (error) {
+      console.log(`Error shutting down game: ${error}`); // Notify error during shutdown
       MessageManager.notifyError(this, `Error shutting down game: ${error}`); // Notify error during shutdown
       throw error; // Rethrow error
     }
@@ -534,7 +538,7 @@ class GameManager {
   async disconnectPlayer(playerId) {
     const player = this.gameManager.getPlayer(playerId);
     if (!player) {
-      this.logger.warn(`Player with ID ${playerId} not found.`);
+      console.log.warn(`Player with ID ${playerId} not found.`);
       return; // Early return if player not found
     }
     player.status = "disconnected";
@@ -577,7 +581,7 @@ class GameManager {
 
     player.level += 1; // Increment player's level
     player.experience -= LEVEL_UP_XP; // Deduct experience points for leveling up
-    this.logger.info(`${player.getName()} leveled up to level ${player.level}!`);
+    console.log(`${player.getName()} leveled up to level ${player.level}!`);
     return `Congratulations! You have reached level ${player.level}.`; // Return level up message
   }
   moveEntity(entity, newLocationId) { // New method to handle movement
@@ -1835,7 +1839,7 @@ class FormatMessageManager {
 class MessageManager {
   // Notification Methods *************************************************************************
   static notify(player, message, cssid = '') {
-    this.logger.info(`Message to ${player.getName()}: ${message}`); // Log message to player
+    console.log(`Message to ${player.getName()}: ${message}`); // Log message to player
     return Utility.createMessageData(cssid, message); // Create message data using Utility
   }
   // Login Notifications **************************************************************************
@@ -2044,15 +2048,15 @@ class MessageManager {
     const direction = player.getDirectionFrom(newLocationId); // Get direction from new location
     return this.notify(player, `${player.getName()} arrives ${direction}.`, this.getIdForMessage('enteringLocation')); // Notify player of entering location
   }
-  // Logger Error Notifications *******************************************************************
-  static notifyDataLoadError(manager, logger, key, error) {
-    logger.error(`Error loading data for ${key}: ${error}`); // Log data load error
+  // Log Error Notifications **********************************************************************
+  static notifyDataLoadError(manager, key, error) {
+    console.log(`Error loading data for ${key}: ${error}`); // Log data load error
   }
-  static notifyDataSaveError(manager, logger, filePath, error) {
-    logger.error(`Error saving data to ${filePath}: ${error}`); // Log data save error
+  static notifyDataSaveError(manager, filePath, error) {
+    console.log(`Error saving data to ${filePath}: ${error}`); // Log data save error
   }
-  static notifyError(manager, logger, message) {
-    logger.error(`Error: ${message}`); // Log general error
+  static notifyError(manager, message) {
+    console.log(`Error: ${message}`); // Log general error
   }
   static notifyNpcDeparture(npc, direction) {
     return this.notify(null, `${npc.getName()} travels ${direction}.`); // Notify players of NPC departure
