@@ -4,10 +4,10 @@
  */
 // Server *****************************************************************************************
 class Server {
-  constructor() {
-    this.initializeModules(); // Ensure modules are initialized first
-    this.setupServer(); // Ensure server is setup
-    this.initializeGameComponents(); // Ensure game components are initialized
+  async init() { // New init method
+    await this.initializeModules(); // Ensure modules are initialized first
+    this.setupServer(); // Call to setup the server
+    this.initializeGameComponents(); // Call to initialize game components
   }
   // Initialize Modules ***************************************************************************
   /*
@@ -15,94 +15,91 @@ class Server {
   * It ensures that all necessary modules are imported and ready for use.
   * The order of initialization is crucial for proper functionality.
   */
-  async initializeModules() {
-    console.log(`\nStart module imports...`);
-    console.log(`\nImport module config...`);
-    this.CONFIG = await import('./config.js');
-    if (!this.CONFIG.HOST || !this.CONFIG.PORT) {
-      throw new Error('HOST and PORT must be defined in config.js');
-    } else {
+  async initializeModules() { // Changed to async
+    try {
+      console.log(`\nStart module imports...`);
+      console.log(`\nImport module config...`);
+      this.CONFIG = await import('./config.js'); // Await the import
+      if (!this.CONFIG.HOST || !this.CONFIG.PORT) {
+        throw new Error('HOST and PORT must be defined in config.js');
+      }
       console.log(`Import module config successful: HOST=${this.CONFIG.HOST}, PORT=${this.CONFIG.PORT}`);
-    }
-    console.log(`\nImport module file system...`);
-    this.fs = await import('fs').then(module => module.promises);
-    if (!this.fs) {
-      throw new Error('File system module not found!!!');
-    } else {
+
+      console.log(`\nImport module file system...`);
+      this.fs = await import('fs').then(module => module.promises); // Await the import
       console.log(`Import module file system successful...`);
-    }
-    console.log(`\nImport module socket.io...`);
-    this.io = await import('socket.io');
-    if (!this.io) {
-      throw new Error('Socket.io module not found!!!');
-    } else {
+
+      console.log(`\nImport module socket.io...`);
+      this.io = await import('socket.io'); // Await the import
       console.log(`Import module socket.io successful...`);
-    }
-    console.log(`\nImport module express...`);
-    this.express = (await import('express')).default;
-    if (!this.express) {
-      throw new Error('Express module not found!!!');
-    } else {
+
+      console.log(`\nImport module express...`);
+      const expressModule = await import('express'); // Import express
+      this.express = expressModule.default || expressModule; // Assign default or named export
       console.log(`Import module express successful...`);
+      console.log(`\nFinished module imports...`);
+    } catch (error) {
+      console.error(`Error during module imports: ${error.message}`); // Log error message
     }
-    console.log(`\nFinished module imports...`);
   }
     // Setup Server *********************************************************************************
   /*
   * The setupServer method initializes the server setup process, including routes and server creation.
   */
-  async setupServer() {
+  setupServer() {
     console.log(`\nStart server setup...`);
     console.log(`\nSet up routes...`);
-    this.app = this.express();
-    if (!this.app) {
-      throw new Error('Set up routes unsuccessful!!!');
-    } else {
-      console.log(`Set up routes successful...`);
-    }
+    this.app = this.express(); // Initialize the express app
+    this.app.use(this.express.static('public')); // Use express to serve static files
+    // Error handling middleware
+    this.app.use((err, req, res, next) => {
+      console.error(err.stack); // Log the error stack
+      res.status(500).send('Something broke!'); // Send a 500 response
+    });
+    console.log(`Set up routes successful...`); // Log successful setup
     console.log(`\nCreate server...`);
-    await this.createServer(); // Ensure server creation completes
+    this.createServer(); // Ensure server creation completes
     if (!this.server) {
-      throw new Error('Create server unsuccessful!!!');
+        throw new Error('Create server unsuccessful!!!');
     } else {
-      console.log(`Create server successful...`);
+        console.log(`Create server successful...`);
     }
     console.log(`\nStart server...`);
-    await this.start(); // Ensure server starts before proceeding
+    this.start(); // Ensure server starts before proceeding
     if (!this.server) {
-      throw new Error('Start server unsuccessful!!!');
+        throw new Error('Start server unsuccessful!!!');
     } else {
-      console.log(`Start server successful...`);
+        console.log(`Start server successful...`);
     }
     console.log(`\nFinished server setup...`);
-  }
+}
   // Create Server ********************************************************************************
   /*
   * The createServer method is responsible for creating the server instance.
   * It checks for the availability of SSL certificates and creates the server accordingly.
   * If SSL certificates are not found, it defaults to HTTP.
   */
-  async createServer() {
+  async createServer() { // Changed to async
     const SSL_KEY_PATH = './ssl/server.key';
     const SSL_CERT_PATH = './ssl/server.crt';
     const sslOptions = { key: null, cert: null };
     try {
-      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH);
+      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH); // Await the readFile
     } catch (error) {
       console.log(`WARNING: Read SSL key: ${error}...`);
     }
     try {
-      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH);
+      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH); // Await the readFile
     } catch (error) {
       console.log(`WARNING: Read SSL cert: ${error}...`);
     }
     if (!sslOptions.key || !sslOptions.cert) {
       console.log(`WARNING: SSL files not found, defaulting to HTTP...`);
-      const http = await import('http');
+      const http = await import('http'); // Await the import
       this.server = http.createServer(this.app); // Ensure server instance is assigned
     } else {
       console.log(`SSL files found, creating HTTPS server...`);
-      const https = await import('https');
+      const https = await import('https'); // Await the import
       this.server = https.createServer({ key: sslOptions.key, cert: sslOptions.cert }, this.app); // Ensure server instance is assigned
     }
     return this.server; // Ensure the server instance is returned
@@ -112,7 +109,7 @@ class Server {
   * The start method starts the server and listens for incoming connections.
   * It logs the server's operational status and address for easy access.
   */
-  async start() {
+  start() {
     console.log(`Start server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
       console.log(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
@@ -174,7 +171,7 @@ class Server {
   * The loadGameData method loads essential game data from the database.
   * It retrieves location, NPC, and item data to ensure the game state is ready for interaction.
   */
-  async loadGameData() {
+  async loadGameData() { // Changed to async
     console.log(`Loading game data...`);
     try {
       await Promise.all([
@@ -190,27 +187,18 @@ class Server {
   // Initialize Queue *****************************************************************************
   /*
   * The initializeQueue method creates a new queue instance for the server.
-  * It assigns the queue instance to the queueManager for managing asynchronous tasks.
+  * It assigns the queue instance to the queueManager for managing tasks.
   */
   initializeQueue() {
     console.log(`Start queue initialization...`);
-    this.queue = (import('queue')).default(); // Removed async/await
+    this.queue = (import('queue')).default();
     console.log(`Finished queue initialization...`);
-  }
-  // Initialize Server ******************************************************************************
-  /*
-  * The initializeServer method initializes the server.
-  */
-  async initializeServer() {
-    console.log(`Start server initialization...`);
-    this.server = new Server();
-    console.log(`Finished server initialization...`);
   }
   // Initialize Game Components *********************************************************************
   /*
   * The initializeGameComponents method initializes the game components.
   */
-  async initializeGameComponents() { // New method to initialize game components
+  initializeGameComponents() { // New method to initialize game components
     console.log(`\nStart queue manager...`);
     this.queueManager = new QueueManager();
     if (!this.queueManager) {
@@ -233,7 +221,7 @@ class Server {
       console.log(`Start game manager successful...`);
     }
     console.log(`\nLoading game data...`);
-    await this.loadGameData(); // Ensure game data loads before proceeding
+    this.loadGameData(); // Ensure game data loads before proceeding
     if (!this.gameData) {
       throw new Error('Load game data unsuccessful!!!');
     } else {
@@ -256,7 +244,8 @@ class Server {
   }
 }
 // Method Call to Start an instance of Server
-new Server();
+const server = new Server();
+server.init(); // Call the init method to complete initialization
 
 // Object Pool ************************************************************************************
 /*
@@ -288,9 +277,9 @@ class Task {
     this.name = name; // Name of the task
     this.execute = null; // Placeholder for the task execution function
   }
-  async run() { // Method to execute the task
+  run() { // Method to execute the task
     if (this.execute) {
-      await this.execute(); // Execute the assigned function
+      this.execute(); // Execute the assigned function
     }
   }
 }
@@ -310,20 +299,20 @@ class QueueManager {
     this.queue.push(task); // Add task to the queue
     this.processQueue(); // Start processing the queue when a new task is added
   }
-  async processQueue() {
+  processQueue() {
     if (this.isProcessing) return; // Prevent re-entrance
     this.isProcessing = true; // Mark as processing
     while (this.queue.length > 0) {
       const task = this.queue.shift(); // Get the next task
       try {
-        await task.run(); // Call the run method to execute the task
+        task.run(); // Call the run method to execute the task
       } catch (error) {
         // Handle error
       }
     }
     this.isProcessing = false; // Mark as not processing
   }
-  async executeTask(task) {
+  executeTask(task) {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve(); // Resolve the promise after a delay
@@ -334,8 +323,8 @@ class QueueManager {
   addDataLoadTask(filePath, key) {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Data Load Task'; // Set task name
-    task.execute = async () => {
-      const data = await this.databaseManager.loadData(filePath, key); // Load data using the database manager
+    task.execute = () => {
+      const data = this.databaseManager.loadData(filePath, key); // Load data using the database manager
       this.taskPool.release(task); // Release the task back to the pool
     };
     this.addTask(task); // Add the task to the queue
@@ -343,8 +332,8 @@ class QueueManager {
   addDataSaveTask(filePath, key, data) {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Data Save Task'; // Set task name
-    task.execute = async () => {
-      await this.databaseManager.saveData(filePath, key, data); // Save data using the database manager
+    task.execute = () => {
+      this.databaseManager.saveData(filePath, key, data); // Save data using the database manager
       this.taskPool.release(task); // Release the task back to the pool
     };
     this.addTask(task); // Add the task to the queue
@@ -352,7 +341,7 @@ class QueueManager {
   addCombatActionTask(player, target) {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Combat Action Task'; // Set task name
-    task.execute = async () => {
+    task.execute = () => {
       player.attackNpc(target); // Execute combat action
       this.taskPool.release(task); // Release the task back to the pool
     };
@@ -361,7 +350,7 @@ class QueueManager {
   addEventProcessingTask(event) {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Event Processing Task'; // Set task name
-    task.execute = async () => {
+    task.execute = () => {
       // Process the event (e.g., day/night transition)
       this.taskPool.release(task); // Release the task back to the pool
     };
@@ -370,7 +359,7 @@ class QueueManager {
   addHealthRegenerationTask(player) {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Health Regeneration Task'; // Set task name
-    task.execute = async () => {
+    task.execute = () => {
       player.startHealthRegeneration(); // Start health regeneration for the player
       this.taskPool.release(task); // Release the task back to the pool
     };
@@ -379,7 +368,7 @@ class QueueManager {
   addInventoryManagementTask(player, action, item) {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Inventory Management Task'; // Set task name
-    task.execute = async () => {
+    task.execute = () => {
       if (action === 'pickup') {
         player.addToInventory(item); // Add item to player's inventory
       } else if (action === 'drop') {
@@ -392,7 +381,7 @@ class QueueManager {
   addNotificationTask(player, message) {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Notification Task'; // Set task name
-    task.execute = async () => {
+    task.execute = () => {
       MessageManager.notify(player, message); // Send notification to the player
       this.taskPool.release(task); // Release the task back to the pool
     };
@@ -418,6 +407,7 @@ class DatabaseManager {
     const data = {};
     try {
       const fileNames = await this.fs.readdir(directoryPath); // Read all files in the directory
+      // Use Promise.all to wait for all file read operations to complete
       await Promise.all(fileNames.map(async (fileName) => {
         const filePath = `${directoryPath}/${fileName}`; // Construct full file path
         try {
@@ -433,39 +423,39 @@ class DatabaseManager {
     }
     return data; // Return all loaded data
   }
-  async saveData(filePath, key, data) { // Updated to handle batch saving
+  saveData(filePath, key, data) { // Updated to handle batch saving
     try {
-      const existingData = await this.loadData([filePath]); // Load existing data
+      const existingData = this.loadData([filePath]); // Load existing data
       existingData[filePath][key] = data; // Update the specific key with new data
-      await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Save updated data
+      this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Save updated data
       console.log(`Data saved for ${key} to ${filePath}`); // Log successful save
     } catch (error) {
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
   }
-  async loadPlayerData() {
+  loadPlayerData() {
     return this.loadData(CONFIG.FILE_PATHS.PLAYER_DATA); // Use the path from config.js
   }
-  async savePlayerData(playerData) {
-    await this.saveData(PLAYER_DATA_PATH, playerData.username, playerData); // Save player data
+  savePlayerData(playerData) {
+    this.saveData(PLAYER_DATA_PATH, playerData.username, playerData); // Save player data
   }
-  async loadLocationData() {
+  loadLocationData() {
     return this.loadData(CONFIG.FILE_PATHS.LOCATION_DATA); // Use the path from config.js
   }
-  async saveLocationData(locationData) {
-    await this.saveData(LOCATION_DATA_PATH, locationData.id, locationData); // Save location data
+  saveLocationData(locationData) {
+    this.saveData(LOCATION_DATA_PATH, locationData.id, locationData); // Save location data
   }
-  async loadNpcData() {
+  loadNpcData() {
     return this.loadData(CONFIG.FILE_PATHS.NPC_DATA); // Use the path from config.js
   }
-  async saveNpcData(npcData) {
-    await this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Save NPC data
+  saveNpcData(npcData) {
+    this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Save NPC data
   }
-  async loadItemData() {
+  loadItemData() {
     return this.loadData(CONFIG.FILE_PATHS.ITEM_DATA); // Use the path from config.js
   }
-  async saveItemData(itemData) {
-    await this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Save item data
+  saveItemData(itemData) {
+    this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Save item data
   }
 }
 // Game Manager ***********************************************************************************
@@ -492,20 +482,19 @@ class GameManager {
   setGameTime(newTime) {
     this.#gameTime = newTime; // Set new game time
   }
-  async startGame() {
+  startGame() {
     try {
-
       this.startGameLoop(); // Call the public method to start the game loop
       this.#isRunning = true; // Mark game as running
     } catch (error) {
       console.log(`Error Start game: ${error}`); // Log error
     }
   }
-  async shutdownGame() {
+  shutdownGame() {
     try {
       this.stopGameLoop(); // Call the public method to stop the game loop
       for (const player of this.players.values()) {
-        await player.save(); // Save each player's state
+        player.save(); // Save each player's state
       }
       MessageManager.notifyGameShutdownSuccess(this); // Notify successful game shutdown
     } catch (error) {
@@ -621,14 +610,14 @@ class GameManager {
       npc.updateSchedule(this.#gameTime); // Call the updateSchedule method for each NPC
     }
   }
-  async disconnectPlayer(playerId) {
+  disconnectPlayer(playerId) {
     const player = this.gameManager.getPlayer(playerId);
     if (!player) {
       console.log.warn(`Player with ID ${playerId} not found.`);
       return; // Early return if player not found
     }
     player.status = "disconnected";
-    await player.save();
+    player.save();
     this.gameManager.removePlayer(playerId);
     MessageManager.notifyPlayersInLocation(player.currentLocation, `${player.getName()} has disconnected from the game.`);
   }
@@ -825,8 +814,8 @@ class Player extends Character {
   getInventoryCapacity() {
     return INVENTORY_CAPACITY; // Return maximum inventory capacity
   }
-  async authenticate(password) {
-    const isPasswordValid = await this.#bcrypt.compare(password, this.password); // Compare provided password with stored password
+  authenticate(password) {
+    const isPasswordValid = this.#bcrypt.compare(password, this.password); // Compare provided password with stored password
     if (isPasswordValid) {
       this.resetFailedLoginAttempts(); // Reset failed login attempts on success
       return true; // Return true if authentication is successful
@@ -871,7 +860,7 @@ class Player extends Character {
     this.consecutiveFailedAttempts = 0; // Reset consecutive failed attempts
     this.lastLoginTime = Date.now(); // Update last login time
   }
-  async save() {
+  save() {
     QueueManager.addDataSaveTask(DatabaseManager.PLAYER_DATA_PATH, this.getId(), this); // Add save task to queue
   }
   // @ todo: add code for this.
@@ -884,11 +873,11 @@ class Player extends Character {
     if (updatedData.experience !== undefined) this.setExperience(updatedData.experience); // Update experience if provided
     if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
   }
-  async hashUid() {
-    this.hashedUid = await this.#bcrypt.hash(this.#uid, 5); // Hash the unique identifier
+  hashUid() {
+    this.hashedUid = this.#bcrypt.hash(this.#uid, 5); // Hash the unique identifier
   }
-  async login(inputPassword) {
-    const isAuthenticated = await this.authenticate(inputPassword); // Authenticate user
+  login(inputPassword) {
+    const isAuthenticated = this.authenticate(inputPassword); // Authenticate user
     if (isAuthenticated) {
       MessageManager.notifyLoginSuccess(this); // Notify successful login
       return true; // Return true if login is successful
@@ -1080,9 +1069,9 @@ class LookAt {
  * It uses bcrypt to generate a unique value and return the hashed UID.
  */
 class UidGenerator {
-  static async generateUid() {
+  static generateUid() {
     const uniqueValue = Date.now() + Math.random(); // Generate a unique value based on time and randomness
-    const hashedUid = await bcrypt.hash(uniqueValue.toString(), 5); // Hash the unique value
+    const hashedUid = bcrypt.hash(uniqueValue.toString(), 5); // Hash the unique value
     return hashedUid; // Return the hashed UID
   }
 }

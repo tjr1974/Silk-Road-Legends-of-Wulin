@@ -20,9 +20,9 @@ You'll need to install the following npm packages if not already installed:
 ```bash
 npm install socket.io
 npm install express
-npm install pino pino-http
 npm install queue
-npm install body-parser
+npm install fs
+npm install bcrypt
 ```
 ## Create a `package.json` file
 If you haven't already, create a `package.json` file:
