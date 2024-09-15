@@ -3,8 +3,6 @@
  * the server environment, setting up middleware, and managing the game loop.
  */
 // Server *****************************************************************************************
-import { Server as SocketIOServer } from 'socket.io'; // Import Socket.IO
-
 class Server {
   async init() { // New init method
     await this.initializeModules(); // Ensure modules are initialized first
@@ -33,6 +31,10 @@ class Server {
       const expressModule = await import('express'); // Import express
       this.express = expressModule.default || expressModule; // Assign default or named export
       console.log(`Import module express successful...`);
+      console.log(`\nImport module socket.io...`); // New log for Socket.IO
+      const socketIoModule = await import('socket.io'); // Moved import here
+      this.SocketIOServer = socketIoModule.Server; // Assign to instance variable
+      console.log(`Import module socket.io successful...`);
       console.log(`\nFinished module imports...`);
     } catch (error) {
       console.error(`Error during module imports: ${error.message}`); // Log error message
@@ -54,7 +56,7 @@ class Server {
     await this.start(); // Await server start to ensure it completes
     if (!this.server) throw new Error('Start server unsuccessful!!!');
     console.log(`Start server successful...`);
-    this.io = new SocketIOServer(this.server); // Initialize Socket.IO server
+    this.io = new this.SocketIOServer(this.server); // Initialize Socket.IO server
     this.setupSocketEvents(); // Set up socket events
     console.log(`\nFinished server setup...`);
   }
