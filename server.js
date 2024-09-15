@@ -3,11 +3,13 @@
  * the server environment, setting up middleware, and managing the game loop.
  */
 // Server *****************************************************************************************
+import { Server as SocketIOServer } from 'socket.io'; // Import Socket.IO
+
 class Server {
   async init() { // New init method
     await this.initializeModules(); // Ensure modules are initialized first
-    this.setupServer(); // Call to setup the server
-    this.initializeGameComponents(); // Call to initialize game components
+    await this.setupServer(); // Call to setup the server
+    await this.initializeGameComponents(); // Call to initialize game components
   }
   // Initialize Modules ***************************************************************************
   /*
@@ -24,15 +26,9 @@ class Server {
         throw new Error('HOST and PORT must be defined in config.js');
       }
       console.log(`Import module config successful: HOST=${this.CONFIG.HOST}, PORT=${this.CONFIG.PORT}`);
-
       console.log(`\nImport module file system...`);
       this.fs = await import('fs').then(module => module.promises); // Await the import
       console.log(`Import module file system successful...`);
-
-      console.log(`\nImport module socket.io...`);
-      this.io = await import('socket.io'); // Await the import
-      console.log(`Import module socket.io successful...`);
-
       console.log(`\nImport module express...`);
       const expressModule = await import('express'); // Import express
       this.express = expressModule.default || expressModule; // Assign default or named export
@@ -46,33 +42,22 @@ class Server {
   /*
   * The setupServer method initializes the server setup process, including routes and server creation.
   */
-  setupServer() {
+  async setupServer() {
     console.log(`\nStart server setup...`);
-    console.log(`\nSet up routes...`);
-    this.app = this.express(); // Initialize the express app
-    this.app.use(this.express.static('public')); // Use express to serve static files
-    // Error handling middleware
-    this.app.use((err, req, res, next) => {
-      console.error(err.stack); // Log the error stack
-      res.status(500).send('Something broke!'); // Send a 500 response
-    });
-    console.log(`Set up routes successful...`); // Log successful setup
+    console.log(`\nSet up express...`);
+    await this.setupExpress();
+    console.log(`Set up express successful...`); // Log successful setup
     console.log(`\nCreate server...`);
-    this.createServer(); // Ensure server creation completes
-    if (!this.server) {
-        throw new Error('Create server unsuccessful!!!');
-    } else {
-        console.log(`Create server successful...`);
-    }
-    console.log(`\nStart server...`);
-    this.start(); // Ensure server starts before proceeding
-    if (!this.server) {
-        throw new Error('Start server unsuccessful!!!');
-    } else {
-        console.log(`Start server successful...`);
-    }
+    await this.createServer(); // Await server creation to ensure it completes
+    if (!this.server) throw new Error('Create server unsuccessful!!!');
+    console.log(`Create server successful...`);
+    await this.start(); // Await server start to ensure it completes
+    if (!this.server) throw new Error('Start server unsuccessful!!!');
+    console.log(`Start server successful...`);
+    this.io = new SocketIOServer(this.server); // Initialize Socket.IO server
+    this.setupSocketEvents(); // Set up socket events
     console.log(`\nFinished server setup...`);
-}
+  }
   // Create Server ********************************************************************************
   /*
   * The createServer method is responsible for creating the server instance.
@@ -109,62 +94,24 @@ class Server {
   * The start method starts the server and listens for incoming connections.
   * It logs the server's operational status and address for easy access.
   */
-  start() {
+  async start() {
     console.log(`Start server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
       console.log(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     });
-    this.gameManager.startGame(); // Ensure the game starts
   }
   // Setup Express *****************************************************************************
   /*
   * The setupExpress method sets up the express server.
   */
-  setupExpress() {
-    this.app.use(this.express.static('public'));
-  }
-  // Setup Routes ********************************************************************************
-  /*
-  * The setupRoutes method sets up the routes for the server.
-  */
-  setupRoutes() {
-    this.app.get('/', (req, res) => {
-      console.log(`Routes established...`);
-      res.send(`Welcome to the Game Server!`);
+  async setupExpress() {
+    this.app = this.express(); // Initialize the express app
+    this.app.use(this.express.static('public')); // Use express to serve static files
+    // Error handling middleware
+    this.app.use((err, req, res, next) => {
+      console.error(err.stack); // Log the error stack
+      res.status(500).send('Something broke!'); // Send a 500 response
     });
-    console.log(`Start socket listeners...`);
-    this.setupSocketListeners(); // Call the method to set up socket listeners
-    console.log(`Socket listeners started...`);
-    console.log(`Start socket emitters...`);
-    this.setupSocketEmitters(); // Call the method to set up socket emitters
-    console.log(`Socket emitters started...`);
-  }
-  // Setup Socket Listeners ***********************************************************************
-  /*
-  * The setupSocketListeners method sets up socket listeners.
-  * It listens for incoming socket connections and handles events.
-  */
-  setupSocketListeners() {
-    this.io.on('connection', (socket) => {
-      socket.on('event_name', (data) => {
-        if (!data) return; // Early return if no data
-        // Handle the event
-      });
-    });
-  }
-  // Setup Socket Emitters ***********************************************************************
-  /*
-  * The setupSocketEmitters method sets up socket emitters.
-  * It emits events to the socket listeners.
-  *
-  * Use io for broadcasting to all clients:
-  *  this.io.emit('event_name', data);
-  *
-  * Use socket for emitting to a specific client:
-  *  this.socket.emit('event_name', data);
-  */
-  setupSocketEmitters() {
-    this.io.emit('event_name', data);
   }
   // Load Game Data *******************************************************************************
   /*
@@ -198,55 +145,45 @@ class Server {
   /*
   * The initializeGameComponents method initializes the game components.
   */
-  initializeGameComponents() { // New method to initialize game components
+  async initializeGameComponents() { // New method to initialize game components
     console.log(`\nStart queue manager...`);
     this.queueManager = new QueueManager();
-    if (!this.queueManager) {
-      throw new Error('Start queue manager unsuccessful!!!');
-    } else {
-      console.log(`Start queue manager successful...`);
-    }
+    if (!this.queueManager) throw new Error('Start queue manager unsuccessful!!!');
+    console.log(`Start queue manager successful...`);
     console.log(`\nStart database manager...`);
     this.databaseManager = new DatabaseManager();
-    if (!this.databaseManager) {
-      throw new Error('Start database manager unsuccessful!!!');
-    } else {
-      console.log(`Start database manager successful...`);
-    }
+    if (!this.databaseManager) throw new Error('Start database manager unsuccessful!!!');
+    console.log(`Start database manager successful...`);
     console.log(`\nStart game manager...`);
     this.gameManager = new GameManager();
-    if (!this.gameManager) {
-      throw new Error('Start game manager unsuccessful!!!');
-    } else {
-      console.log(`Start game manager successful...`);
-    }
+    if (!this.gameManager) throw new Error('Start game manager unsuccessful!!!');
+    console.log(`Start game manager successful...`);
     console.log(`\nLoading game data...`);
-    this.loadGameData(); // Ensure game data loads before proceeding
-    if (!this.gameData) {
-      throw new Error('Load game data unsuccessful!!!');
-    } else {
-      console.log(`Load game data successful...`);
-    }
+    await this.loadGameData(); // Ensure game data loads before proceeding
+    if (!this.gameData) throw new Error('Load game data unsuccessful!!!');
+    console.log(`Load game data successful...`);
     console.log(`\nStart queue...`);
     this.initializeQueue(); // Ensure queue is initialized
-    if (!this.queue) {
-      throw new Error('Start queue unsuccessful!!!');
-    } else {
-      console.log(`Start queue successful...`);
-    }
+    if (!this.queue) throw new Error('Start queue unsuccessful!!!');
+    console.log(`Start queue successful...`);
     console.log(`\nStart game loop...`);
     this.startGameLoop(); // Ensure the game loop starts
-    if (!this.gameLoop) {
-      throw new Error('Start game loop unsuccessful!!!');
-    } else {
-      console.log(`Start game loop successful...`);
-    }
+    if (!this.gameLoop) throw new Error('Start game loop unsuccessful!!!');
+    console.log(`Start game loop successful...`);
+  }
+  setupSocketEvents() { // New method to handle socket events
+    this.io.on('connection', (socket) => {
+      console.log('A user connected:', socket.id); // Log connection
+      socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id); // Log disconnection
+      });
+      // Add more event listeners as needed
+    });
   }
 }
 // Method Call to Start an instance of Server
 const server = new Server();
 server.init(); // Call the init method to complete initialization
-
 // Object Pool ************************************************************************************
 /*
  * The ObjectPool class is designed for efficient memory management and performance optimization,
@@ -653,7 +590,6 @@ class GameManager {
   checkLevelUp(player) {
     const LEVEL_UP_XP = 100; // Define the experience points required to level up
     if (player.experience < LEVEL_UP_XP) return; // Early return if not enough experience
-
     player.level += 1; // Increment player's level
     player.experience -= LEVEL_UP_XP; // Deduct experience points for leveling up
     console.log(`${player.getName()} leveled up to level ${player.level}!`);
@@ -1737,11 +1673,9 @@ class CombatManager {
     // Initiates an attack on the specified NPC by the player
     const location = this.gameManager.getLocation(player.currentLocation);
     if (!location) return; // Early return if location is not found
-
     const npcId = target1
       ? this.gameManager.findEntity(target1, location.npcs, "npc") // Find NPC by name if specified
       : this.getAvailableNpcId(location.npcs); // Get available NPC ID if no target specified
-
     if (!npcId) {
       if (target1) {
         MessageManager.notifyTargetNotFound(player, target1); // Notify player if target NPC is not found
@@ -1750,10 +1684,8 @@ class CombatManager {
       }
       return; // Early return if no NPC found
     }
-
     const npc = this.gameManager.getNpc(npcId);
     if (!npc) return; // Early return if NPC is not found
-
     if (npc.isUnconsciousOrDead()) {
       MessageManager.notifyNpcAlreadyInStatus(player, npc); // Notify player if NPC is already in a non-combat state
     } else {
