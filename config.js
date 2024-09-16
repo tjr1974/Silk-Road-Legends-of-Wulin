@@ -8,6 +8,7 @@ const FILE_PATHS = {
   LOCATION_DATA: './world data/locations',
   NPC_DATA: './world data/npcs',
   ITEM_DATA: './world data/items',
+  GAME_DATA: './world data/gameData.json', // Added game data path
 };
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute
 const NPC_MOVEMENT_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute

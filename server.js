@@ -44,7 +44,6 @@ class Server {
     if (!this.io) throw new Error('Initialize Socket.IO server unsuccessful!!!');
     console.log(`Initialize Socket.IO server successful...`); // Log successful setup
     this.setupSocketEvents(); // Set up socket events
-    if (!this.io) throw new Error('Setup socket events unsuccessful!!!');
     console.log(`Set up socket events successful...`); // Log successful setup
     this.queueManager = new QueueManager();
     if (!this.queueManager) throw new Error('Initialize queue manager unsuccessful!!!');
@@ -93,17 +92,34 @@ class Server {
     });
   }
   // Load Game Data *******************************************************************************
-  async loadGameData() { // Changed to async
-    try {
-      this.gameData = await Promise.all([ // Ensure gameData is assigned
-        this.databaseManager.loadLocationData().then(() => console.log(`Start loading location data...`)).catch(error => console.log(`Error loading location data: ${error}`)),
-        this.databaseManager.loadNpcData().then(() => console.log(`Start loading NPC data...`)).catch(error => console.log(`Error loading npc data: ${error}`)),
-        this.databaseManager.loadItemData().then(() => console.log(`Start loading item data...`)).catch(error => console.log(`Error loading item data: ${error}`))
-      ]);
-      console.log(`Finished loading all game data...`);
-    } catch (error) {
-      console.log(`Error during game data loading process: ${error}`);
-    }
+  async loadGameData() {
+    console.log(`\nStart loading game data...`);
+    const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' }; // Constants for data types
+    const loadData = async (loadFunction, type) => {
+      try {
+        const data = await loadFunction();
+        console.log(`${type} data loaded successfully.`);
+        return { type, data }; // Return loaded data
+      } catch (error) {
+        console.error(`Error loading ${type} data: ${error}`);
+        return { type, error }; // Return error
+      }
+    };
+    const results = await Promise.allSettled([
+      loadData(this.databaseManager.loadLocationData.bind(this.databaseManager), DATA_TYPES.LOCATION),
+      loadData(this.databaseManager.loadNpcData.bind(this.databaseManager), DATA_TYPES.NPC),
+      loadData(this.databaseManager.loadItemData.bind(this.databaseManager), DATA_TYPES.ITEM),
+    ]);
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Failed to load data at index ${index}: ${result.reason}`);
+      }
+    });
+
+    // Collect loaded data
+    const loadedData = results.map(result => result.value).filter(value => value && !value.error);
+    console.log(`Finished loading game data.`);
+    return loadedData; // Return all successfully loaded data
   }
   // Initialize Game Components *******************************************************************
   async initializeGameComponents() { // New method to initialize game components
@@ -152,9 +168,7 @@ class Task {
     this.execute = null; // Placeholder for the task execution function
   }
   run() { // Method to execute the task
-    if (this.execute) {
-      this.execute(); // Execute the assigned function
-    }
+    if (this.execute) this.execute(); // Execute the assigned function
   }
 }
 // Queue Manager *********************************************************************************
@@ -183,11 +197,7 @@ class QueueManager {
     this.isProcessing = false; // Mark as not processing
   }
   executeTask(task) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(); // Resolve the promise after a delay
-      }, 1000); // Adjust time as needed
-    });
+    return new Promise(resolve => setTimeout(resolve, 1000)); // Resolve the promise after a delay
   }
   // Methods to add tasks
   addDataLoadTask(filePath, key) {
@@ -239,11 +249,7 @@ class QueueManager {
     const task = this.taskPool.acquire(); // Acquire a task from the pool
     task.name = 'Inventory Management Task'; // Set task name
     task.execute = () => {
-      if (action === 'pickup') {
-        player.addToInventory(item); // Add item to player's inventory
-      } else if (action === 'drop') {
-        player.removeFromInventory(item); // Remove item from player's inventory
-      }
+      action === 'pickup' ? player.addToInventory(item) : player.removeFromInventory(item); // Add or remove item
       this.taskPool.release(task); // Release the task back to the pool
     };
     this.addTask(task); // Add the task to the queue
@@ -442,12 +448,8 @@ class GameManager {
     }
   }
   _updateWorldEvents() {
-    if (this.#gameTime % 60 === 0) {
-      this._hourlyUpdate(); // Call the method to handle hourly updates
-    }
-    if (this.#gameTime === 360 || this.#gameTime === 1080) {
-      this._dailyUpdate(); // Call the method to handle daily updates
-    }
+    if (this.#gameTime % 60 === 0) this._hourlyUpdate(); // Call the method to handle hourly updates
+    if (this.#gameTime === 360 || this.#gameTime === 1080) this._dailyUpdate(); // Call the method to handle daily updates
   }
   _hourlyUpdate() {
     this._regenerateResourceNodes(); // Regenerate resources in the game world
@@ -461,14 +463,14 @@ class GameManager {
     }
   }
   disconnectPlayer(playerId) {
-    const player = this.gameManager.getPlayer(playerId);
+    const player = this.getPlayer(playerId);
     if (!player) {
       console.log.warn(`Player with ID ${playerId} not found.`);
       return; // Early return if player not found
     }
     player.status = "disconnected";
     player.save();
-    this.gameManager.removePlayer(playerId);
+    this.removePlayer(playerId);
     MessageManager.notifyPlayersInLocation(player.currentLocation, `${player.getName()} has disconnected from the game.`);
   }
   getGameTime() {
@@ -483,11 +485,11 @@ class GameManager {
     npc.inventory = []; // Clear NPC's inventory after looting
     return MessageManager.createAutoLootMessage(player, npc, lootedItems); // Create and return auto loot message
   }
-  findEntity(target, collection, type) {
+  findEntity(target, collection) {
     return collection.find(entity => entity.name.toLowerCase() === target.toLowerCase()) || null; // Find entity by name in the collection
   }
   fullStateSync(player) {
-    const playerData = {
+    return { // Return player state
       uid: player.getId(),
       name: player.getName(),
       health: player.getHealth(),
@@ -531,15 +533,11 @@ class EventEmitter {
     this.events = {}; // Object to store event listeners
   }
   on(event, listener) {
-    if (!this.events[event]) {
-      this.events[event] = []; // Initialize event array if it doesn't exist
-    }
+    if (!this.events[event]) this.events[event] = []; // Initialize event array if it doesn't exist
     this.events[event].push(listener); // Add listener to the event
   }
   emit(event, ...args) {
-    if (this.events[event]) {
-      this.events[event].forEach(listener => listener(...args)); // Call each listener with arguments
-    }
+    if (this.events[event]) this.events[event].forEach(listener => listener(...args)); // Call each listener with arguments
   }
   off(event, listener) {
     if (this.events[event]) {
@@ -643,7 +641,7 @@ class Player extends Character {
     this.combatActions = new CombatActions(this); // Initialize CombatActions
   }
   async importConfig() {
-    this.CONFIG = await import('./config.js'); // Await the import
+    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
   }
   getId() {
     return this.#uid; // Return unique identifier
@@ -832,7 +830,7 @@ class HealthRegenerator {
     this.importConfig(); // Call method to load config
   }
   async importConfig() {
-    this.CONFIG = await import('./config.js'); // Await the import
+    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
   }
   start() {
     if (!this.regenInterval) {
@@ -1021,7 +1019,7 @@ class Npc extends Character {
     if (this.mobile) this.startMovement(); // Start movement if NPC is mobile
   }
   async importConfig() {
-    this.CONFIG = await import('./config.js'); // Await the import
+    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
   }
   startMovement() {
     setInterval(() => {
@@ -1406,7 +1404,7 @@ class CombatManager {
     this.techniques = this.initializeTechniques(); // Initialize combat techniques
   }
   async importConfig() {
-    this.CONFIG = await import('./config.js'); // Await the import
+    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
   }
   initializeTechniques() {
     return [
@@ -2088,5 +2086,8 @@ class Utility {
     } else {
       MessageManager.notifyItemNotFoundInInventory(player); // Notify item not found
     }
+  }
+  static async importConfig() {
+    return await import('./config.js'); // Centralized config import
   }
 }
