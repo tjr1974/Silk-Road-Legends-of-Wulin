@@ -4,95 +4,116 @@
  */
 // Server *****************************************************************************************
 class Server {
-  async init() { // New init method
-    await this.importModules(); // Ensure modules are initialized first
-    await this.setupServer(); // Call to setup the server
-    await this.initializeGameComponents(); // Call to initialize game components
+  constructor() {
+    this.moduleImporter = new ModuleImporter(this); // Initialize ModuleImporter
+    this.serverSetup = new ServerSetup(this); // Initialize ServerSetup
+    this.gameComponentInitializer = new GameComponentInitializer(this); // Initialize GameComponentInitializer
+    this.socketEventManager = new SocketEventManager(this); // Initialize SocketEventManager
+    this.gameDataLoader = new GameDataLoader(this); // Initialize GameDataLoader
   }
-  // Initialize Modules ***************************************************************************
-  async importModules() { // Changed to async
+  async init() { // New init method
+    await this.moduleImporter.importModules(); // Ensure modules are initialized first
+    await this.serverSetup.setupServer(); // Call to setup the server
+    await this.gameComponentInitializer.initializeGameComponents(); // Call to initialize game components
+  }
+}
+// Module Importer ********************************************************************************
+class ModuleImporter {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  async importModules() { // Moved from Server
     try {
       console.log(`\nStart module imports...`);
-      this.CONFIG = await import('./config.js'); // Await the import
-      console.log(`Import module config successful: HOST=${this.CONFIG.HOST}, PORT=${this.CONFIG.PORT}`);
-      this.fs = await import('fs').then(module => module.promises); // Await the import
+      this.server.CONFIG = await import('./config.js'); // Await the import
+      console.log(`Import module config successful: HOST=${this.server.CONFIG.HOST}, PORT=${this.server.CONFIG.PORT}`);
+      this.server.fs = await import('fs').then(module => module.promises); // Await the import
       console.log(`Import module file system successful...`);
-      this.express = (await import('express')).default; // Assign default or named export
+      this.server.express = (await import('express')).default; // Assign default or named export
       console.log(`Import module express successful...`);
-      this.SocketIOServer = (await import('socket.io')).Server; // Assign to instance variable
+      this.server.SocketIOServer = (await import('socket.io')).Server; // Assign to instance variable
       console.log(`Import module socket.io successful...`);
       console.log(`Import module queue...`);
-      this.queue = new (await import('queue')).default(); // Await the import and instantiate the Queue class
+      this.server.queue = new (await import('queue')).default(); // Await the import and instantiate the Queue class
       console.log(`Import module queue successful...`);
       console.log(`Finished module imports...`);
     } catch (error) {
       console.error(`Error during module imports: ${error.message}`); // Log error message
     }
   }
-  // Setup Server *********************************************************************************
-  async setupServer() {
+}
+// Server Setup ***********************************************************************************
+class ServerSetup {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  async setupServer() { // Moved from Server
     console.log(`\nStart server setup...`);
     await this.setupExpress();
     console.log(`Set up express successful...`); // Log successful setup
     await this.createServer(); // Await server creation to ensure it completes
-    if (!this.server) throw new Error('Create server unsuccessful!!!');
+    if (!this.server.server) throw new Error('Create server unsuccessful!!!');
     console.log(`Create server successful...`);
     await this.start(); // Await server start to ensure it completes
-    if (!this.server) throw new Error('Start server unsuccessful!!!');
+    if (!this.server.server) throw new Error('Start server unsuccessful!!!');
     console.log(`Start server successful...`);
-    this.io = new this.SocketIOServer(this.server); // Initialize Socket.IO server
-    if (!this.io) throw new Error('Initialize Socket.IO server unsuccessful!!!');
+    this.server.io = new this.server.SocketIOServer(this.server.server); // Initialize Socket.IO server
+    if (!this.server.io) throw new Error('Initialize Socket.IO server unsuccessful!!!');
     console.log(`Initialize Socket.IO server successful...`); // Log successful setup
-    this.setupSocketEvents(); // Set up socket events
+    this.server.socketEventManager.setupSocketEvents(); // Set up socket events
     console.log(`Set up socket events successful...`); // Log successful setup
-    this.queueManager = new QueueManager();
-    if (!this.queueManager) throw new Error('Initialize queue manager unsuccessful!!!');
-    console.log(`Initialize queue manager successful...`);
-    console.log(`Finished server setup...`);
   }
-  // Create Server ********************************************************************************
-  async createServer() { // Changed to async
+  async createServer() { // Moved from Server
     const sslOptions = { key: null, cert: null };
     try {
-      sslOptions.key = await this.fs.readFile(this.CONFIG.SSL_KEY_PATH); // Use SSL_KEY_PATH from config
+      sslOptions.key = await this.server.fs.readFile(this.server.CONFIG.SSL_KEY_PATH); // Use SSL_KEY_PATH from config
     } catch (error) {
       console.log(`WARNING: Read SSL key: ${error.message}...`);
     }
     try {
-      sslOptions.cert = await this.fs.readFile(this.CONFIG.SSL_CERT_PATH); // Use SSL_CERT_PATH from config
+      sslOptions.cert = await this.server.fs.readFile(this.server.CONFIG.SSL_CERT_PATH); // Use SSL_CERT_PATH from config
     } catch (error) {
       console.log(`WARNING: Read SSL cert: ${error.message}...`);
     }
     const http = sslOptions.key && sslOptions.cert ? await import('https') : await import('http');
-    this.server = http.createServer(sslOptions.key && sslOptions.cert ? { key: sslOptions.key, cert: sslOptions.cert } : this.app);
-    return this.server;
+    this.server.server = http.createServer(sslOptions.key && sslOptions.cert ? { key: sslOptions.key, cert: sslOptions.cert } : this.server.app);
+    return this.server.server;
   }
-  // Start Server *********************************************************************************
-  async start() {
-    console.log(`Start server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`); // Use HOST and PORT from config
-    this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => { // Use HOST and PORT from config
-      console.log(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
+  async start() { // Moved from Server
+    console.log(`Start server on ${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`); // Use HOST and PORT from config
+    this.server.app.listen(this.server.CONFIG.PORT, this.server.CONFIG.HOST, () => { // Use HOST and PORT from config
+      console.log(`Server running on https://${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`);
     });
   }
-  // Setup Express ********************************************************************************
-  async setupExpress() {
-    this.app = this.express(); // Initialize the express app
-    this.app.use(this.express.static('public')); // Use express to serve static files
-    this.app.use((err, req, res, next) => { // Error handling middleware
+  async setupExpress() { // Moved from Server
+    this.server.app = this.server.express(); // Initialize the express app
+    this.server.app.use(this.server.express.static('public')); // Use express to serve static files
+    this.server.app.use((err, req, res, next) => { // Error handling middleware
       console.error(err.stack); // Log the error stack
       res.status(500).send('Something broke!'); // Send a 500 response
     });
   }
-  setupSocketEvents() { // New method to handle socket events
-    this.io.on('connection', (socket) => {
+}
+// Socket Event Manager **************************************************************************
+class SocketEventManager {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  setupSocketEvents() { // Moved from Server
+    this.server.io.on('connection', (socket) => {
       console.log('A user connected:', socket.id); // Log connection
       socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id); // Log disconnection
       });
     });
   }
-  // Load Game Data *******************************************************************************
-  async loadGameData() {
+}
+// Game Data Loader ******************************************************************************
+class GameDataLoader {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  async loadGameData() { // Moved from Server
     console.log(`\nStart loading game data...`);
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' }; // Constants for data types
     const loadData = async (loadFunction, type) => {
@@ -106,41 +127,45 @@ class Server {
       }
     };
     const results = await Promise.allSettled([
-      loadData(this.databaseManager.loadLocationData.bind(this.databaseManager), DATA_TYPES.LOCATION),
-      loadData(this.databaseManager.loadNpcData.bind(this.databaseManager), DATA_TYPES.NPC),
-      loadData(this.databaseManager.loadItemData.bind(this.databaseManager), DATA_TYPES.ITEM),
+      loadData(this.server.databaseManager.loadLocationData.bind(this.server.databaseManager), DATA_TYPES.LOCATION),
+      loadData(this.server.databaseManager.loadNpcData.bind(this.server.databaseManager), DATA_TYPES.NPC),
+      loadData(this.server.databaseManager.loadItemData.bind(this.server.databaseManager), DATA_TYPES.ITEM),
     ]);
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
         console.error(`Failed to load data at index ${index}: ${result.reason}`);
       }
     });
-
     // Collect loaded data
     const loadedData = results.map(result => result.value).filter(value => value && !value.error);
     console.log(`Finished loading game data.`);
     return loadedData; // Return all successfully loaded data
   }
-  // Initialize Game Components *******************************************************************
-  async initializeGameComponents() { // New method to initialize game components
+}
+// Game Component Initializer ********************************************************************
+class GameComponentInitializer {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  async initializeGameComponents() { // Moved from Server
     console.log(`\nStart Game Components...`);
     console.log(`Start queue manager...`);
-    this.queueManager = new QueueManager();
-    if (!this.queueManager) throw new Error('Start queue manager unsuccessful!!!');
+    this.server.queueManager = new QueueManager();
+    if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
     console.log(`Start queue manager successful...`);
     console.log(`Start database manager...`);
-    this.databaseManager = new DatabaseManager();
-    if (!this.databaseManager) throw new Error('Start database manager unsuccessful!!!');
+    this.server.databaseManager = new DatabaseManager();
+    if (!this.server.databaseManager) throw new Error('Start database manager unsuccessful!!!');
     console.log(`Start database manager successful...`);
     console.log(`Start game manager...`);
-    this.gameManager = new GameManager();
+    this.server.gameManager = new GameManager();
     console.log(`Start game manager successful...`);
     console.log(`Loading game data...`);
-    await this.loadGameData(); // Ensure game data loads before proceeding
-    if (!this.gameData) throw new Error('Load game data unsuccessful!!!');
+    await this.server.gameDataLoader.loadGameData(); // Ensure game data loads before proceeding
+    if (!this.server.gameData) throw new Error('Load game data unsuccessful!!!');
     console.log(`Start game loop...`);
-    this.startGameLoop(); // Ensure the game loop starts
-    if (!this.gameLoop) throw new Error('Start game loop unsuccessful!!!');
+    this.server.startGameLoop(); // Ensure the game loop starts
+    if (!this.server.gameLoop) throw new Error('Start game loop unsuccessful!!!');
     console.log(`Start game loop successful...`);
   }
 }
