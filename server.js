@@ -9,7 +9,7 @@ class Server {
     this.serverSetup = new ServerSetup(this); // Initialize ServerSetup
     this.gameComponentInitializer = new GameComponentInitializer(this); // Initialize GameComponentInitializer
     this.socketEventManager = new SocketEventManager(this); // Initialize SocketEventManager
-    this.gameDataLoader = new GameDataLoader(this); // Initialize GameDataLoader
+    //this.gameDataLoader = new GameDataLoader(this); // Initialize GameDataLoader
   }
   async init() { // New init method
     await this.moduleImporter.importModules(); // Ensure modules are initialized first
@@ -84,6 +84,10 @@ class ServerSetup {
       this.server.socketEventManager.setupSocketEvents(); // Set up socket events
       if (!this.server.socketEventManager) throw new Error('Start Socket Events unsuccessful!!!');
       console.log(`  - Socket Events started successfully.`); // Improved message
+      console.log(`  - Starting Queue Manager...`);
+      this.server.queueManager = new QueueManager();
+      if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
+      console.log(`  - Queue Manager started successfully.`); // Improved message
       console.log(`SERVER SETUP COMPLETED SUCCESSFULLY.`); // Improved message
     } catch (error) {
       console.error(`Error during server setup: ${error.message}`); // Log error message
@@ -106,7 +110,7 @@ class ServerSetup {
     const http = isHttps ? await import('https') : await import('http');
     this.server.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.server.app);
     console.log(`    - Server created using ${isHttps ? 'HTTPS' : 'HTTP'}.`); // Log server type
-    console.log(`    - Starting server on ${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT} using ${isHttps ? 'HTTPS' : 'HTTP'}...`); // Improved message
+    console.log(`    - Starting server on ${isHttps ? 'HTTPS' : 'HTTP'}//${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`); // Improved message
     return this.server.server;
   }
   async setupExpress() { // Moved from Server
@@ -126,10 +130,6 @@ class GameComponentInitializer {
   async initializeGameComponents() { // Moved from Server
     console.log(`\nSTARTING GAME COMPONENTS:`); // Improved message
     try {
-      console.log(`  - Starting Queue Manager...`);
-      this.server.queueManager = new QueueManager();
-      if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
-      console.log(`  - Queue Manager started successfully.`); // Improved message
       console.log(`  - Starting database Manager...`);
       this.server.databaseManager = new DatabaseManager();
       if (!this.server.databaseManager) throw new Error('Start database manager unsuccessful!!!');
@@ -145,40 +145,6 @@ class GameComponentInitializer {
       console.error(`Error during game component initialization: ${error.message}`); // Log error message
     }
     console.log(`STARTING GAME COMPONENTS COMPLETED SUCCESSFULLY...`);
-  }
-}
-// Game Data Loader ******************************************************************************
-class GameDataLoader {
-  constructor(server) {
-    this.server = server; // Reference to the server instance
-  }
-  async loadGameData() { // Moved from Server
-    console.log(`\nStarting game data loading...`); // Improved message
-    const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' }; // Constants for data types
-    const loadData = async (loadFunction, type) => {
-      try {
-        const data = await loadFunction();
-        console.log(`${type} data loaded successfully.`); // Improved message
-        return { type, data }; // Return loaded data
-      } catch (error) {
-        console.error(`Error loading ${type} data: ${error}`);
-        return { type, error }; // Return error
-      }
-    };
-    const results = await Promise.allSettled([
-      loadData(this.server.databaseManager.loadLocationData.bind(this.server.databaseManager), DATA_TYPES.LOCATION),
-      loadData(this.server.databaseManager.loadNpcData.bind(this.server.databaseManager), DATA_TYPES.NPC),
-      loadData(this.server.databaseManager.loadItemData.bind(this.server.databaseManager), DATA_TYPES.ITEM),
-    ]);
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.error(`Failed to load data at index ${index}: ${result.reason}`);
-      }
-    });
-    // Collect loaded data
-    const loadedData = results.map(result => result.value).filter(value => value && !value.error);
-    console.log(`Finished loading game data.`); // Improved message
-    return loadedData; // Return all successfully loaded data
   }
 }
 // Method Call to Start an instance of Server
@@ -310,63 +276,58 @@ class QueueManager {
 class DatabaseManager {
   constructor() {
     this.fs = import('fs').promises; // Use promises API for file system operations
-    this.importConfig(); // Call importConfig without await
+    this.gameDataLoader = new GameDataLoader(this); // Initialize GameDataLoader
   }
-  async importConfig() { // Ensure this method is async
-    this.CONFIG = await Utility.importConfig(); // Use Utility to import config
-  }
-  async loadData(directoryPath) { // Updated to accept a directory path
-    const data = {};
+  async loadData(directoryPath) { return await this.gameDataLoader.loadGameData(); } // Use GameDataLoader to load game data
+  async saveData(filePath, key, data) { // Updated to handle batch saving
     try {
-      const fileNames = await this.fs.readdir(directoryPath); // Read all files in the directory
-      await Promise.all(fileNames.map(async (fileName) => {
-        const filePath = `${directoryPath}/${fileName}`; // Construct full file path
-        try {
-          const fileContent = await this.fs.readFile(filePath, 'utf-8'); // Read file content
-          data[fileName] = JSON.parse(fileContent); // Parse JSON data
-        } catch (error) {
-          MessageManager.notifyError(this, `Error loading data from ${filePath}: ${error}`); // Notify error
-          data[fileName] = {}; // Default to empty object on error
-        }
-      }));
-    } catch (error) {
-      MessageManager.notifyError(this, `Error reading directory ${directoryPath}: ${error}`); // Notify directory read error
-    }
-    return data; // Return all loaded data
-  }
-  saveData(filePath, key, data) { // Updated to handle batch saving
-    try {
-      const existingData = this.loadData([filePath]); // Load existing data
+      const existingData = await this.loadData([filePath]); // Await loading existing data
       existingData[filePath][key] = data; // Update the specific key with new data
-      this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Save updated data
+      await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Await saving updated data
       console.log(`Data saved for ${key} to ${filePath}`); // Log successful save
     } catch (error) {
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
   }
-  loadPlayerData() {
-    return this.loadData(this.CONFIG.FILE_PATHS.PLAYER_DATA); // Use the path from config.js
+  async loadPlayerData() { return await this.loadData(this.CONFIG.FILE_PATHS.PLAYER_DATA); } // Use the path from config.js
+  async savePlayerData(playerData) { await this.saveData(this.CONFIG.FILE_PATHS.PLAYER_DATA, playerData.username, playerData); } // Save player data
+  async loadLocationData() { return await this.loadData(this.CONFIG.FILE_PATHS.LOCATION_DATA); } // Use the path from config.js
+  async saveLocationData(locationData) { await this.saveData(this.CONFIG.FILE_PATHS.LOCATION_DATA, locationData.id, locationData); } // Save location data
+  async loadNpcData() { return await this.loadData(this.CONFIG.FILE_PATHS.NPC_DATA); } // Use the path from config.js
+  async saveNpcData(npcData) { await this.saveData(this.CONFIG.FILE_PATHS.NPC_DATA, npcData.id, npcData); } // Save NPC data
+  async loadItemData() { return await this.loadData(this.CONFIG.FILE_PATHS.ITEM_DATA); } // Use the path from config.js
+  async saveItemData(itemData) { await this.saveData(this.CONFIG.FILE_PATHS.ITEM_DATA, itemData.id, itemData); } // Save item data
+}
+// Game Data Loader ******************************************************************************
+class GameDataLoader {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
   }
-  savePlayerData(playerData) {
-    this.saveData(this.CONFIG.FILE_PATHS.PLAYER_DATA, playerData.username, playerData); // Save player data
-  }
-  loadLocationData() {
-    return this.loadData(this.CONFIG.FILE_PATHS.LOCATION_DATA); // Use the path from config.js
-  }
-  saveLocationData(locationData) {
-    this.saveData(this.CONFIG.FILE_PATHS.LOCATION_DATA, locationData.id, locationData); // Save location data
-  }
-  loadNpcData() {
-    return this.loadData(this.CONFIG.FILE_PATHS.NPC_DATA); // Use the path from config.js
-  }
-  saveNpcData(npcData) {
-    this.saveData(this.CONFIG.FILE_PATHS.NPC_DATA, npcData.id, npcData); // Save NPC data
-  }
-  loadItemData() {
-    return this.loadData(this.CONFIG.FILE_PATHS.ITEM_DATA); // Use the path from config.js
-  }
-  saveItemData(itemData) {
-    this.saveData(this.CONFIG.FILE_PATHS.ITEM_DATA, itemData.id, itemData); // Save item data
+  async loadGameData() { // Moved from Server
+    console.log(`\nStarting game data loading...`); // Improved message
+    const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' }; // Constants for data types
+    const loadData = async (loadFunction, type) => {
+      try {
+        const data = await loadFunction();
+        console.log(`${type} data loaded successfully.`); // Improved message
+        return { type, data }; // Return loaded data
+      } catch (error) {
+        console.error(`Error loading ${type} data: ${error}`);
+        return { type, error }; // Return error
+      }
+    };
+    const results = await Promise.allSettled([
+      loadData(this.server.databaseManager.loadLocationData.bind(this.server.databaseManager), DATA_TYPES.LOCATION),
+      loadData(this.server.databaseManager.loadNpcData.bind(this.server.databaseManager), DATA_TYPES.NPC),
+      loadData(this.server.databaseManager.loadItemData.bind(this.server.databaseManager), DATA_TYPES.ITEM),
+    ]);
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Failed to load data at index ${index}: ${result.reason}`);
+      }
+    });
+    console.log(`Finished loading game data.`); // Improved message
+    return results.map(result => result.value).filter(value => value && !value.error); // Return all successfully loaded data
   }
 }
 // Game Manager ***********************************************************************************
