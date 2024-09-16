@@ -11,11 +11,11 @@ const HTTPS = import('https');       // Import HTTPS module
 const HTTP = import('http');         // Import HTTP module
 // File paths for game data
 const FILE_PATHS = {
-  PLAYER_DATA: '/world data/players',
-  LOCATION_DATA: '/world data/locations',
-  NPC_DATA: '/world data/npcs',
-  ITEM_DATA: '/world data/items',
-  GAME_DATA: '/world data/gameData.json',
+  PLAYER_DATA: './source code/world data/players',
+  LOCATION_DATA: './source code/world data/locations',
+  NPC_DATA: './source code/world data/npcs',
+  ITEM_DATA: './source code/world data/items',
+  GAME_DATA: './source code/world data/gameData.json',
 };
 // Game Configuration
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute

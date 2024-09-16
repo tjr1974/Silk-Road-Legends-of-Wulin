@@ -310,8 +310,8 @@ class QueueManager {
 }
 // Database Manager ******************************************************************************
 /*
- * The DatabaseManager class is responsible for managing data storage and retrieval operations,
- * including loading and saving game data for players, locations, NPCs, and items.
+ * The DatabaseManager class is responsible for managing the game's data storage and retrieval,
+ * ensuring that all data is saved and loaded correctly.
 */
 class DatabaseManager {
   constructor() {
@@ -331,12 +331,41 @@ class DatabaseManager {
   }
   async loadPlayerData() { return await this.loadData(this.CONFIG.FILE_PATHS.PLAYER_DATA); } // Use the path from config.js
   async savePlayerData(playerData) { await this.saveData(this.CONFIG.FILE_PATHS.PLAYER_DATA, playerData.username, playerData); } // Save player data
-  async loadLocationData() { return await this.loadData(this.CONFIG.FILE_PATHS.LOCATION_DATA); } // Use the path from config.js
+  async loadLocationData() {
+    const locationFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.LOCATION_DATA); // Get all files in the location directory
+    const locations = [];
+    for (const file of locationFiles) {
+      const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+      locations.push(JSON.parse(data)); // Parse and add to locations array
+    }
+    return locations; // Return all loaded locations
+  }
   async saveLocationData(locationData) { await this.saveData(this.CONFIG.FILE_PATHS.LOCATION_DATA, locationData.id, locationData); } // Save location data
-  async loadNpcData() { return await this.loadData(this.CONFIG.FILE_PATHS.NPC_DATA); } // Use the path from config.js
+  async loadNpcData() {
+    const npcFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.NPC_DATA); // Get all files in the NPC directory
+    const npcs = [];
+    for (const file of npcFiles) {
+      const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+      npcs.push(JSON.parse(data)); // Parse and add to NPCs array
+    }
+    return npcs; // Return all loaded NPCs
+  }
   async saveNpcData(npcData) { await this.saveData(this.CONFIG.FILE_PATHS.NPC_DATA, npcData.id, npcData); } // Save NPC data
-  async loadItemData() { return await this.loadData(this.CONFIG.FILE_PATHS.ITEM_DATA); } // Use the path from config.js
+  async loadItemData() {
+    const itemFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.ITEM_DATA); // Get all files in the item directory
+    const items = [];
+    for (const file of itemFiles) {
+      const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+      items.push(JSON.parse(data)); // Parse and add to items array
+    }
+    return items; // Return all loaded items
+  }
   async saveItemData(itemData) { await this.saveData(this.CONFIG.FILE_PATHS.ITEM_DATA, itemData.id, itemData); } // Save item data
+
+  async getFilesInDirectory(directoryPath) {
+    const files = await this.fs.readdir(directoryPath); // Read directory contents
+    return files.map(file => `${directoryPath}/${file}`); // Return full paths of files
+  }
 }
 // Game Data Loader ******************************************************************************
 /*
