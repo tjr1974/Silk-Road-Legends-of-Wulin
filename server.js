@@ -1,23 +1,34 @@
+// Server *****************************************************************************************
 /*
  * The Server class is the main entry point for the game server. It is responsible for initializing
  * the server environment, setting up middleware, and managing the game loop.
  */
-// Server *****************************************************************************************
 class Server {
   constructor() {
     this.moduleImporter = new ModuleImporter(this); // Initialize ModuleImporter
     this.serverSetup = new ServerSetup(this); // Initialize ServerSetup
     this.gameComponentInitializer = new GameComponentInitializer(this); // Initialize GameComponentInitializer
     this.socketEventManager = new SocketEventManager(this); // Initialize SocketEventManager
-    //this.gameDataLoader = new GameDataLoader(this); // Initialize GameDataLoader
   }
   async init() { // New init method
-    await this.moduleImporter.importModules(); // Ensure modules are initialized first
-    await this.serverSetup.setupServer(); // Call to setup the server
-    await this.gameComponentInitializer.initializeGameComponents(); // Call to initialize game components
+    try {
+      await this.moduleImporter.importModules(); // Ensure modules are initialized first
+      await this.serverSetup.setupServer(); // Call to setup the server
+      await this.gameComponentInitializer.initializeGameComponents(); // Call to initialize game components
+      this.startGameLoop(); // Start the game loop
+    } catch (error) {
+      console.error(`Error during server initialization: ${error.message}`); // Log initialization error
+    }
+  }
+  startGameLoop() { // New method to start the game loop
+    // Logic to start the game loop (e.g., setInterval for game updates)
   }
 }
 // Socket Event Manager **************************************************************************
+/*
+ * The SocketEventManager class handles socket events for real-time communication between the server
+ * and connected clients. It manages user connections and disconnections.
+ */
 class SocketEventManager {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -32,6 +43,10 @@ class SocketEventManager {
   }
 }
 // Module Importer ********************************************************************************
+/*
+ * The ModuleImporter class is responsible for importing necessary modules and dependencies for the
+ * server to function. It ensures that all required modules are loaded before the server starts.
+ */
 class ModuleImporter {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -61,6 +76,10 @@ class ModuleImporter {
   }
 }
 // Server Setup ***********************************************************************************
+/*
+ * The ServerSetup class is responsible for configuring the server environment, including setting up
+ * the Express application, initializing the Socket.IO server, and managing middleware.
+ */
 class ServerSetup {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -123,6 +142,11 @@ class ServerSetup {
   }
 }
 // Game Component Initializer ********************************************************************
+/*
+ * The GameComponentInitializer class is responsible for initializing various game components,
+ * such as the database manager and game data loader, ensuring that all necessary components are
+ * ready before the game starts.
+ */
 class GameComponentInitializer {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -151,6 +175,10 @@ class GameComponentInitializer {
 const server = new Server();
 server.init(); // Call the init method to complete initialization
 // Object Pool ************************************************************************************
+/*
+ * The ObjectPool class manages a pool of reusable objects to optimize memory usage and performance
+ * by reducing the overhead of object creation and garbage collection.
+ */
 class ObjectPool {
   constructor(createFunc, size) {
     this.createFunc = createFunc; // Function to create new objects
@@ -165,6 +193,10 @@ class ObjectPool {
   }
 }
 // Task Class ************************************************************************************
+/*
+ * The Task class represents a unit of work that can be executed. It encapsulates the task's name
+ * and execution logic, allowing for flexible task management.
+*/
 class Task {
   constructor(name) {
     this.name = name; // Name of the task
@@ -175,6 +207,10 @@ class Task {
   }
 }
 // Queue Manager *********************************************************************************
+/*
+ * The QueueManager class manages a queue of tasks to be executed. It handles task addition,
+ * processing, and execution, ensuring that tasks are run in a controlled manner.
+*/
 class QueueManager {
   constructor() {
     this.queue = []; // Array to hold tasks in the queue
@@ -272,7 +308,11 @@ class QueueManager {
     this.taskPool = null; // Clear task pool reference
   }
 }
-// Database Manager  ******************************************************************************
+// Database Manager ******************************************************************************
+/*
+ * The DatabaseManager class is responsible for managing data storage and retrieval operations,
+ * including loading and saving game data for players, locations, NPCs, and items.
+*/
 class DatabaseManager {
   constructor() {
     this.fs = import('fs').promises; // Use promises API for file system operations
@@ -299,6 +339,10 @@ class DatabaseManager {
   async saveItemData(itemData) { await this.saveData(this.CONFIG.FILE_PATHS.ITEM_DATA, itemData.id, itemData); } // Save item data
 }
 // Game Data Loader ******************************************************************************
+/*
+ * The GameDataLoader class is responsible for loading game data from various sources, ensuring
+ * that all necessary data is available for the game to function correctly.
+*/
 class GameDataLoader {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -331,6 +375,10 @@ class GameDataLoader {
   }
 }
 // Game Manager ***********************************************************************************
+/*
+ * The GameManager class is responsible for managing the overall game state, including player
+ * interactions, NPC management, game time, and event handling.
+*/
 class GameManager {
   #gameLoopInterval = null; // Declare the private field for game loop interval
   #gameTime = 0; // Declare the private field for game time
@@ -526,6 +574,10 @@ class GameManager {
   }
 }
 // EventEmitter ***********************************************************************************
+/*
+ * The EventEmitter class provides a mechanism for managing and emitting events within the game,
+ * allowing different components to communicate and respond to specific actions or changes.
+*/
 class EventEmitter {
   constructor() {
     this.events = {}; // Object to store event listeners
@@ -564,11 +616,11 @@ class CreateNewPlayer {
     if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
   }
 }
-// Character **************************************************************************************
+// Create New Player ******************************************************************************
 /*
- * The Character class is responsible for representing characters in the game.
- * It stores the character's name and health.
- */
+ * The CreateNewPlayer class is responsible for creating new player instances from existing player
+ * data, providing methods to initialize player attributes and state.
+*/
 class Character {
   constructor(name, health) {
     this.name = name; // Character's name
