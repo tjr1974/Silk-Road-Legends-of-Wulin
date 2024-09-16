@@ -5,51 +5,35 @@
 // Server *****************************************************************************************
 class Server {
   async init() { // New init method
-    await this.initializeModules(); // Ensure modules are initialized first
+    await this.importModules(); // Ensure modules are initialized first
     await this.setupServer(); // Call to setup the server
     await this.initializeGameComponents(); // Call to initialize game components
   }
   // Initialize Modules ***************************************************************************
-  /*
-  * The initializeModules method loads and initializes the server modules.
-  * It ensures that all necessary modules are imported and ready for use.
-  * The order of initialization is crucial for proper functionality.
-  */
-  async initializeModules() { // Changed to async
+  async importModules() { // Changed to async
     try {
       console.log(`\nStart module imports...`);
-      console.log(`\nImport module config...`);
       this.CONFIG = await import('./config.js'); // Await the import
-      if (!this.CONFIG.HOST || !this.CONFIG.PORT) {
-        throw new Error('HOST and PORT must be defined in config.js');
-      }
       console.log(`Import module config successful: HOST=${this.CONFIG.HOST}, PORT=${this.CONFIG.PORT}`);
-      console.log(`\nImport module file system...`);
       this.fs = await import('fs').then(module => module.promises); // Await the import
       console.log(`Import module file system successful...`);
-      console.log(`\nImport module express...`);
-      const expressModule = await import('express'); // Import express
-      this.express = expressModule.default || expressModule; // Assign default or named export
+      this.express = (await import('express')).default; // Assign default or named export
       console.log(`Import module express successful...`);
-      console.log(`\nImport module socket.io...`); // New log for Socket.IO
-      const socketIoModule = await import('socket.io'); // Moved import here
-      this.SocketIOServer = socketIoModule.Server; // Assign to instance variable
+      this.SocketIOServer = (await import('socket.io')).Server; // Assign to instance variable
       console.log(`Import module socket.io successful...`);
-      console.log(`\nFinished module imports...`);
+      console.log(`Import module queue...`);
+      this.queue = new (await import('queue')).default(); // Await the import and instantiate the Queue class
+      console.log(`Import module queue successful...`);
+      console.log(`Finished module imports...`);
     } catch (error) {
       console.error(`Error during module imports: ${error.message}`); // Log error message
     }
   }
-    // Setup Server *********************************************************************************
-  /*
-  * The setupServer method initializes the server setup process, including routes and server creation.
-  */
+  // Setup Server *********************************************************************************
   async setupServer() {
     console.log(`\nStart server setup...`);
-    console.log(`\nSet up express...`);
     await this.setupExpress();
     console.log(`Set up express successful...`); // Log successful setup
-    console.log(`\nCreate server...`);
     await this.createServer(); // Await server creation to ensure it completes
     if (!this.server) throw new Error('Create server unsuccessful!!!');
     console.log(`Create server successful...`);
@@ -57,73 +41,61 @@ class Server {
     if (!this.server) throw new Error('Start server unsuccessful!!!');
     console.log(`Start server successful...`);
     this.io = new this.SocketIOServer(this.server); // Initialize Socket.IO server
+    if (!this.io) throw new Error('Initialize Socket.IO server unsuccessful!!!');
+    console.log(`Initialize Socket.IO server successful...`); // Log successful setup
     this.setupSocketEvents(); // Set up socket events
-    console.log(`\nFinished server setup...`);
+    if (!this.io) throw new Error('Setup socket events unsuccessful!!!');
+    console.log(`Set up socket events successful...`); // Log successful setup
+    this.queueManager = new QueueManager();
+    if (!this.queueManager) throw new Error('Initialize queue manager unsuccessful!!!');
+    console.log(`Initialize queue manager successful...`);
+    console.log(`Finished server setup...`);
   }
   // Create Server ********************************************************************************
-  /*
-  * The createServer method is responsible for creating the server instance.
-  * It checks for the availability of SSL certificates and creates the server accordingly.
-  * If SSL certificates are not found, it defaults to HTTP.
-  */
   async createServer() { // Changed to async
-    const SSL_KEY_PATH = './ssl/server.key';
-    const SSL_CERT_PATH = './ssl/server.crt';
     const sslOptions = { key: null, cert: null };
     try {
-      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH); // Await the readFile
+      sslOptions.key = await this.fs.readFile(this.CONFIG.SSL_KEY_PATH); // Use SSL_KEY_PATH from config
     } catch (error) {
-      console.log(`WARNING: Read SSL key: ${error}...`);
+      console.log(`WARNING: Read SSL key: ${error.message}...`);
     }
     try {
-      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH); // Await the readFile
+      sslOptions.cert = await this.fs.readFile(this.CONFIG.SSL_CERT_PATH); // Use SSL_CERT_PATH from config
     } catch (error) {
-      console.log(`WARNING: Read SSL cert: ${error}...`);
+      console.log(`WARNING: Read SSL cert: ${error.message}...`);
     }
-    if (!sslOptions.key || !sslOptions.cert) {
-      console.log(`WARNING: SSL files not found, defaulting to HTTP...`);
-      const http = await import('http'); // Await the import
-      this.server = http.createServer(this.app); // Ensure server instance is assigned
-    } else {
-      console.log(`SSL files found, creating HTTPS server...`);
-      const https = await import('https'); // Await the import
-      this.server = https.createServer({ key: sslOptions.key, cert: sslOptions.cert }, this.app); // Ensure server instance is assigned
-    }
-    return this.server; // Ensure the server instance is returned
+    const http = sslOptions.key && sslOptions.cert ? await import('https') : await import('http');
+    this.server = http.createServer(sslOptions.key && sslOptions.cert ? { key: sslOptions.key, cert: sslOptions.cert } : this.app);
+    return this.server;
   }
   // Start Server *********************************************************************************
-  /*
-  * The start method starts the server and listens for incoming connections.
-  * It logs the server's operational status and address for easy access.
-  */
   async start() {
-    console.log(`Start server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
-    this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => {
+    console.log(`Start server on ${this.CONFIG.HOST}:${this.CONFIG.PORT}...`); // Use HOST and PORT from config
+    this.app.listen(this.CONFIG.PORT, this.CONFIG.HOST, () => { // Use HOST and PORT from config
       console.log(`Server running on https://${this.CONFIG.HOST}:${this.CONFIG.PORT}...`);
     });
   }
-  // Setup Express *****************************************************************************
-  /*
-  * The setupExpress method sets up the express server.
-  */
+  // Setup Express ********************************************************************************
   async setupExpress() {
     this.app = this.express(); // Initialize the express app
     this.app.use(this.express.static('public')); // Use express to serve static files
-    // Error handling middleware
-    this.app.use((err, req, res, next) => {
+    this.app.use((err, req, res, next) => { // Error handling middleware
       console.error(err.stack); // Log the error stack
       res.status(500).send('Something broke!'); // Send a 500 response
     });
   }
+  setupSocketEvents() { // New method to handle socket events
+    this.io.on('connection', (socket) => {
+      console.log('A user connected:', socket.id); // Log connection
+      socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id); // Log disconnection
+      });
+    });
+  }
   // Load Game Data *******************************************************************************
-  /*
-  * The loadGameData method loads essential game data from the database.
-  * It retrieves location, NPC, and item data to ensure the game state is ready for interaction.
-  */
   async loadGameData() { // Changed to async
-    console.log(`Loading game data...`);
     try {
-      await Promise.all([
+      this.gameData = await Promise.all([ // Ensure gameData is assigned
         this.databaseManager.loadLocationData().then(() => console.log(`Start loading location data...`)).catch(error => console.log(`Error loading location data: ${error}`)),
         this.databaseManager.loadNpcData().then(() => console.log(`Start loading NPC data...`)).catch(error => console.log(`Error loading npc data: ${error}`)),
         this.databaseManager.loadItemData().then(() => console.log(`Start loading item data...`)).catch(error => console.log(`Error loading item data: ${error}`))
@@ -133,66 +105,33 @@ class Server {
       console.log(`Error during game data loading process: ${error}`);
     }
   }
-  // Initialize Queue *****************************************************************************
-  /*
-  * The initializeQueue method creates a new queue instance for the server.
-  * It assigns the queue instance to the queueManager for managing tasks.
-  */
-  initializeQueue() {
-    console.log(`Start queue initialization...`);
-    this.queue = (import('queue')).default();
-    console.log(`Finished queue initialization...`);
-  }
-  // Initialize Game Components *********************************************************************
-  /*
-  * The initializeGameComponents method initializes the game components.
-  */
+  // Initialize Game Components *******************************************************************
   async initializeGameComponents() { // New method to initialize game components
-    console.log(`\nStart queue manager...`);
+    console.log(`\nStart Game Components...`);
+    console.log(`Start queue manager...`);
     this.queueManager = new QueueManager();
     if (!this.queueManager) throw new Error('Start queue manager unsuccessful!!!');
     console.log(`Start queue manager successful...`);
-    console.log(`\nStart database manager...`);
+    console.log(`Start database manager...`);
     this.databaseManager = new DatabaseManager();
     if (!this.databaseManager) throw new Error('Start database manager unsuccessful!!!');
     console.log(`Start database manager successful...`);
-    console.log(`\nStart game manager...`);
+    console.log(`Start game manager...`);
     this.gameManager = new GameManager();
-    if (!this.gameManager) throw new Error('Start game manager unsuccessful!!!');
     console.log(`Start game manager successful...`);
-    console.log(`\nLoading game data...`);
+    console.log(`Loading game data...`);
     await this.loadGameData(); // Ensure game data loads before proceeding
     if (!this.gameData) throw new Error('Load game data unsuccessful!!!');
-    console.log(`Load game data successful...`);
-    console.log(`\nStart queue...`);
-    this.initializeQueue(); // Ensure queue is initialized
-    if (!this.queue) throw new Error('Start queue unsuccessful!!!');
-    console.log(`Start queue successful...`);
-    console.log(`\nStart game loop...`);
+    console.log(`Start game loop...`);
     this.startGameLoop(); // Ensure the game loop starts
     if (!this.gameLoop) throw new Error('Start game loop unsuccessful!!!');
     console.log(`Start game loop successful...`);
-  }
-  setupSocketEvents() { // New method to handle socket events
-    this.io.on('connection', (socket) => {
-      console.log('A user connected:', socket.id); // Log connection
-      socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id); // Log disconnection
-      });
-      // Add more event listeners as needed
-    });
   }
 }
 // Method Call to Start an instance of Server
 const server = new Server();
 server.init(); // Call the init method to complete initialization
 // Object Pool ************************************************************************************
-/*
- * The ObjectPool class is designed for efficient memory management and performance optimization,
- * by reusing objects instead of creating and destroying them frequently. This approach helps
- * reduce the overhead associated with memory allocation and garbage collection, which can be
- * particularly beneficial in performance-sensitive applications.
- */
 class ObjectPool {
   constructor(createFunc, size) {
     this.createFunc = createFunc; // Function to create new objects
@@ -207,10 +146,6 @@ class ObjectPool {
   }
 }
 // Task Class ************************************************************************************
-/*
-* The Task class is responsible for representing a task in the game's task queue.
-* It contains a name and a placeholder for the task execution function.
-*/
 class Task {
   constructor(name) {
     this.name = name; // Name of the task
@@ -223,10 +158,6 @@ class Task {
   }
 }
 // Queue Manager *********************************************************************************
-/*
-* The QueueManager class is responsible for managing the game's task queue.
-* It provides methods to add tasks to the queue, process the queue, and execute tasks.
-*/
 class QueueManager {
   constructor() {
     this.queue = []; // Array to hold tasks in the queue
@@ -246,7 +177,7 @@ class QueueManager {
       try {
         task.run(); // Call the run method to execute the task
       } catch (error) {
-        // Handle error
+        console.error(`Error processing task: ${error.message}`); // Log error
       }
     }
     this.isProcessing = false; // Mark as not processing
@@ -333,20 +264,18 @@ class QueueManager {
   }
 }
 // Database Manager  ******************************************************************************
-/*
-* The DatabaseManager class is responsible for managing the game's data storage and retrieval.
-* It provides methods to load and save data from various files, such as player, location, NPC,
-* and item data.
-*/
 class DatabaseManager {
   constructor() {
     this.fs = import('fs').promises; // Use promises API for file system operations
+    this.importConfig(); // Call importConfig without await
+  }
+  async importConfig() { // Ensure this method is async
+    this.CONFIG = await Utility.importConfig(); // Use Utility to import config
   }
   async loadData(directoryPath) { // Updated to accept a directory path
     const data = {};
     try {
       const fileNames = await this.fs.readdir(directoryPath); // Read all files in the directory
-      // Use Promise.all to wait for all file read operations to complete
       await Promise.all(fileNames.map(async (fileName) => {
         const filePath = `${directoryPath}/${fileName}`; // Construct full file path
         try {
@@ -373,36 +302,31 @@ class DatabaseManager {
     }
   }
   loadPlayerData() {
-    return this.loadData(CONFIG.FILE_PATHS.PLAYER_DATA); // Use the path from config.js
+    return this.loadData(this.CONFIG.FILE_PATHS.PLAYER_DATA); // Use the path from config.js
   }
   savePlayerData(playerData) {
-    this.saveData(PLAYER_DATA_PATH, playerData.username, playerData); // Save player data
+    this.saveData(this.CONFIG.FILE_PATHS.PLAYER_DATA, playerData.username, playerData); // Save player data
   }
   loadLocationData() {
-    return this.loadData(CONFIG.FILE_PATHS.LOCATION_DATA); // Use the path from config.js
+    return this.loadData(this.CONFIG.FILE_PATHS.LOCATION_DATA); // Use the path from config.js
   }
   saveLocationData(locationData) {
-    this.saveData(LOCATION_DATA_PATH, locationData.id, locationData); // Save location data
+    this.saveData(this.CONFIG.FILE_PATHS.LOCATION_DATA, locationData.id, locationData); // Save location data
   }
   loadNpcData() {
-    return this.loadData(CONFIG.FILE_PATHS.NPC_DATA); // Use the path from config.js
+    return this.loadData(this.CONFIG.FILE_PATHS.NPC_DATA); // Use the path from config.js
   }
   saveNpcData(npcData) {
-    this.saveData(NPC_DATA_PATH, npcData.id, npcData); // Save NPC data
+    this.saveData(this.CONFIG.FILE_PATHS.NPC_DATA, npcData.id, npcData); // Save NPC data
   }
   loadItemData() {
-    return this.loadData(CONFIG.FILE_PATHS.ITEM_DATA); // Use the path from config.js
+    return this.loadData(this.CONFIG.FILE_PATHS.ITEM_DATA); // Use the path from config.js
   }
   saveItemData(itemData) {
-    this.saveData(DatabaseManager.ITEM_DATA_PATH, itemData.id, itemData); // Save item data
+    this.saveData(this.CONFIG.FILE_PATHS.ITEM_DATA, itemData.id, itemData); // Save item data
   }
 }
 // Game Manager ***********************************************************************************
-/*
-* The GameManager class is responsible for managing the game state and its components.
-* It provides methods to start and stop the game, add players, manage locations and NPCs,
-* and handle game events.
-*/
 class GameManager {
   #gameLoopInterval = null; // Declare the private field for game loop interval
   #gameTime = 0; // Declare the private field for game time
@@ -491,23 +415,15 @@ class GameManager {
     }
   }
   _gameTick() {
-    // Update all NPCs in the game
     this._updateNpcs(); // Update NPC states
-    // Update player status effects and conditions
     this._updatePlayerAffects(); // Update player status effects
-    // Check and handle any world events that need to occur
     this._updateWorldEvents(); // Handle world events
-    // Emit a tick event with the current game time for any listeners
     this.eventEmitter.emit("tick", this.#gameTime); // Emit tick event
   }
   _updateGameTime() {
-    // Increment the game time by one minute
     this.setGameTime(this.getGameTime() + 1); // Increment game time
-    // Check if a full day (1440 minutes) has passed
     if (this.getGameTime() >= 1440) {
-      // Reset the game time to zero for a new day
       this.setGameTime(0); // Reset game time
-      // Emit an event to signal the start of a new day
       this.eventEmitter.emit("newDay"); // Emit new day event
     }
   }
@@ -526,25 +442,20 @@ class GameManager {
     }
   }
   _updateWorldEvents() {
-    // Check if it's time for an hourly update (every 60 game minutes)
     if (this.#gameTime % 60 === 0) {
       this._hourlyUpdate(); // Call the method to handle hourly updates
     }
-    // Check if it's time for a daily update (at 360 and 1080 game minutes)
     if (this.#gameTime === 360 || this.#gameTime === 1080) {
       this._dailyUpdate(); // Call the method to handle daily updates
     }
   }
   _hourlyUpdate() {
-    // Perform actions that need to occur every hour in the game
     this._regenerateResourceNodes(); // Regenerate resources in the game world
   }
   _dailyUpdate() {
-    // Perform actions that need to occur every day in the game
     this._updateNpcSchedules(); // Update the schedules of all NPCs in the game
   }
   _updateNpcSchedules() {
-    // Iterate through all NPCs and update their schedules based on the current game time
     for (const npc of this.npcs.values()) {
       npc.updateSchedule(this.#gameTime); // Call the updateSchedule method for each NPC
     }
@@ -561,7 +472,6 @@ class GameManager {
     MessageManager.notifyPlayersInLocation(player.currentLocation, `${player.getName()} has disconnected from the game.`);
   }
   getGameTime() {
-    // Calculate the current game time in hours and minutes
     const hours = Math.floor(this.#gameTime / 60); // Convert total minutes to hours
     const minutes = this.#gameTime % 60; // Get the remaining minutes
     return { hours, minutes }; // Return an object containing hours and minutes
@@ -590,7 +500,7 @@ class GameManager {
     };
   }
   checkLevelUp(player) {
-    const LEVEL_UP_XP = 100; // Define the experience points required to level up
+    const LEVEL_UP_XP = this.CONFIG.LEVEL_UP_XP; // Use LEVEL_UP_XP from config
     if (player.experience < LEVEL_UP_XP) return; // Early return if not enough experience
     player.level += 1; // Increment player's level
     player.experience -= LEVEL_UP_XP; // Deduct experience points for leveling up
@@ -616,10 +526,6 @@ class GameManager {
   }
 }
 // EventEmitter ***********************************************************************************
-/*
-* The EventEmitter class is responsible for managing events and their listeners.
-* It provides methods to register listeners, emit events, and remove listeners.
-*/
 class EventEmitter {
   constructor() {
     this.events = {}; // Object to store event listeners
@@ -696,6 +602,8 @@ class Player extends Character {
   #healthRegenerator; // Instance of health regenerator for health management
   constructor(uid, name, bcrypt) {
     super(name, 100); // Call the parent constructor
+    this.CONFIG = null; // Initialize CONFIG
+    this.importConfig(); // Call method to load config
     this.#uid = uid; // Initialize unique identifier
     this.#bcrypt = bcrypt; // Initialize bcrypt instance
     this.#inventory = []; // Initialize inventory array
@@ -733,6 +641,9 @@ class Player extends Character {
     this.actions = new PlayerActions(this); // Initialize PlayerActions
     this.inventoryManager = new InventoryManager(this); // Initialize InventoryManager
     this.combatActions = new CombatActions(this); // Initialize CombatActions
+  }
+  async importConfig() {
+    this.CONFIG = await import('./config.js'); // Await the import
   }
   getId() {
     return this.#uid; // Return unique identifier
@@ -915,8 +826,13 @@ class Player extends Character {
  */
 class HealthRegenerator {
   constructor(player) {
+    this.CONFIG = null; // Initialize CONFIG
     this.player = player; // Reference to the player instance
     this.regenInterval = null; // Interval for health regeneration
+    this.importConfig(); // Call method to load config
+  }
+  async importConfig() {
+    this.CONFIG = await import('./config.js'); // Await the import
   }
   start() {
     if (!this.regenInterval) {
@@ -1088,6 +1004,7 @@ class Location {
 class Npc extends Character {
   constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile = false, zones = [], aliases) {
     super(name, currHealth); // Call the parent constructor
+    this.CONFIG = null; // Initialize CONFIG
     this.sex = sex; // NPC's sex
     this.maxHealth = maxHealth; // NPC's maximum health
     this.attackPower = attackPower; // NPC's attack power
@@ -1102,6 +1019,9 @@ class Npc extends Character {
     this.id = UidGenerator.generateUid(); // Use UidGenerator to generate UID
     this.previousState = { currHealth, status }; // Track previous state
     if (this.mobile) this.startMovement(); // Start movement if NPC is mobile
+  }
+  async importConfig() {
+    this.CONFIG = await import('./config.js'); // Await the import
   }
   startMovement() {
     setInterval(() => {
@@ -1480,8 +1400,13 @@ class CombatManager {
   #defeatedNpcs = new Set(); // Set to track defeated NPCs
   #combatInitiatedNpcs = new Set(); // Set to track initiated combat NPCs
   constructor(gameManager) {
+    this.CONFIG = null; // Initialize CONFIG
+    this.importConfig(); // Call method to load config
     this.gameManager = gameManager; // Reference to the game manager instance
     this.techniques = this.initializeTechniques(); // Initialize combat techniques
+  }
+  async importConfig() {
+    this.CONFIG = await import('./config.js'); // Await the import
   }
   initializeTechniques() {
     return [
@@ -1842,6 +1767,18 @@ class FormatMessageManager {
  * and managing inventory notifications.
  */
 class MessageManager {
+  static socket; // Add a static socket property
+  static setSocket(socketInstance) {
+    this.socket = socketInstance; // Method to set the socket instance
+  }
+  static notify(player, message, cssid = '') {
+    console.log(`Message to ${player.getName()}: ${message}`); // Log message to player
+    const messageData = Utility.createMessageData(cssid, message); // Create message data using Utility
+    if (this.socket) {
+      this.socket.emit('message', { playerId: player.getId(), messageData }); // Emit message to client
+    }
+    return messageData; // Return message data
+  }
   // Notification Methods *************************************************************************
   static notify(player, message, cssid = '') {
     console.log(`Message to ${player.getName()}: ${message}`); // Log message to player
