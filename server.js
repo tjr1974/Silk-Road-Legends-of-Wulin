@@ -17,83 +17,6 @@ class Server {
     await this.gameComponentInitializer.initializeGameComponents(); // Call to initialize game components
   }
 }
-// Module Importer ********************************************************************************
-class ModuleImporter {
-  constructor(server) {
-    this.server = server; // Reference to the server instance
-  }
-  async importModules() { // Moved from Server
-    try {
-      console.log(`\nStart module imports...`);
-      this.server.CONFIG = await import('./config.js'); // Await the import
-      console.log(`Import module config successful: HOST=${this.server.CONFIG.HOST}, PORT=${this.server.CONFIG.PORT}`);
-      this.server.fs = await import('fs').then(module => module.promises); // Await the import
-      console.log(`Import module file system successful...`);
-      this.server.express = (await import('express')).default; // Assign default or named export
-      console.log(`Import module express successful...`);
-      this.server.SocketIOServer = (await import('socket.io')).Server; // Assign to instance variable
-      console.log(`Import module socket.io successful...`);
-      console.log(`Import module queue...`);
-      this.server.queue = new (await import('queue')).default(); // Await the import and instantiate the Queue class
-      console.log(`Import module queue successful...`);
-      console.log(`Finished module imports...`);
-    } catch (error) {
-      console.error(`Error during module imports: ${error.message}`); // Log error message
-    }
-  }
-}
-// Server Setup ***********************************************************************************
-class ServerSetup {
-  constructor(server) {
-    this.server = server; // Reference to the server instance
-  }
-  async setupServer() { // Moved from Server
-    console.log(`\nStart server setup...`);
-    await this.setupExpress();
-    console.log(`Set up express successful...`); // Log successful setup
-    await this.createServer(); // Await server creation to ensure it completes
-    if (!this.server.server) throw new Error('Create server unsuccessful!!!');
-    console.log(`Create server successful...`);
-    await this.start(); // Await server start to ensure it completes
-    if (!this.server.server) throw new Error('Start server unsuccessful!!!');
-    console.log(`Start server successful...`);
-    this.server.io = new this.server.SocketIOServer(this.server.server); // Initialize Socket.IO server
-    if (!this.server.io) throw new Error('Initialize Socket.IO server unsuccessful!!!');
-    console.log(`Initialize Socket.IO server successful...`); // Log successful setup
-    this.server.socketEventManager.setupSocketEvents(); // Set up socket events
-    console.log(`Set up socket events successful...`); // Log successful setup
-  }
-  async createServer() { // Moved from Server
-    const sslOptions = { key: null, cert: null };
-    try {
-      sslOptions.key = await this.server.fs.readFile(this.server.CONFIG.SSL_KEY_PATH); // Use SSL_KEY_PATH from config
-    } catch (error) {
-      console.log(`WARNING: Read SSL key: ${error.message}...`);
-    }
-    try {
-      sslOptions.cert = await this.server.fs.readFile(this.server.CONFIG.SSL_CERT_PATH); // Use SSL_CERT_PATH from config
-    } catch (error) {
-      console.log(`WARNING: Read SSL cert: ${error.message}...`);
-    }
-    const http = sslOptions.key && sslOptions.cert ? await import('https') : await import('http');
-    this.server.server = http.createServer(sslOptions.key && sslOptions.cert ? { key: sslOptions.key, cert: sslOptions.cert } : this.server.app);
-    return this.server.server;
-  }
-  async start() { // Moved from Server
-    console.log(`Start server on ${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`); // Use HOST and PORT from config
-    this.server.app.listen(this.server.CONFIG.PORT, this.server.CONFIG.HOST, () => { // Use HOST and PORT from config
-      console.log(`Server running on https://${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`);
-    });
-  }
-  async setupExpress() { // Moved from Server
-    this.server.app = this.server.express(); // Initialize the express app
-    this.server.app.use(this.server.express.static('public')); // Use express to serve static files
-    this.server.app.use((err, req, res, next) => { // Error handling middleware
-      console.error(err.stack); // Log the error stack
-      res.status(500).send('Something broke!'); // Send a 500 response
-    });
-  }
-}
 // Socket Event Manager **************************************************************************
 class SocketEventManager {
   constructor(server) {
@@ -108,18 +31,134 @@ class SocketEventManager {
     });
   }
 }
+// Module Importer ********************************************************************************
+class ModuleImporter {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  async importModules() { // Moved from Server
+    try {
+      console.log(`\nSTARTING MODULE IMPORTS:`); // Improved message
+      console.log(`  - Importing Config Module...`);
+      this.server.CONFIG = await import('./config.js'); // Await the import
+      console.log(`  - Config module imported successfully.`); // Improved message
+      console.log(`  - Importing File System Module...`);
+      this.server.fs = await import('fs').then(module => module.promises); // Await the import
+      console.log(`  - File System module imported successfully.`); // Improved message
+      console.log(`  - Importing Express Module...`);
+      this.server.express = (await import('express')).default; // Assign default or named export
+      console.log(`  - Express module imported successfully.`); // Improved message
+      console.log(`  - Importing Socket.IO Module...`);
+      this.server.SocketIOServer = (await import('socket.io')).Server; // Assign to instance variable
+      console.log(`  - Socket.IO module imported successfully.`); // Improved message
+      console.log(`  - Importing Queue Module...`);
+      this.server.queue = new (await import('queue')).default(); // Await the import and instantiate the Queue class
+      console.log(`  - Queue module imported successfully.`); // Improved message
+      console.log(`MODULE IMPORTS COMPLETED SUCCESSFULLY.`); // Improved message
+    } catch (error) {
+      console.error(`Error during module imports: ${error.message}!!!`); // Log error message
+    }
+  }
+}
+// Server Setup ***********************************************************************************
+class ServerSetup {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  async setupServer() { // Moved from Server
+    console.log(`\nSTARTING SERVER SETUP:`); // Improved message
+    try {
+      console.log(`  - Starting Express...`);
+      await this.setupExpress();
+      if (!this.server.app) throw new Error('Start Express unsuccessful!!!');
+      console.log(`  - Start Express completed successfully.`); // Improved message
+      console.log(`  - Starting Server...`);
+      await this.createServer(); // Await server creation to ensure it completes
+      if (!this.server.server) throw new Error('Start Server unsuccessful!!!');
+      console.log(`  - Server started successfully.`); // Improved message
+      console.log(`  - Starting Socket.IO...`);
+      this.server.io = new this.server.SocketIOServer(this.server.server); // Initialize Socket.IO server
+      if (!this.server.io) throw new Error('Start Socket.IO unsuccessful!!!');
+      console.log(`  - Socket.IO started successfully.`); // Improved message
+      console.log(`  - Starting Socket Events...`);
+      this.server.socketEventManager.setupSocketEvents(); // Set up socket events
+      if (!this.server.socketEventManager) throw new Error('Start Socket Events unsuccessful!!!');
+      console.log(`  - Socket Events started successfully.`); // Improved message
+      console.log(`SERVER SETUP COMPLETED SUCCESSFULLY.`); // Improved message
+    } catch (error) {
+      console.error(`Error during server setup: ${error.message}`); // Log error message
+    }
+  }
+  async createServer() { // Moved from Server
+    const { MAGENTA, RESET } = await import('./config.js'); // Import constants from config file
+    const sslOptions = { key: null, cert: null };
+    try {
+      sslOptions.key = await this.server.fs.readFile(this.server.CONFIG.SSL_KEY_PATH); // Use SSL_KEY_PATH from config
+    } catch (error) {
+      console.log(`    - ${MAGENTA}WARNING: Read SSL key: ${error.message}...${RESET}`);
+    }
+    try {
+      sslOptions.cert = await this.server.fs.readFile(this.server.CONFIG.SSL_CERT_PATH); // Use SSL_CERT_PATH from config
+    } catch (error) {
+      console.log(`    - ${MAGENTA}WARNING: Read SSL cert: ${error.message}...${RESET}`);
+    }
+    const isHttps = sslOptions.key && sslOptions.cert; // Determine server type
+    const http = isHttps ? await import('https') : await import('http');
+    this.server.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.server.app);
+    console.log(`    - Server created using ${isHttps ? 'HTTPS' : 'HTTP'}.`); // Log server type
+    console.log(`    - Starting server on ${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT} using ${isHttps ? 'HTTPS' : 'HTTP'}...`); // Improved message
+    return this.server.server;
+  }
+  async setupExpress() { // Moved from Server
+    this.server.app = this.server.express(); // Initialize the express app
+    this.server.app.use(this.server.express.static('public')); // Use express to serve static files
+    this.server.app.use((err, req, res, next) => { // Error handling middleware
+      console.error(err.stack); // Log the error stack
+      res.status(500).send('Something broke!'); // Send a 500 response
+    });
+  }
+}
+// Game Component Initializer ********************************************************************
+class GameComponentInitializer {
+  constructor(server) {
+    this.server = server; // Reference to the server instance
+  }
+  async initializeGameComponents() { // Moved from Server
+    console.log(`\nSTARTING GAME COMPONENTS:`); // Improved message
+    try {
+      console.log(`  - Starting Queue Manager...`);
+      this.server.queueManager = new QueueManager();
+      if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
+      console.log(`  - Queue Manager started successfully.`); // Improved message
+      console.log(`  - Starting database Manager...`);
+      this.server.databaseManager = new DatabaseManager();
+      if (!this.server.databaseManager) throw new Error('Start database manager unsuccessful!!!');
+      console.log(`  - Database Manager started successfully.`); // Improved message
+      console.log(`  - Starting Game Manager...`);
+      this.server.gameManager = new GameManager();
+      console.log(`  - Game Manager started successfully.`); // Improved message
+      console.log(`  - Loading Game Data...`);
+      await this.server.gameDataLoader.loadGameData(); // Ensure game data loads before proceeding
+      if (!this.server.gameData) throw new Error('Load game data unsuccessful!!!');
+      console.log(`  - Game Data loaded successfully.`); // Improved message
+    } catch (error) {
+      console.error(`Error during game component initialization: ${error.message}`); // Log error message
+    }
+    console.log(`STARTING GAME COMPONENTS COMPLETED SUCCESSFULLY...`);
+  }
+}
 // Game Data Loader ******************************************************************************
 class GameDataLoader {
   constructor(server) {
     this.server = server; // Reference to the server instance
   }
   async loadGameData() { // Moved from Server
-    console.log(`\nStart loading game data...`);
+    console.log(`\nStarting game data loading...`); // Improved message
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' }; // Constants for data types
     const loadData = async (loadFunction, type) => {
       try {
         const data = await loadFunction();
-        console.log(`${type} data loaded successfully.`);
+        console.log(`${type} data loaded successfully.`); // Improved message
         return { type, data }; // Return loaded data
       } catch (error) {
         console.error(`Error loading ${type} data: ${error}`);
@@ -138,35 +177,8 @@ class GameDataLoader {
     });
     // Collect loaded data
     const loadedData = results.map(result => result.value).filter(value => value && !value.error);
-    console.log(`Finished loading game data.`);
+    console.log(`Finished loading game data.`); // Improved message
     return loadedData; // Return all successfully loaded data
-  }
-}
-// Game Component Initializer ********************************************************************
-class GameComponentInitializer {
-  constructor(server) {
-    this.server = server; // Reference to the server instance
-  }
-  async initializeGameComponents() { // Moved from Server
-    console.log(`\nStart Game Components...`);
-    console.log(`Start queue manager...`);
-    this.server.queueManager = new QueueManager();
-    if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
-    console.log(`Start queue manager successful...`);
-    console.log(`Start database manager...`);
-    this.server.databaseManager = new DatabaseManager();
-    if (!this.server.databaseManager) throw new Error('Start database manager unsuccessful!!!');
-    console.log(`Start database manager successful...`);
-    console.log(`Start game manager...`);
-    this.server.gameManager = new GameManager();
-    console.log(`Start game manager successful...`);
-    console.log(`Loading game data...`);
-    await this.server.gameDataLoader.loadGameData(); // Ensure game data loads before proceeding
-    if (!this.server.gameData) throw new Error('Load game data unsuccessful!!!');
-    console.log(`Start game loop...`);
-    this.server.startGameLoop(); // Ensure the game loop starts
-    if (!this.server.gameLoop) throw new Error('Start game loop unsuccessful!!!');
-    console.log(`Start game loop successful...`);
   }
 }
 // Method Call to Start an instance of Server
