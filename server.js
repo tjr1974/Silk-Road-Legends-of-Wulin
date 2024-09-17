@@ -166,7 +166,7 @@ class GameComponentInitializer {
       console.log(`  - Verifying Game Data...`); // New verification step
       const gameDataVerifier = new GameDataVerifier(this.server.databaseManager); // Pass databaseManager instance
       const verifiedData = await gameDataVerifier.verifyData(); // Call verifyData method
-      console.log(`  - Game Data verified successfully:`, verifiedData); // Log verified data
+      console.log(`  - Game Data verified successfully.`); // Log verified data
       console.log(`  - Starting Game Manager...`); // Updated to remove redundant Game Component Initializer
       this.server.gameManager = new GameManager(); // Initialize GameManager directly
       if (!this.server.gameManager) throw new Error('GameManager initialization failed!!!');
@@ -450,7 +450,9 @@ class GameDataVerifier {
     const locationData = await this.databaseManager.loadLocationData(); // Load location data
     const npcData = await this.databaseManager.loadNpcData(); // Load NPC data
     const itemData = await this.databaseManager.loadItemData(); // Load item data
-    return { locationData, npcData, itemData }; // Return all loaded data
+    const verifiedData = { locationData, npcData, itemData }; // Store verified data
+    console.log(`Game Data: `, JSON.stringify(verifiedData, null, 2)); // Log the verified data
+    return verifiedData; // Return all loaded data
   }
 }
 // Game Manager ***********************************************************************************
