@@ -569,7 +569,7 @@ class GameManager {
   disconnectPlayer(playerId) {
     const player = this.getPlayer(playerId);
     if (!player) {
-      console.log.warn(`Player with ID ${playerId} not found.`); // Log warning for player not found
+      console.log.warn(`Player with ID ${playerId} not found.`);
       return; // Early return if player not found
     }
     player.status = "disconnected";
@@ -610,7 +610,7 @@ class GameManager {
     if (player.experience < LEVEL_UP_XP) return; // Early return if not enough experience
     player.level += 1; // Increment player's level
     player.experience -= LEVEL_UP_XP; // Deduct experience points for leveling up
-    console.log(`${player.getName()} leveled up to level ${player.level}!`); // Log level up
+    console.log(`${player.getName()} leveled up to level ${player.level}!`);
     return `Congratulations! You have reached level ${player.level}.`; // Return level up message
   }
   moveEntity(entity, newLocationId) { // New method to handle movement
