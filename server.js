@@ -150,17 +150,17 @@ class ServerSetup {
 class GameComponentInitializer {
   constructor(server) {
     this.server = server; // Reference to the server instance
+    this.server.databaseManager = new DatabaseManager(); // Ensure DatabaseManager is initialized
   }
   async initializeGameComponents() { // Moved from Server
     console.log(`\nSTARTING GAME COMPONENTS:`); // Improved message
     try {
       console.log(`  - Starting Database Manager...`);
-      this.server.databaseManager = new DatabaseManager(); // Initialize DatabaseManager correctly
-      if (!this.server.databaseManager) throw new Error('Start database manager unsuccessful!!!');
+      if (!this.server.databaseManager) throw new Error('DatabaseManager initialization failed!!!'); // Check initialization
       console.log(`  - Database Manager started successfully.`); // Improved message
       console.log(`  - Starting Game Manager...`); // Updated to remove redundant Game Component Initializer
       this.server.gameManager = new GameManager(); // Initialize GameManager directly
-      if (!this.server.gameManager) throw new Error('Start game manager unsuccessful!!!');
+      if (!this.server.gameManager) throw new Error('GameManager initialization failed!!!');
       console.log(`  - Game Manager started successfully.`); // Improved message
       console.log(`  - Loading Game Data...`);
       if (!this.server.databaseManager.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
@@ -168,7 +168,7 @@ class GameComponentInitializer {
       if (!this.server.gameData) throw new Error('Load game data unsuccessful!!!');
       console.log(`  - Game Data loaded successfully.`); // Improved message
     } catch (error) {
-      console.error(`Error during game component initialization: ${error.message}`); // Log error message
+      console.error(`Error during game component initialization: ${error.message} - ${error.stack}`); // Log error message with stack trace
     }
     console.log(`STARTING GAME COMPONENTS COMPLETED SUCCESSFULLY...`);
   }
@@ -317,105 +317,50 @@ class QueueManager {
 */
 class DatabaseManager {
   constructor() {
-    this.fs = import('fs').promises; // Use promises API for file system operations
-    this.gameDataLoader = new GameDataLoader(this); // Initialize GameDataLoader
+    this.fs = import('fs').promises;
+    this.gameDataLoader = new GameDataLoader(this);
   }
   async loadData() {
     try {
-      console.log(`Loading data...`); // Log data loading
-      return await this.gameDataLoader.loadGameData(); // Call loadGameData on gameDataLoader
+      console.log(`Loading data...`);
+      return await this.gameDataLoader.loadGameData();
     } catch (error) {
-      console.error(`Error loading data: ${error.message}`); // Log any errors during loading
-      throw error; // Rethrow the error for further handling
+      console.error(`Error loading data: ${error.message}`);
+      throw error;
     }
   }
-  async saveData(filePath, key, data) { // Updated to handle batch saving
+  async saveData(filePath, key, data) {
     try {
-      const existingData = await this.loadData([filePath]); // Await loading existing data
-      existingData[filePath][key] = data; // Update the specific key with new data
-      await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Await saving updated data
-      console.log(`Data saved for ${key} to ${filePath}`); // Log successful save
+      const existingData = await this.loadData([filePath]);
+      existingData[filePath][key] = data;
+      await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2));
+      console.log(`Data saved for ${key} to ${filePath}`);
     } catch (error) {
-      console.error(`Error saving data for ${key} to ${filePath}: ${error.message}`); // Improved error message
-      DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
+      console.error(`Error saving data for ${key} to ${filePath}: ${error.message}`);
+      DatabaseManager.notifyDataSaveError(this, filePath, error);
     }
   }
-  async loadPlayerData() {
-    try {
-      return await this.loadData(this.CONFIG.FILE_PATHS.PLAYER_DATA); // Use the path from config.js
-    } catch (error) {
-      console.error(`Error loading player data: ${error.message}`); // Improved error message
-    }
-  }
-  async savePlayerData(playerData) { await this.saveData(this.CONFIG.FILE_PATHS.PLAYER_DATA, playerData.username, playerData); } // Save player data
-  async loadLocationData() {
-    try {
-      const locationFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.LOCATION_DATA); // Get all files in the location directory
-      const locations = [];
-      for (const file of locationFiles) {
-        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
-        locations.push(JSON.parse(data)); // Parse and add to locations array
-      }
-      return locations; // Return all loaded locations
-    } catch (error) {
-      console.error(`Error loading location data: ${error.message}`); // Improved error message
-    }
-  }
-  async saveLocationData(locationData) { await this.saveData(this.CONFIG.FILE_PATHS.LOCATION_DATA, locationData.id, locationData); } // Save location data
-  async loadNpcData() {
-    try {
-      const npcFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.NPC_DATA); // Get all files in the NPC directory
-      const npcs = [];
-      for (const file of npcFiles) {
-        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
-        npcs.push(JSON.parse(data)); // Parse and add to NPCs array
-      }
-      return npcs; // Return all loaded NPCs
-    } catch (error) {
-      console.error(`Error loading NPC data: ${error.message}`); // Improved error message
-    }
-  }
-  async saveNpcData(npcData) { await this.saveData(this.CONFIG.FILE_PATHS.NPC_DATA, npcData.id, npcData); } // Save NPC data
-  async loadItemData() {
-    try {
-      const itemFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.ITEM_DATA); // Get all files in the item directory
-      const items = [];
-      for (const file of itemFiles) {
-        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
-        items.push(JSON.parse(data)); // Parse and add to items array
-      }
-      return items; // Return all loaded items
-    } catch (error) {
-      console.error(`Error loading item data: ${error.message}`); // Improved error message
-    }
-  }
-  async saveItemData(itemData) { await this.saveData(this.CONFIG.FILE_PATHS.ITEM_DATA, itemData.id, itemData); } // Save item data
-
   async getFilesInDirectory(directoryPath) {
-    const files = await this.fs.readdir(directoryPath); // Read directory contents
-    return files.map(file => `${directoryPath}/${file}`); // Return full paths of files
+    const files = await this.fs.readdir(directoryPath);
+    return files.map(file => `${directoryPath}/${file}`);
   }
 }
 // Game Data Loader ******************************************************************************
-/*
- * The GameDataLoader class is responsible for loading game data from various sources, ensuring
- * that all necessary data is available for the game to function correctly.
-*/
 class GameDataLoader {
   constructor(server) {
-    this.server = server; // Reference to the server instance
+    this.server = server;
   }
-  async loadGameData() { // Moved from Server
-    console.log(`\nStarting game data loading...`); // Improved message
-    const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' }; // Constants for data types
+  async loadGameData() {
+    console.log(`\nStarting game data loading...`);
+    const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' };
     const loadData = async (loadFunction, type) => {
       try {
         const data = await loadFunction();
-        console.log(`${type} data loaded successfully.`); // Improved message
-        return { type, data }; // Return loaded data
+        console.log(`${type} data loaded successfully.`);
+        return { type, data };
       } catch (error) {
-        console.error(`Error loading ${type} data: ${error.message}`); // Improved error message
-        return { type, error }; // Return error
+        console.error(`Error loading ${type} data: ${error.message}`);
+        return { type, error };
       }
     };
     const results = await Promise.allSettled([
@@ -425,238 +370,109 @@ class GameDataLoader {
     ]);
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`Failed to load data at index ${index}: ${result.reason.message}`); // Improved error message
+        console.error(`Failed to load data at index ${index}: ${result.reason.message}`);
       }
     });
-    console.log(`Finished loading game data.`); // Improved message
-    return results.map(result => result.value).filter(value => value && !value.error); // Return all successfully loaded data
+    console.log(`Finished loading game data.`);
+    return results.map(result => result.value).filter(value => value && !value.error);
   }
 }
 // Game Manager ***********************************************************************************
-/*
- * The GameManager class is responsible for managing the overall game state, including player
- * interactions, NPC management, game time, and event handling.
-*/
 class GameManager {
-  #gameLoopInterval = null; // Declare the private field for game loop interval
-  #gameTime = 0; // Declare the private field for game time
-  #isRunning = false; // Add this line to declare the private field for game state
-  #combatManager; // Private field for combat manager instance
+  #gameLoopInterval = null;
+  #gameTime = 0;
+  #isRunning = false;
+  #combatManager;
   constructor() {
-    this.players = new Map(); // Map to store players
-    this.locations = new Map(); // Map to store locations
-    this.npcs = new Map(); // Map to store NPCs
-    this.#combatManager = new CombatManager(this); // Initialize combat manager
-    this.eventEmitter = new EventEmitter(); // Initialize event emitter for handling events
-  }
-  getGameTime() {
-    return this.#gameTime; // Return current game time
-  }
-  setGameTime(newTime) {
-    this.#gameTime = newTime; // Set new game time
+    this.players = new Map();
+    this.locations = new Map();
+    this.npcs = new Map();
+    this.#combatManager = new CombatManager(this);
+    this.eventEmitter = new EventEmitter();
   }
   startGame() {
     try {
-      this.startGameLoop(); // Call the public method to start the game loop
-      this.#isRunning = true; // Mark game as running
+      this.startGameLoop();
+      this.#isRunning = true;
     } catch (error) {
-      console.log(`Error Start game: ${error}`); // Log error
+      console.log(`Error Start game: ${error}`);
     }
   }
   shutdownGame() {
     try {
-      this.stopGameLoop(); // Call the public method to stop the game loop
+      this.stopGameLoop();
       for (const player of this.players.values()) {
-        player.save(); // Save each player's state
+        player.save();
       }
-      MessageManager.notifyGameShutdownSuccess(this); // Notify successful game shutdown
+      MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      console.log(`Error shutting down game: ${error}`); // Notify error during shutdown
-      MessageManager.notifyError(this, `Error shutting down game: ${error}`); // Notify error during shutdown
-      throw error; // Rethrow error
+      console.log(`Error shutting down game: ${error}`);
+      MessageManager.notifyError(this, `Error shutting down game: ${error}`);
+      throw error;
     }
   }
-  addPlayer(player) {
-    this.players.set(player.getId(), player); // Efficient insertion of player
+  startGameLoop() {
+    this.#gameLoopInterval = setInterval(() => this._gameTick(), TICK_RATE);
   }
-  getPlayer(playerId) {
-    return this.players.get(playerId); // Efficient lookup of player
-  }
-  removePlayer(playerId) {
-    this.players.delete(playerId); // Efficient removal of player
-  }
-  addLocation(location) {
-    this.locations.set(location.getId(), location); // Efficient insertion of location
-  }
-  getLocation(locationId) {
-    return this.locations.get(locationId); // Efficient lookup of location
-  }
-  addNpc(npc) {
-    this.npcs.set(npc.getId(), npc); // Efficient insertion of NPC
-  }
-  getNpc(npcId) {
-    return this.npcs.get(npcId); // Efficient lookup of NPC
-  }
-  removeNpc(npcId) {
-    this.npcs.delete(npcId); // Efficient removal of NPC
-  }
-  startGameLoop() { // Public method to start the game loop
-    this.startGameLoopInternal(); // Calls a public method to start the internal loop
-  }
-  stopGameLoop() { // Public method to stop the game loop
-    this.stopGameLoopInternal(); // Calls a public method to stop the internal loop
-  }
-  incrementGameTime() { // Public method to increment game time
-    this.incrementGameTimeInternal(); // Calls a public method to increment the internal game time
-  }
-  getCurrentGameTime() { // Public method to get current game time
-    return this.getGameTime(); // Calls the public getter for game time
-  }
-  startGameLoopInternal() { this._startGameLoop(); } // New public method to start the internal game loop
-  stopGameLoopInternal() { this._stopGameLoop(); } // New public method to stop the internal game loop
-  incrementGameTimeInternal() { this._updateGameTime(); } // New public method to update the internal game time
-  _startGameLoop() {
-    this.#gameLoopInterval = setInterval(() => this._gameTick(), TICK_RATE); // Start the game loop at defined tick rate
-  }
-  _stopGameLoop() {
+  stopGameLoop() {
     if (this.#gameLoopInterval) {
-      clearInterval(this.#gameLoopInterval); // Clear the game loop interval
-      this.#gameLoopInterval = null; // Reset interval reference
+      clearInterval(this.#gameLoopInterval);
+      this.#gameLoopInterval = null;
     }
   }
   _gameTick() {
-    this._updateNpcs(); // Update NPC states
-    this._updatePlayerAffects(); // Update player status effects
-    this._updateWorldEvents(); // Handle world events
-    this.eventEmitter.emit("tick", this.#gameTime); // Emit tick event
+    this._updateNpcs();
+    this._updatePlayerAffects();
+    this._updateWorldEvents();
+    this.eventEmitter.emit("tick", this.#gameTime);
   }
   _updateGameTime() {
-    this.setGameTime(this.getGameTime() + 1); // Increment game time
+    this.setGameTime(this.getGameTime() + 1);
     if (this.getGameTime() >= 1440) {
-      this.setGameTime(0); // Reset game time
-      this.eventEmitter.emit("newDay"); // Emit new day event
+      this.setGameTime(0);
+      this.eventEmitter.emit("newDay");
     }
   }
-  _updateNpcs() {
-    for (const npc of this.npcs.values()) {
-      if (npc.hasChangedState()) { // Check if NPC state has changed
-        npc.update(this.#gameTime); // Update NPC state
-      }
-    }
-  }
-  _updatePlayerAffects() {
-    for (const player of this.players.values()) {
-      if (player.hasChangedState()) { // Check if player state has changed
-        player.updateAffects(); // Update player status effects
-      }
-    }
-  }
-  _updateWorldEvents() {
-    if (this.#gameTime % 60 === 0) this._hourlyUpdate(); // Call the method to handle hourly updates
-    if (this.#gameTime === 360 || this.#gameTime === 1080) this._dailyUpdate(); // Call the method to handle daily updates
-  }
-  _hourlyUpdate() {
-    this._regenerateResourceNodes(); // Regenerate resources in the game world
-  }
-  _dailyUpdate() {
-    this._updateNpcSchedules(); // Update the schedules of all NPCs in the game
-  }
-  _updateNpcSchedules() {
-    for (const npc of this.npcs.values()) {
-      npc.updateSchedule(this.#gameTime); // Call the updateSchedule method for each NPC
-    }
-  }
-  disconnectPlayer(playerId) {
-    const player = this.getPlayer(playerId);
-    if (!player) {
-      console.log.warn(`Player with ID ${playerId} not found.`);
-      return; // Early return if player not found
-    }
-    player.status = "disconnected";
-    player.save();
-    this.removePlayer(playerId);
-    MessageManager.notifyPlayersInLocation(player.currentLocation, `${player.getName()} has disconnected from the game.`);
-  }
-  getGameTime() {
-    const hours = Math.floor(this.#gameTime / 60); // Convert total minutes to hours
-    const minutes = this.#gameTime % 60; // Get the remaining minutes
-    return { hours, minutes }; // Return an object containing hours and minutes
-  }
-  autoLootNpc(npc, player) {
-    if (!npc.inventory || npc.inventory.length === 0) return null; // No items to loot
-    const lootedItems = [...npc.inventory]; // Clone NPC's inventory
-    player.inventory.push(...lootedItems.map(itemId => items[itemId])); // Add looted items to player's inventory
-    npc.inventory = []; // Clear NPC's inventory after looting
-    return MessageManager.createAutoLootMessage(player, npc, lootedItems); // Create and return auto loot message
-  }
-  findEntity(target, collection) {
-    return collection.find(entity => entity.name.toLowerCase() === target.toLowerCase()) || null; // Find entity by name in the collection
-  }
-  fullStateSync(player) {
-    return { // Return player state
-      uid: player.getId(),
-      name: player.getName(),
-      health: player.getHealth(),
-      status: player.getStatus(),
-      inventory: player.inventory,
-      currentLocation: player.currentLocation,
-      experience: player.experience,
-      level: player.level,
-      skills: player.skills,
-    };
-  }
-  checkLevelUp(player) {
-    const LEVEL_UP_XP = this.CONFIG.LEVEL_UP_XP; // Use LEVEL_UP_XP from config
-    if (player.experience < LEVEL_UP_XP) return; // Early return if not enough experience
-    player.level += 1; // Increment player's level
-    player.experience -= LEVEL_UP_XP; // Deduct experience points for leveling up
-    console.log(`${player.getName()} leveled up to level ${player.level}!`);
-    return `Congratulations! You have reached level ${player.level}.`; // Return level up message
-  }
-  moveEntity(entity, newLocationId) { // New method to handle movement
-    const oldLocationId = entity.currentLocation; // Store old location ID
-    const oldLocation = this.getLocation(oldLocationId); // Get old location
-    const newLocation = this.getLocation(newLocationId); // Get new location
+  // New method to handle movement
+  moveEntity(entity, newLocationId) {
+    const oldLocationId = entity.currentLocation;
+    const oldLocation = this.getLocation(oldLocationId);
+    const newLocation = this.getLocation(newLocationId);
     if (oldLocation) {
-      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId); // Notify leaving old location
-      const direction = Utility.getDirectionTo(newLocationId); // Get direction to new location
-      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`); // Notify entity of movement
+      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
+      const direction = Utility.getDirectionTo(newLocationId);
+      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
     }
-    entity.currentLocation = newLocationId; // Update entity's current location
+    entity.currentLocation = newLocationId;
     if (newLocation) {
-      newLocation.addEntity(entity, "players"); // Add entity to new location
-      MessageManager.notifyEnteringLocation(entity, newLocationId); // Notify entering new location
-      const direction = Utility.getDirectionFrom(oldLocationId); // Get direction from old location
-      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`); // Notify entity of arrival
+      newLocation.addEntity(entity, "players");
+      MessageManager.notifyEnteringLocation(entity, newLocationId);
+      const direction = Utility.getDirectionFrom(oldLocationId);
+      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
     }
   }
 }
 // EventEmitter ***********************************************************************************
-/*
- * The EventEmitter class provides a mechanism for managing and emitting events within the game,
- * allowing different components to communicate and respond to specific actions or changes.
-*/
 class EventEmitter {
   constructor() {
-    this.events = {}; // Object to store event listeners
+    this.events = {};
   }
   on(event, listener) {
-    if (!this.events[event]) this.events[event] = []; // Initialize event array if it doesn't exist
-    this.events[event].push(listener); // Add listener to the event
+    if (!this.events[event]) this.events[event] = [];
+    this.events[event].push(listener);
   }
   emit(event, ...args) {
-    if (this.events[event]) this.events[event].forEach(listener => listener(...args)); // Call each listener with arguments
+    if (this.events[event]) this.events[event].forEach(listener => listener(...args));
   }
   off(event, listener) {
     if (this.events[event]) {
-      this.events[event] = this.events[event].filter(l => l !== listener); // Remove listener from the event
+      this.events[event] = this.events[event].filter(l => l !== listener);
     }
   }
 }
-// Create New Player ******************************************************************************
-/*
-* The CreateNewPlayer class is responsible for creating new player instances.
-* It provides a static method to create a player from existing player data.
+// Method Call to Start an instance of Server
+const server = new Server();
+server.init();
 */
 class CreateNewPlayer {
   constructor(name, age) {
