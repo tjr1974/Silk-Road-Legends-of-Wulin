@@ -7,8 +7,8 @@ class Server {
   constructor() {
     this.moduleImporter = new ModuleImporter(this); // Initialize ModuleImporter
     this.serverSetup = new ServerSetup(this); // Initialize ServerSetup
-    this.gameComponentInitializer = new GameComponentInitializer(this); // Initialize GameComponentInitializer
     this.socketEventManager = new SocketEventManager(this); // Initialize SocketEventManager
+    this.gameComponentInitializer = new GameComponentInitializer(this); // Initialize GameComponentInitializer
   }
   async init() { // New init method
     try {
@@ -104,7 +104,7 @@ class ServerSetup {
       if (!this.server.socketEventManager) throw new Error('Start Socket Events unsuccessful!!!');
       console.log(`  - Socket Events started successfully.`); // Improved message
       console.log(`  - Starting Queue Manager...`);
-      this.server.queueManager = new QueueManager();
+      this.server.queueManager = new QueueManager(); // Ensure QueueManager is initialized correctly
       if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
       console.log(`  - Queue Manager started successfully.`); // Improved message
       console.log(`SERVER SETUP COMPLETED SUCCESSFULLY.`); // Improved message
@@ -154,15 +154,17 @@ class GameComponentInitializer {
   async initializeGameComponents() { // Moved from Server
     console.log(`\nSTARTING GAME COMPONENTS:`); // Improved message
     try {
-      console.log(`  - Starting database Manager...`);
-      this.server.databaseManager = new DatabaseManager();
+      console.log(`  - Starting Database Manager...`);
+      this.server.databaseManager = new DatabaseManager(); // Initialize DatabaseManager correctly
       if (!this.server.databaseManager) throw new Error('Start database manager unsuccessful!!!');
       console.log(`  - Database Manager started successfully.`); // Improved message
-      console.log(`  - Starting Game Manager...`);
-      this.server.gameManager = new GameManager();
+      console.log(`  - Starting Game Manager...`); // Updated to remove redundant Game Component Initializer
+      this.server.gameManager = new GameManager(); // Initialize GameManager directly
+      if (!this.server.gameManager) throw new Error('Start game manager unsuccessful!!!');
       console.log(`  - Game Manager started successfully.`); // Improved message
       console.log(`  - Loading Game Data...`);
-      await this.server.gameDataLoader.loadGameData(); // Ensure game data loads before proceeding
+      if (!this.server.databaseManager.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
+      await this.server.databaseManager.loadData(); // Ensure game data loads before proceeding
       if (!this.server.gameData) throw new Error('Load game data unsuccessful!!!');
       console.log(`  - Game Data loaded successfully.`); // Improved message
     } catch (error) {
@@ -318,7 +320,15 @@ class DatabaseManager {
     this.fs = import('fs').promises; // Use promises API for file system operations
     this.gameDataLoader = new GameDataLoader(this); // Initialize GameDataLoader
   }
-  async loadData(directoryPath) { return await this.gameDataLoader.loadGameData(); } // Use GameDataLoader to load game data
+  async loadData() {
+    try {
+      console.log(`Loading data...`); // Log data loading
+      return await this.gameDataLoader.loadGameData(); // Call loadGameData on gameDataLoader
+    } catch (error) {
+      console.error(`Error loading data: ${error.message}`); // Log any errors during loading
+      throw error; // Rethrow the error for further handling
+    }
+  }
   async saveData(filePath, key, data) { // Updated to handle batch saving
     try {
       const existingData = await this.loadData([filePath]); // Await loading existing data
@@ -326,39 +336,58 @@ class DatabaseManager {
       await this.fs.writeFile(filePath, JSON.stringify(existingData[filePath], null, 2)); // Await saving updated data
       console.log(`Data saved for ${key} to ${filePath}`); // Log successful save
     } catch (error) {
+      console.error(`Error saving data for ${key} to ${filePath}: ${error.message}`); // Improved error message
       DatabaseManager.notifyDataSaveError(this, filePath, error); // Notify error if saving fails
     }
   }
-  async loadPlayerData() { return await this.loadData(this.CONFIG.FILE_PATHS.PLAYER_DATA); } // Use the path from config.js
+  async loadPlayerData() {
+    try {
+      return await this.loadData(this.CONFIG.FILE_PATHS.PLAYER_DATA); // Use the path from config.js
+    } catch (error) {
+      console.error(`Error loading player data: ${error.message}`); // Improved error message
+    }
+  }
   async savePlayerData(playerData) { await this.saveData(this.CONFIG.FILE_PATHS.PLAYER_DATA, playerData.username, playerData); } // Save player data
   async loadLocationData() {
-    const locationFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.LOCATION_DATA); // Get all files in the location directory
-    const locations = [];
-    for (const file of locationFiles) {
-      const data = await this.fs.readFile(file, 'utf-8'); // Read each file
-      locations.push(JSON.parse(data)); // Parse and add to locations array
+    try {
+      const locationFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.LOCATION_DATA); // Get all files in the location directory
+      const locations = [];
+      for (const file of locationFiles) {
+        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+        locations.push(JSON.parse(data)); // Parse and add to locations array
+      }
+      return locations; // Return all loaded locations
+    } catch (error) {
+      console.error(`Error loading location data: ${error.message}`); // Improved error message
     }
-    return locations; // Return all loaded locations
   }
   async saveLocationData(locationData) { await this.saveData(this.CONFIG.FILE_PATHS.LOCATION_DATA, locationData.id, locationData); } // Save location data
   async loadNpcData() {
-    const npcFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.NPC_DATA); // Get all files in the NPC directory
-    const npcs = [];
-    for (const file of npcFiles) {
-      const data = await this.fs.readFile(file, 'utf-8'); // Read each file
-      npcs.push(JSON.parse(data)); // Parse and add to NPCs array
+    try {
+      const npcFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.NPC_DATA); // Get all files in the NPC directory
+      const npcs = [];
+      for (const file of npcFiles) {
+        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+        npcs.push(JSON.parse(data)); // Parse and add to NPCs array
+      }
+      return npcs; // Return all loaded NPCs
+    } catch (error) {
+      console.error(`Error loading NPC data: ${error.message}`); // Improved error message
     }
-    return npcs; // Return all loaded NPCs
   }
   async saveNpcData(npcData) { await this.saveData(this.CONFIG.FILE_PATHS.NPC_DATA, npcData.id, npcData); } // Save NPC data
   async loadItemData() {
-    const itemFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.ITEM_DATA); // Get all files in the item directory
-    const items = [];
-    for (const file of itemFiles) {
-      const data = await this.fs.readFile(file, 'utf-8'); // Read each file
-      items.push(JSON.parse(data)); // Parse and add to items array
+    try {
+      const itemFiles = await this.getFilesInDirectory(this.CONFIG.FILE_PATHS.ITEM_DATA); // Get all files in the item directory
+      const items = [];
+      for (const file of itemFiles) {
+        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+        items.push(JSON.parse(data)); // Parse and add to items array
+      }
+      return items; // Return all loaded items
+    } catch (error) {
+      console.error(`Error loading item data: ${error.message}`); // Improved error message
     }
-    return items; // Return all loaded items
   }
   async saveItemData(itemData) { await this.saveData(this.CONFIG.FILE_PATHS.ITEM_DATA, itemData.id, itemData); } // Save item data
 
@@ -385,7 +414,7 @@ class GameDataLoader {
         console.log(`${type} data loaded successfully.`); // Improved message
         return { type, data }; // Return loaded data
       } catch (error) {
-        console.error(`Error loading ${type} data: ${error}`);
+        console.error(`Error loading ${type} data: ${error.message}`); // Improved error message
         return { type, error }; // Return error
       }
     };
@@ -396,7 +425,7 @@ class GameDataLoader {
     ]);
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`Failed to load data at index ${index}: ${result.reason}`);
+        console.error(`Failed to load data at index ${index}: ${result.reason.message}`); // Improved error message
       }
     });
     console.log(`Finished loading game data.`); // Improved message
@@ -2069,13 +2098,13 @@ class MessageManager {
   }
   // Log Error Notifications **********************************************************************
   static notifyDataLoadError(manager, key, error) {
-    console.log(`Error loading data for ${key}: ${error}`); // Log data load error
+    console.error(`Error loading data for ${key}: ${error.message}`); // Log data load error
   }
   static notifyDataSaveError(manager, filePath, error) {
-    console.log(`Error saving data to ${filePath}: ${error}`); // Log data save error
+    console.error(`Error saving data to ${filePath}: ${error.message}`); // Log data save error
   }
   static notifyError(manager, message) {
-    console.log(`Error: ${message}`); // Log general error
+    console.error(`Error: ${message}`); // Log general error
   }
   static notifyNpcDeparture(npc, direction) {
     return this.notify(null, `${npc.getName()} travels ${direction}.`); // Notify players of NPC departure
