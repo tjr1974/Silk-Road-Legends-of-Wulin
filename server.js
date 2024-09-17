@@ -156,12 +156,17 @@ class GameComponentInitializer {
     try {
       console.log(`  - Starting Database Manager...`);
       this.server.databaseManager = new DatabaseManager(this.server); // Pass server instance
+      await this.server.databaseManager.initialize(); // Ensure DatabaseManager is initialized
       if (!this.server.databaseManager) throw new Error('DatabaseManager initialization failed!!!'); // Check initialization
       console.log(`  - Database Manager started successfully.`); // Improved message
       console.log(`  - Loading Game Data...`);
       this.server.gameDataLoader = new GameDataLoader(this.server); // Initialize GameDataLoader
       if (!this.server.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
       console.log(`  - Game Data loaded successfully.`); // Improved message
+      console.log(`  - Verifying Game Data...`); // New verification step
+      const gameDataVerifier = new GameDataVerifier(this.server.databaseManager); // Pass databaseManager instance
+      const verifiedData = await gameDataVerifier.verifyData(); // Call verifyData method
+      console.log(`  - Game Data verified successfully:`, verifiedData); // Log verified data
       console.log(`  - Starting Game Manager...`); // Updated to remove redundant Game Component Initializer
       this.server.gameManager = new GameManager(); // Initialize GameManager directly
       if (!this.server.gameManager) throw new Error('GameManager initialization failed!!!');
@@ -328,37 +333,50 @@ class DatabaseManager {
       ITEMS: this.server.CONFIG.ITEM_DATA_PATH,
     };
   }
-  async loadData() {
-    try {
-      console.log(`Loading data...`);
-      return await this.gameDataLoader.loadGameData();
-    } catch (error) {
-      console.error(`Error loading data: ${error.message}`);
-      throw error;
-    }
+
+  async getFilesInDirectory(directoryPath) {
+    const files = await this.fs.readdir(directoryPath); // Read all files in the directory
+    return files
+      .filter(file => file.endsWith('.json')) // Filter for JSON files
+      .map(file => `${directoryPath}/${file}`); // Return full paths
   }
   async loadLocationData() {
     try {
-      const data = await this.fs.readFile(this.DATA_PATHS.LOCATIONS, 'utf-8'); // Use encapsulated constant
-      return JSON.parse(data);
+      const files = await this.getFilesInDirectory(this.DATA_PATHS.LOCATIONS); // Get all JSON files
+      const locationData = [];
+      for (const file of files) {
+        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+        locationData.push(JSON.parse(data)); // Parse and store the data
+      }
+      return locationData; // Return all loaded location data
     } catch (error) {
       console.error(`Error loading location data: ${error.message}`);
       throw error;
     }
   }
-  async loadNpcData() { // Added method to load NPC data
+  async loadNpcData() { // Updated method to load NPC data
     try {
-      const data = await this.fs.readFile(this.DATA_PATHS.NPCS, 'utf-8'); // Use encapsulated constant
-      return JSON.parse(data);
+      const files = await this.getFilesInDirectory(this.DATA_PATHS.NPCS); // Get all JSON files
+      const npcData = [];
+      for (const file of files) {
+        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+        npcData.push(JSON.parse(data)); // Parse and store the data
+      }
+      return npcData; // Return all loaded NPC data
     } catch (error) {
       console.error(`Error loading NPC data: ${error.message}`);
       throw error;
     }
   }
-  async loadItemData() { // Added method to load item data
+  async loadItemData() { // Updated method to load item data
     try {
-      const data = await this.fs.readFile(this.DATA_PATHS.ITEMS, 'utf-8'); // Use encapsulated constant
-      return JSON.parse(data);
+      const files = await this.getFilesInDirectory(this.DATA_PATHS.ITEMS); // Get all JSON files
+      const itemData = [];
+      for (const file of files) {
+        const data = await this.fs.readFile(file, 'utf-8'); // Read each file
+        itemData.push(JSON.parse(data)); // Parse and store the data
+      }
+      return itemData; // Return all loaded item data
     } catch (error) {
       console.error(`Error loading item data: ${error.message}`);
       throw error;
@@ -377,8 +395,10 @@ class DatabaseManager {
     }
   }
   async getFilesInDirectory(directoryPath) {
-    const files = await this.fs.readdir(directoryPath);
-    return files.map(file => `${directoryPath}/${file}`);
+    const files = await this.fs.readdir(directoryPath); // Read all files in the directory
+    return files
+      .filter(file => file.endsWith('.json')) // Filter for JSON files
+      .map(file => `${directoryPath}/${file}`); // Return full paths
   }
 }
 // Game Data Loader ******************************************************************************
@@ -415,6 +435,22 @@ class GameDataLoader {
     });
     console.log(`Finished loading game data.`);
     return results.map(result => result.value).filter(value => value && !value.error);
+  }
+}
+// GameDataVerifier ******************************************************************************
+/*
+ * The GameDataVerifier class is responsible for verifying that all game data has been loaded
+ * and displaying the contents of the loaded game data.
+*/
+class GameDataVerifier {
+  constructor(databaseManager) {
+    this.databaseManager = databaseManager; // Reference to the DatabaseManager instance
+  }
+  async verifyData() {
+    const locationData = await this.databaseManager.loadLocationData(); // Load location data
+    const npcData = await this.databaseManager.loadNpcData(); // Load NPC data
+    const itemData = await this.databaseManager.loadItemData(); // Load item data
+    return { locationData, npcData, itemData }; // Return all loaded data
   }
 }
 // Game Manager ***********************************************************************************
