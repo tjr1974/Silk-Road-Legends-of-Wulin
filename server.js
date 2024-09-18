@@ -503,14 +503,14 @@ class GameManager {
     const newLocation = this.getLocation(newLocationId);
     if (oldLocation) {
       MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
-      const direction = Utility.getDirectionTo(newLocationId);
+      const direction = DirectionManager.getDirectionTo(newLocationId); // Use DirectionManager directly
       MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
     }
     entity.currentLocation = newLocationId;
     if (newLocation) {
       newLocation.addEntity(entity, "players");
       MessageManager.notifyEnteringLocation(entity, newLocationId);
-      const direction = Utility.getDirectionFrom(oldLocationId);
+      const direction = DirectionManager.getDirectionFrom(oldLocationId); // Use DirectionManager directly
       MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
     }
   }
@@ -686,7 +686,7 @@ class Player extends Character {
     this.combatActions = new CombatActions(this); // Initialize CombatActions
   }
   async importConfig() {
-    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
+    this.CONFIG = await import('./config.js'); // Direct import of config
   }
   getId() {
     return this.#uid; // Return unique identifier
@@ -875,7 +875,7 @@ class HealthRegenerator {
     this.importConfig(); // Call method to load config
   }
   async importConfig() {
-    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
+    this.CONFIG = await import('./config.js'); // Direct import of config
   }
   start() {
     if (!this.regenInterval) {
@@ -1064,7 +1064,7 @@ class Npc extends Character {
     if (this.mobile) this.startMovement(); // Start movement if NPC is mobile
   }
   async importConfig() {
-    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
+    this.CONFIG = await import('./config.js'); // Direct import of config
   }
   startMovement() {
     setInterval(() => {
@@ -1079,9 +1079,9 @@ class Npc extends Character {
     if (validDirections.length > 0) {
       const randomDirection = validDirections[Math.floor(Math.random() * validDirections.length)]; // Select a random direction
       const newLocationId = location.exits[randomDirection]; // Get new location ID
-      MessageManager.notifyNpcDeparture(this, Utility.getDirectionTo(newLocationId)); // Notify players of NPC departure
+      MessageManager.notifyNpcDeparture(this, DirectionManager.getDirectionTo(newLocationId)); // Notify players of NPC departure
       this.currentLocation = newLocationId; // Update NPC's location
-      const direction = Utility.getDirectionFrom(this.currentLocation); // Use getDirectionFrom method
+      const direction = DirectionManager.getDirectionFrom(this.currentLocation); // Use DirectionManager directly
       MessageManager.notifyNpcArrival(this, direction); // Pass direction to notifyNpcArrival
     }
   }
@@ -1449,7 +1449,7 @@ class CombatManager {
     this.techniques = this.initializeTechniques(); // Initialize combat techniques
   }
   async importConfig() {
-    this.CONFIG = await Utility.importConfig(); // Use Utility's importConfig method
+    this.CONFIG = await import('./config.js'); // Direct import of config
   }
   initializeTechniques() {
     return [
@@ -2053,11 +2053,11 @@ class MessageManager {
   }
   // Location Notifications ***********************************************************************
   static notifyLeavingLocation(player, oldLocationId, newLocationId) {
-    const direction = player.getDirectionTo(newLocationId); // Get direction to new location
+    const direction = DirectionManager.getDirectionTo(newLocationId); // Use DirectionManager directly
     return this.notify(player, `${player.getName()} travels ${direction}.`, FormatMessageManager.getIdForMessage('leavingLocation')); // Notify player of leaving location
   }
   static notifyEnteringLocation(player, newLocationId) {
-    const direction = player.getDirectionFrom(newLocationId); // Get direction from new location
+    const direction = DirectionManager.getDirectionFrom(newLocationId); // Use DirectionManager directly
     return this.notify(player, `${player.getName()} arrives ${direction}.`, FormatMessageManager.getIdForMessage('enteringLocation')); // Notify player of entering location
   }
   // Log Error Notifications **********************************************************************
@@ -2075,14 +2075,5 @@ class MessageManager {
   }
   static notifyNpcArrival(npc, direction) {
     return this.notify(null, `${npc.getName()} arrives ${direction}.`); // Notify players of NPC arrival
-  }
-}
-// Utility Class **********************************************************************************
-/*
- * The Utility class for commonly used and shared methods.
- */
-class Utility {
-  static async importConfig() {
-    return await import('./config.js'); // Centralized config import
   }
 }
