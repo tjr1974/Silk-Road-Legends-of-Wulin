@@ -1,6 +1,6 @@
 # Queue Module Overview
 
-The Queue module in your code is represented by the `QueueManager` class. It manages a queue of tasks that need to be executed, ensuring that tasks are processed in a controlled manner. Here are the key features:
+The Queue module is used by the `QueueManager` class. It manages a queue of tasks that need to be executed, ensuring that tasks are processed in a controlled manner. Here are the key features:
 
 1. **Task Management**: It allows adding tasks to a queue and processes them sequentially.
 2. **Object Pooling**: It uses an `ObjectPool` to manage reusable `Task` objects, optimizing memory usage and performance.
