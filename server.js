@@ -1613,8 +1613,8 @@ class CombatManager {
   }
   performCombatAction(attacker, defender, isPlayer) {
     // Executes a combat action between the attacker and defender, returning the result message
-    const outcome = Utility.calculateAttackOutcome(attacker, defender);
-    const technique = Utility.getRandomElement(this.techniques);
+    const outcome = this.calculateAttackOutcome(attacker, defender);
+    const technique = CombatManager.getRandomElement(this.techniques);
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
     let description = this.getCombatDescription(outcome, attacker, defender, technique);
@@ -1680,10 +1680,37 @@ class CombatManager {
     MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(locationId), content);
   }
   notifyHealthStatus(player, npc) {
-    const playerHealthPercentage = Utility.calculateHealthPercentage(player.health, player.maxHealth);
-    const npcHealthPercentage = Utility.calculateHealthPercentage(npc.health, npc.maxHealth);
+    const playerHealthPercentage = this.calculateHealthPercentage(player.health, player.maxHealth);
+    const npcHealthPercentage = this.calculateHealthPercentage(npc.health, npc.maxHealth);
     this.notifyPlayersInLocation(player.currentLocation,
       MessageManager.createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage));
+  }
+  calculateHealthPercentage(currentHealth, maxHealth) {
+    return (currentHealth / maxHealth) * 100; // Health percentage calculation
+  }
+  calculateAttackValue(attacker, defender, roll) {
+    if (attacker.level === defender.level) {
+      return roll + attacker.csml; // Equal levels
+    } else if (attacker.level < defender.level) {
+      return (roll + attacker.csml) - (defender.level - attacker.level); // Attacker lower level
+    } else {
+      return (roll + attacker.csml) + (attacker.level - defender.level); // Attacker higher level
+    }
+  }
+  calculateAttackOutcome(attacker, defender) {
+    const roll = Math.floor(Math.random() * 20) + 1; // Roll a d20
+    let value = this.calculateAttackValue(attacker, defender, roll); // Calculate attack value
+    if (value >= 21 || value === 19) return "critical success"; // Critical success
+    if (value === 20) return "knockout"; // Knockout
+    if (value >= 13) return "attack hits"; // Attack hits
+    if (value >= 10) return "attack is blocked"; // Attack blocked
+    if (value >= 7) return "attack is parried"; // Attack parried
+    if (value >= 4) return "attack is trapped"; // Attack trapped
+    if (value >= 1) return "attack is evaded"; // Attack evaded
+    return "attack hits"; // Default case
+  }
+  static getRandomElement(array) {
+    return array[Math.floor(Math.random() * array.length)]; // Random selection utility
   }
 }
 // Describe Location Manager***********************************************************************
@@ -1760,7 +1787,7 @@ class DescribeLocationManager {
  */
 class FormatMessageManager {
   static createMessageData(cssid = '', message) {
-    return Utility.createMessageData(cssid, message); // Create message data with CSS ID
+    return { cssid, content: message }; // Create message data with CSS ID
   }
   static getIdForMessage(type) {
     const messageIds = {
@@ -1816,7 +1843,7 @@ class MessageManager {
   }
   static notify(player, message, cssid = '') {
     console.log(`Message to ${player.getName()}: ${message}`); // Log message to player
-    const messageData = Utility.createMessageData(cssid, message); // Create message data using Utility
+    const messageData = FormatMessageManager.createMessageData(cssid, message); // Create message data using FormatMessageManager
     if (this.socket) {
       this.socket.emit('message', { playerId: player.getId(), messageData }); // Emit message to client
     }
@@ -1825,17 +1852,17 @@ class MessageManager {
   // Notification Methods *************************************************************************
   static notify(player, message, cssid = '') {
     console.log(`Message to ${player.getName()}: ${message}`); // Log message to player
-    return Utility.createMessageData(cssid, message); // Create message data using Utility
+    return FormatMessageManager.createMessageData(cssid, message); // Create message data using FormatMessageManager
   }
   // Login Notifications **************************************************************************
   static notifyLoginSuccess(player) {
-    return this.notify(player, `${player.getName()} has logged in successfully!`, this.getIdForMessage('loginSuccess')); // Notify player of successful login
+    return this.notify(player, `${player.getName()} has logged in successfully!`, FormatMessageManager.getIdForMessage('loginSuccess')); // Notify player of successful login
   }
   static notifyIncorrectPassword(player) {
-    return this.notify(player, `Incorrect password. Please try again.`, this.getIdForMessage('incorrectPassword')); // Notify player of incorrect password
+    return this.notify(player, `Incorrect password. Please try again.`, FormatMessageManager.getIdForMessage('incorrectPassword')); // Notify player of incorrect password
   }
   static notifyDisconnectionDueToFailedAttempts(player) {
-    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, this.getIdForMessage('disconnectionFailedAttempts')); // Notify player of disconnection
+    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, FormatMessageManager.getIdForMessage('disconnectionFailedAttempts')); // Notify player of disconnection
   }
   // Player Notifications *************************************************************************
   static notifyPlayersInLocation(location, message) {
@@ -1846,29 +1873,29 @@ class MessageManager {
   }
   // Inventory Notifications **********************************************************************
   static notifyInventoryStatus(player) {
-    return this.notify(player, `${player.getName()}'s inventory:`, this.getIdForMessage('inventoryStatus')); // Notify player of inventory status
+    return this.notify(player, `${player.getName()}'s inventory:`, FormatMessageManager.getIdForMessage('inventoryStatus')); // Notify player of inventory status
   }
   static notifyPickupItem(player, itemName) {
-    return this.notify(player, `${player.getName()} picks up ${itemName}.`, this.getIdForMessage('pickupItem')); // Notify player of item pickup
+    return this.notify(player, `${player.getName()} picks up ${itemName}.`, FormatMessageManager.getIdForMessage('pickupItem')); // Notify player of item pickup
   }
   static notifyDropItem(player, itemName) {
-    return this.notify(player, `${player.getName()} drops ${itemName}.`, this.getIdForMessage('dropItem')); // Notify player of item drop
+    return this.notify(player, `${player.getName()} drops ${itemName}.`, FormatMessageManager.getIdForMessage('dropItem')); // Notify player of item drop
   }
   static notifyInventoryFull(player) {
-    return this.notify(player, `${player.getName()}'s inventory is full.`, this.getIdForMessage('inventoryFull')); // Notify player of full inventory
+    return this.notify(player, `${player.getName()}'s inventory is full.`, FormatMessageManager.getIdForMessage('inventoryFull')); // Notify player of full inventory
   }
   static notifyItemNotFoundInInventory(player) {
-    return this.notify(player, `Item not found in ${player.getName()}'s inventory.`, this.getIdForMessage('itemNotFoundInInventory')); // Notify player of item not found
+    return this.notify(player, `Item not found in ${player.getName()}'s inventory.`, FormatMessageManager.getIdForMessage('itemNotFoundInInventory')); // Notify player of item not found
   }
   static notifyInvalidItemAddition(player, itemName) {
-    return this.notify(player, `Cannot add invalid item: ${itemName}`, this.getIdForMessage('invalidItemAddition')); // Notify player of invalid item addition
+    return this.notify(player, `Cannot add invalid item: ${itemName}`, FormatMessageManager.getIdForMessage('invalidItemAddition')); // Notify player of invalid item addition
   }
   // Combat Notifications *************************************************************************
   static notifyCombatInitiation(attacker, defenderName) {
-    return this.notify(attacker, `${attacker.getName()} attacks ${defenderName}.`, this.getIdForMessage('combatInitiation')); // Notify combat initiation
+    return this.notify(attacker, `${attacker.getName()} attacks ${defenderName}.`, FormatMessageManager.getIdForMessage('combatInitiation')); // Notify combat initiation
   }
   static notifyCombatJoin(npc, player) {
-    return this.notify(null, `${npc.getName()} attacks ${player.getName()}!`, this.getIdForMessage('combatJoin')); // Notify combat join
+    return this.notify(null, `${npc.getName()} attacks ${player.getName()}!`, FormatMessageManager.getIdForMessage('combatJoin')); // Notify combat join
   }
   static createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage) {
     return FormatMessageManager.createMessageData(
@@ -1877,13 +1904,13 @@ class MessageManager {
     );
   }
   static notifyDefeat(player, defeatingNpcName) {
-    return this.notify(player, `${player.getName()} has been defeated by ${defeatingNpcName}.`, this.getIdForMessage('defeat')); // Notify player of defeat
+    return this.notify(player, `${player.getName()} has been defeated by ${defeatingNpcName}.`, FormatMessageManager.getIdForMessage('defeat')); // Notify player of defeat
   }
   static notifyVictory(player, defeatedNpcName) {
-    return this.notify(player, `${player.getName()} has defeated ${defeatedNpcName}!`, this.getIdForMessage('victory')); // Notify player of victory
+    return this.notify(player, `${player.getName()} has defeated ${defeatedNpcName}!`, FormatMessageManager.getIdForMessage('victory')); // Notify player of victory
   }
   static notifyCombatActionMessage(player, message) {
-    return this.notify(player, message, this.getIdForMessage('combatActionMessage')); // Notify player of combat action
+    return this.notify(player, message, FormatMessageManager.getIdForMessage('combatActionMessage')); // Notify player of combat action
   }
   static notifyNpcAlreadyInStatus(player, npc) {
     const pronoun = npc.getPronoun(); // Get NPC pronoun
@@ -1978,19 +2005,19 @@ class MessageManager {
   }
   // Look Notifications ***************************************************************************
   static notifyLookAtSelf(player) { // New method for looking at self
-    return this.notify(player, `${player.getName()} looks at themselves, feeling a sense of self-awareness.`, this.getIdForMessage('lookAtSelf')); // Notify player of self-examination
+    return this.notify(player, `${player.getName()} looks at themselves, feeling a sense of self-awareness.`, FormatMessageManager.getIdForMessage('lookAtSelf')); // Notify player of self-examination
   }
   static notifyLookAtItemInInventory(player, item) {
-    return this.notify(player, `${player.getName()} looks at ${item.name} in their inventory.`, this.getIdForMessage('lookAtItem')); // Notify player of item in inventory
+    return this.notify(player, `${player.getName()} looks at ${item.name} in their inventory.`, FormatMessageManager.getIdForMessage('lookAtItem')); // Notify player of item in inventory
   }
   static notifyLookAtItemInLocation(player, item) {
-    return this.notify(player, `${player.getName()} looks at the ${item.name} lying here.`, this.getIdForMessage('lookAtItem')); // Notify player of item in location
+    return this.notify(player, `${player.getName()} looks at the ${item.name} lying here.`, FormatMessageManager.getIdForMessage('lookAtItem')); // Notify player of item in location
   }
   static notifyLookAtNpc(player, npc) {
-    return this.notify(player, `${player.getName()} looks at ${npc.getName()}, who is currently ${npc.status}.`, this.getIdForMessage('lookAtNpc')); // Notify player of NPC status
+    return this.notify(player, `${player.getName()} looks at ${npc.getName()}, who is currently ${npc.status}.`, FormatMessageManager.getIdForMessage('lookAtNpc')); // Notify player of NPC status
   }
   static notifyLookAtOtherPlayer(player, otherPlayer) {
-    return this.notify(player, `${player.getName()} looks at ${otherPlayer.getName()}, who is currently ${otherPlayer.getStatus()}.`, this.getIdForMessage('lookAtOtherPlayer')); // Notify player of other player's status
+    return this.notify(player, `${player.getName()} looks at ${otherPlayer.getName()}, who is currently ${otherPlayer.getStatus()}.`, FormatMessageManager.getIdForMessage('lookAtOtherPlayer')); // Notify player of other player's status
   }
   static notifyLookInContainer(player, containerName, items) {
     const itemsList = items.length > 0 ? items.join(", ") : 'nothing.'; // Create list of items or indicate nothing
@@ -2004,34 +2031,34 @@ class MessageManager {
   }
   // Status Notifications *************************************************************************
   static notifyMeditationAction(player) {
-    return this.notify(player, `${player.getName()} starts meditating.`, this.getIdForMessage('meditationAction')); // Notify player of meditation action
+    return this.notify(player, `${player.getName()} starts meditating.`, FormatMessageManager.getIdForMessage('meditationAction')); // Notify player of meditation action
   }
   static notifyMeditationStart(player) {
-    return this.notify(player, `${player.getName()} is now meditating.`, this.getIdForMessage('meditationStart')); // Notify player of meditation start
+    return this.notify(player, `${player.getName()} is now meditating.`, FormatMessageManager.getIdForMessage('meditationStart')); // Notify player of meditation start
   }
   static notifySleepAction(player) {
-    return this.notify(player, `${player.getName()} goes to sleep.`, this.getIdForMessage('sleepAction')); // Notify player of sleep action
+    return this.notify(player, `${player.getName()} goes to sleep.`, FormatMessageManager.getIdForMessage('sleepAction')); // Notify player of sleep action
   }
   static notifyStandingUp(player) {
-    return this.notify(player, `${player.getName()} stands up.`, this.getIdForMessage('standingUp')); // Notify player of standing up
+    return this.notify(player, `${player.getName()} stands up.`, FormatMessageManager.getIdForMessage('standingUp')); // Notify player of standing up
   }
   static notifyWakingUp(player) {
-    return this.notify(player, `${player.getName()} wakes up.`, this.getIdForMessage('wakingUp')); // Notify player of waking up
+    return this.notify(player, `${player.getName()} wakes up.`, FormatMessageManager.getIdForMessage('wakingUp')); // Notify player of waking up
   }
   static notifyAlreadySitting(player) {
-    return this.notify(player, `${player.getName()} is already sitting.`, this.getIdForMessage('alreadySitting')); // Notify player of already sitting
+    return this.notify(player, `${player.getName()} is already sitting.`, FormatMessageManager.getIdForMessage('alreadySitting')); // Notify player of already sitting
   }
   static notifyAlreadyStanding(player) {
-    return this.notify(player, `${player.getName()} is already standing.`, this.getIdForMessage('alreadyStanding')); // Notify player of already standing
+    return this.notify(player, `${player.getName()} is already standing.`, FormatMessageManager.getIdForMessage('alreadyStanding')); // Notify player of already standing
   }
   // Location Notifications ***********************************************************************
   static notifyLeavingLocation(player, oldLocationId, newLocationId) {
     const direction = player.getDirectionTo(newLocationId); // Get direction to new location
-    return this.notify(player, `${player.getName()} travels ${direction}.`, this.getIdForMessage('leavingLocation')); // Notify player of leaving location
+    return this.notify(player, `${player.getName()} travels ${direction}.`, FormatMessageManager.getIdForMessage('leavingLocation')); // Notify player of leaving location
   }
   static notifyEnteringLocation(player, newLocationId) {
     const direction = player.getDirectionFrom(newLocationId); // Get direction from new location
-    return this.notify(player, `${player.getName()} arrives ${direction}.`, this.getIdForMessage('enteringLocation')); // Notify player of entering location
+    return this.notify(player, `${player.getName()} arrives ${direction}.`, FormatMessageManager.getIdForMessage('enteringLocation')); // Notify player of entering location
   }
   // Log Error Notifications **********************************************************************
   static notifyDataLoadError(manager, key, error) {
@@ -2055,83 +2082,6 @@ class MessageManager {
  * The Utility class for commonly used and shared methods.
  */
 class Utility {
-  static createMessageData(cssid = '', message) {
-    return { cssid, content: message }; // Centralized message creation
-  }
-  static getRandomElement(array) {
-    return array[Math.floor(Math.random() * array.length)]; // Random selection utility
-  }
-  static findEntity(target, collection, type) {
-    return collection.find(entity => entity.name.toLowerCase() === target.toLowerCase()); // Find entity by name
-  }
-  static calculateHealthPercentage(currentHealth, maxHealth) {
-    return (currentHealth / maxHealth) * 100; // Health percentage calculation
-  }
-  static transferItem(itemId, source, sourceType, player) {
-    player.inventory.push(items[itemId]); // Add item to player's inventory
-    if (sourceType === 'location') {
-      source.items = source.items.filter(i => i !== itemId); // Remove item from location
-    } else {
-      source.inventory = source.inventory.filter(i => i !== itemId); // Remove item from container
-    }
-    MessageManager.notifyItemTaken(player, items[itemId].name); // Notify player of item taken
-  }
-  static calculateAttackValue(attacker, defender, roll) {
-    if (attacker.level === defender.level) {
-      return roll + attacker.csml; // Equal levels
-    } else if (attacker.level < defender.level) {
-      return (roll + attacker.csml) - (defender.level - attacker.level); // Attacker lower level
-    } else {
-      return (roll + attacker.csml) + (attacker.level - defender.level); // Attacker higher level
-    }
-  }
-  static calculateAttackOutcome(attacker, defender) {
-    const roll = Math.floor(Math.random() * 20) + 1; // Roll a d20
-    let value = this.calculateAttackValue(attacker, defender, roll); // Calculate attack value
-    if (value >= 21 || value === 19) return "critical success"; // Critical success
-    if (value === 20) return "knockout"; // Knockout
-    if (value >= 13) return "attack hits"; // Attack hits
-    if (value >= 10) return "attack is blocked"; // Attack blocked
-    if (value >= 7) return "attack is parried"; // Attack parried
-    if (value >= 4) return "attack is trapped"; // Attack trapped
-    if (value >= 1) return "attack is evaded"; // Attack evaded
-    return "attack hits"; // Default case
-  }
-  static notifyPlayerMovement(entity, oldLocationId, newLocationId) {
-    const oldLocation = gameManager.getLocation(oldLocationId); // Get old location
-    const newLocation = gameManager.getLocation(newLocationId); // Get new location
-    if (oldLocation) {
-      MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId); // Notify leaving location
-      const direction = entity.getDirectionTo(newLocationId); // Get direction to new location
-      MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`); // Notify player of travel
-    }
-    entity.currentLocation = newLocationId; // Update entity's current location
-    if (newLocation) {
-      newLocation.addEntity(entity, "players"); // Add entity to new location
-      MessageManager.notifyEnteringLocation(entity, newLocationId); // Notify entering location
-      const direction = entity.getDirectionFrom(oldLocationId); // Get direction from old location
-      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`); // Notify player of arrival
-    }
-  }
-  static addToInventory(player, item) {
-    if (!item.isValid()) {
-      MessageManager.notifyInvalidItemAddition(player, item.name); // Notify invalid item addition
-      return;
-    }
-    if (player.canAddToInventory(item)) {
-      player.inventory.push(item); // Add item to inventory
-    } else {
-      MessageManager.notifyInventoryFull(player); // Notify inventory full
-    }
-  }
-  static removeFromInventory(player, item) {
-    const index = player.inventory.findIndex(i => i.uid === item.uid); // Find item index
-    if (index > -1) {
-      player.inventory.splice(index, 1); // Remove item from inventory
-    } else {
-      MessageManager.notifyItemNotFoundInInventory(player); // Notify item not found
-    }
-  }
   static async importConfig() {
     return await import('./config.js'); // Centralized config import
   }
