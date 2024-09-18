@@ -20,6 +20,9 @@ You'll need to install the following npm packages if not already installed:
 ```bash
 npm install socket.io
 npm install express
+npm install pino
+npm install pino pino-multi-stream
+npm install pino pino-multi-stream pino-rotating-file
 npm install queue
 npm install fs
 npm install bcrypt

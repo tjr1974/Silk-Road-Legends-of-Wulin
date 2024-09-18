@@ -2,9 +2,10 @@
 /*
  * The Server class is the main entry point for the game server. It is responsible for initializing
  * the server environment, setting up middleware, and managing the game loop.
- */
+*/
 class Server {
   constructor() {
+    this.activeSessions = new Map(); // Use a Map to track active sessions with socket IDs
     this.moduleImporter = new ModuleImporter(this); // Initialize ModuleImporter
     this.serverSetup = new ServerSetup(this); // Initialize ServerSetup
     this.socketEventManager = new SocketEventManager(this); // Initialize SocketEventManager
@@ -25,25 +26,80 @@ class Server {
 /*
  * The SocketEventManager class handles socket events for real-time communication between the server
  * and connected clients. It manages user connections and disconnections.
- */
+*/
 class SocketEventManager {
   constructor(server) {
     this.server = server; // Reference to the server instance
   }
   setupSocketEvents() {
     this.server.io.on('connection', (socket) => {
-      console.log('A user connected:', socket.id); // Log connection
+      const sessionId = socket.handshake.query.sessionId; // Get session ID from query
+      if (this.server.activeSessions.has(sessionId)) {
+        console.log(`User with session ID ${sessionId} is already connected.`); // Log existing connection
+        socket.emit('sessionError', 'You are already connected.'); // Notify client of session error
+        socket.disconnect(); // Disconnect if already connected
+        return;
+      }
+      this.server.activeSessions.set(sessionId, socket.id); // Track the socket ID for the session
+      console.log(`A user connected: ${socket.id} with session ID ${sessionId}`); // Log connection
+      socket.on('playerAction', (actionData) => this.handlePlayerAction(socket, actionData)); // Handle player actions
+      socket.on('sendMessage', (messageData) => this.handleMessage(socket, messageData)); // Handle messages
       socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id); // Log disconnection
+        console.log(`User disconnected: ${socket.id}`); // Log disconnection
+        this.server.activeSessions.delete(sessionId); // Remove session ID on disconnect
       });
     });
+  }
+  handleMessage(socket, { type, content, targetId }) {
+    switch (type) {
+      case 'public':
+        this.server.io.emit('receiveMessage', { senderId: socket.id, content }); // Broadcast to all players
+        break;
+      case 'semiPublic':
+        const locationId = this.server.gameManager.getPlayerLocation(socket.id); // Get player's location
+        this.server.io.to(locationId).emit('receiveMessage', { senderId: socket.id, content }); // Send to players in the same location
+        break;
+      case 'private':
+        this.server.io.to(targetId).emit('receiveMessage', { senderId: socket.id, content }); // Send to specific player
+        break;
+      default:
+        console.error(`Unknown message type: ${type}`); // Log unknown message type
+    }
+  }
+  handlePlayerAction(socket, actionData) {
+    const { actionType, payload } = actionData; // Destructure action data
+    switch (actionType) {
+      case 'move':
+        this.movePlayer(socket, payload); // Handle player movement
+        break;
+      case 'attack':
+        this.attackNpc(socket, payload); // Handle NPC attack
+        break;
+      // Add more action types as needed
+      default:
+        console.error(`Unknown action type: ${actionType}`); // Log unknown action
+    }
+  }
+  movePlayer(socket, { playerId, newLocationId }) {
+    const player = this.server.gameManager.getPlayerById(playerId); // Get player instance
+    if (player) {
+      player.moveToLocation(newLocationId); // Move player to new location
+      this.server.io.emit('playerMoved', { playerId, newLocationId }); // Emit player movement event
+    }
+  }
+  attackNpc(socket, { playerId, targetId }) {
+    const player = this.server.gameManager.getPlayerById(playerId); // Get player instance
+    if (player) {
+      player.attackNpc(targetId); // Player attacks NPC
+      this.server.io.emit('npcAttacked', { playerId, targetId }); // Emit NPC attack event
+    }
   }
 }
 // Module Importer ********************************************************************************
 /*
  * The ModuleImporter class is responsible for importing necessary modules and dependencies for the
  * server to function. It ensures that all required modules are loaded before the server starts.
- */
+*/
 class ModuleImporter {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -76,7 +132,7 @@ class ModuleImporter {
 /*
  * The ServerSetup class is responsible for configuring the server environment, including setting up
  * the Express application, initializing the Socket.IO server, and managing middleware.
- */
+*/
 class ServerSetup {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -143,7 +199,7 @@ class ServerSetup {
  * The GameComponentInitializer class is responsible for initializing various game components,
  * such as the database manager and game data loader, ensuring that all necessary components are
  * ready before the game starts.
- */
+*/
 class GameComponentInitializer {
   constructor(server) {
     this.server = server; // Reference to the server instance
@@ -177,14 +233,11 @@ class GameComponentInitializer {
     console.log(`STARTING GAME COMPONENTS COMPLETED SUCCESSFULLY...`);
   }
 }
-// Method Call to Start an instance of Server
-const serverInstance = new Server(); // Renamed variable to avoid multiple declarations
-serverInstance.init(); // Call the init method to complete initialization
 // Object Pool ************************************************************************************
 /*
  * The ObjectPool class manages a pool of reusable objects to optimize memory usage and performance
  * by reducing the overhead of object creation and garbage collection.
- */
+*/
 class ObjectPool {
   constructor(createFunc, size) {
     this.createFunc = createFunc; // Function to create new objects
@@ -438,7 +491,7 @@ class GameDataLoader {
 /*
  * The GameManager class is responsible for managing the game's state, including the game loop,
  * entity management, and event handling.
- */
+*/
 class GameManager {
   #gameLoopInterval = null;
   #gameTime = 0;
@@ -490,7 +543,8 @@ class GameManager {
     this.eventEmitter.emit("tick", this.#gameTime);
   }
   _updateGameTime() {
-    this.setGameTime(this.getGameTime() + 1);
+    this.setGameTime(this.getGameTime() + Math.floor((Date.now() - this.#gameTime) / 1000)); // Increment game time based on real time elapsed
+    this.#gameTime = Date.now(); // Update the last game time to current time
     if (this.getGameTime() >= 1440) {
       this.setGameTime(0);
       this.eventEmitter.emit("newDay");
@@ -611,10 +665,10 @@ class CreateNewPlayer {
     if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
   }
 }
-// Create New Player ******************************************************************************
+// Character ***************************************************************************************
 /*
- * The CreateNewPlayer class is responsible for creating new player instances from existing player
- * data, providing methods to initialize player attributes and state.
+ * The Character class represents a character in the game.
+ * It contains various properties and methods related to the character's state and actions.
 */
 class Character {
   constructor(name, health) {
@@ -866,7 +920,7 @@ class Player extends Character {
 /*
  * The HealthRegenerator class is responsible for regenerating the player's health over time.
  * It uses a setInterval to call the regenerate method at regular intervals.
- */
+*/
 class HealthRegenerator {
   constructor(player) {
     this.CONFIG = null; // Initialize CONFIG
@@ -916,7 +970,7 @@ class HealthRegenerator {
 /*
  * The LookAt class is responsible for handling the player's "look" command.
  * It retrieves the target entity from the current location and formats the appropriate message.
- */
+*/
 class LookAt {
   constructor(player) {
     this.player = player; // Reference to the player instance
@@ -964,7 +1018,7 @@ class LookAt {
 /*
  * The UidGenerator class is responsible for generating unique IDs for entities in the game.
  * It uses bcrypt to generate a unique value and return the hashed UID.
- */
+*/
 class UidGenerator {
   static generateUid() {
     const uniqueValue = Date.now() + Math.random(); // Generate a unique value based on time and randomness
@@ -977,7 +1031,7 @@ class UidGenerator {
  * The DirectionManager class is responsible for partially generating Player and NPC movement
  * message content based on directions. It provides methods to get the direction to a new location
  * and the direction from an old location.
- */
+*/
 class DirectionManager {
   static getDirectionTo(newLocationId) {
     const directionMap = {
@@ -1006,7 +1060,7 @@ class DirectionManager {
 /*
  * The Location class is responsible for representing locations in the game.
  * It stores the location's name, description, exits, items, NPCs, and provides methods to add exits, items, and NPCs.
- */
+*/
 class Location {
   constructor(name, description) {
     this.name = name; // Location name
@@ -1043,7 +1097,7 @@ class Location {
 /*
  * The Npc class is responsible for representing non-player characters in the game.
  * It stores the NPC's ID, name, sex, current health, maximum health, attack power, CSML, aggro, assist, status, current location, aliases, and mobile status.
- */
+*/
 class Npc extends Character {
   constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile = false, zones = [], aliases) {
     super(name, currHealth); // Call the parent constructor
@@ -1097,7 +1151,7 @@ class Npc extends Character {
 /*
  * The BaseItem class is responsible for representing items in the game.
  * It stores the item's UID, name, description, and aliases.
- */
+*/
 class BaseItem {
   constructor(name, description, aliases) {
     this.name = name; // Item's name
@@ -1110,7 +1164,7 @@ class BaseItem {
 /*
  * The Item class is responsible for representing items in the game.
  * It stores the item's UID, name, description, and aliases.
- */
+*/
 class Item extends BaseItem {
   constructor(name, description, aliases) {
     super(name, description, aliases); // Call parent constructor
@@ -1120,7 +1174,7 @@ class Item extends BaseItem {
 /*
  * The ContainerItem class extends the Item class and is used to represent items that can hold other items.
  * It adds an inventory property to store the items contained within the container.
- */
+*/
 class ContainerItem extends BaseItem {
   constructor(name, description, aliases) {
     super(name, description, aliases); // Call parent constructor
@@ -1131,7 +1185,7 @@ class ContainerItem extends BaseItem {
 /*
  * The WeaponItem class extends the Item class and is used to represent items that can be used in combat.
  * It adds a damage property to store the weapon's damage value.
- */
+*/
 class WeaponItem extends BaseItem {
   constructor(name, description, aliases) {
     super(name, description, aliases); // Call parent constructor
@@ -1179,7 +1233,7 @@ class CombatActions {
 /*
  * The InventoryManager class is responsible for managing the player's inventory.
  * It handles the retrieval, transfer, and manipulation of items within the inventory.
- */
+*/
 class InventoryManager {
   constructor(player) {
     this.player = player; // Reference to the player instance
@@ -1718,7 +1772,7 @@ class CombatManager {
  * The DescribeLocationManager class is responsible for describing the current location of the player.
  * It retrieves the location object from the game manager and formats the description based on the
  * location's details. The formatted description is then sent to the player.
- */
+*/
 class DescribeLocationManager {
   constructor(player) {
     this.player = player; // Reference to the player instance
@@ -1784,7 +1838,7 @@ class DescribeLocationManager {
  * messages (e.g., login success, combat notifications). By centralizing message handling, it
  * simplifies the process of modifying or updating message formats and ensures that all messages
  * adhere to a consistent structure throughout the game.
- */
+*/
 class FormatMessageManager {
   static createMessageData(cssid = '', message) {
     return { cssid, content: message }; // Create message data with CSS ID
@@ -1835,7 +1889,7 @@ class FormatMessageManager {
  * purposes. Each method formats the message with cssid. This is used by the client to style HTML
  * elements. It also includes methods for notifying players in specific locations, handling errors,
  * and managing inventory notifications.
- */
+*/
 class MessageManager {
   static socket; // Add a static socket property
   static setSocket(socketInstance) {
