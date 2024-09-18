@@ -14,14 +14,11 @@ class Server {
     try {
       await this.moduleImporter.importModules(); // Ensure modules are initialized first
       await this.serverSetup.setupServer(); // Call to setup the server
-      await this.socketEventManager.setupSocketEvents(); // Ensure socket events are set up
+      this.socketEventManager.setupSocketEvents(); // Ensure socket events are set up
       await this.gameComponentInitializer.initializeGameComponents(); // Call to initialize game components
     } catch (error) {
       console.error(`Error during server initialization: ${error.message}`); // Log initialization error
     }
-  }
-  startGameLoop() { // New method to start the game loop
-    // Logic to start the game loop (e.g., setInterval for game updates)
   }
 }
 // Socket Event Manager **************************************************************************
@@ -33,7 +30,7 @@ class SocketEventManager {
   constructor(server) {
     this.server = server; // Reference to the server instance
   }
-  setupSocketEvents() { // Moved from Server
+  setupSocketEvents() {
     this.server.io.on('connection', (socket) => {
       console.log('A user connected:', socket.id); // Log connection
       socket.on('disconnect', () => {
@@ -51,25 +48,25 @@ class ModuleImporter {
   constructor(server) {
     this.server = server; // Reference to the server instance
   }
-  async importModules() { // Moved from Server
+  async importModules() {
     try {
-      console.log(`\nSTARTING MODULE IMPORTS:`); // Improved message
+      console.log(`\nSTARTING MODULE IMPORTS:`);
       console.log(`  - Importing Config Module...`);
       this.server.CONFIG = await import('./config.js'); // Await the import
-      console.log(`  - Config module imported successfully.`); // Improved message
+      console.log(`  - Config module imported successfully.`);
       console.log(`  - Importing File System Module...`);
       this.server.fs = await import('fs').then(module => module.promises); // Await the import
-      console.log(`  - File System module imported successfully.`); // Improved message
+      console.log(`  - File System module imported successfully.`);
       console.log(`  - Importing Express Module...`);
       this.server.express = (await import('express')).default; // Assign default or named export
-      console.log(`  - Express module imported successfully.`); // Improved message
+      console.log(`  - Express module imported successfully.`);
       console.log(`  - Importing Socket.IO Module...`);
       this.server.SocketIOServer = (await import('socket.io')).Server; // Assign to instance variable
-      console.log(`  - Socket.IO module imported successfully.`); // Improved message
+      console.log(`  - Socket.IO module imported successfully.`);
       console.log(`  - Importing Queue Module...`);
       this.server.queue = new (await import('queue')).default(); // Await the import and instantiate the Queue class
-      console.log(`  - Queue module imported successfully.`); // Improved message
-      console.log(`MODULE IMPORTS COMPLETED SUCCESSFULLY.`); // Improved message
+      console.log(`  - Queue module imported successfully.`);
+      console.log(`MODULE IMPORTS COMPLETED SUCCESSFULLY.`);
     } catch (error) {
       console.error(`Error during module imports: ${error.message}!!!`); // Log error message
     }
@@ -84,35 +81,35 @@ class ServerSetup {
   constructor(server) {
     this.server = server; // Reference to the server instance
   }
-  async setupServer() { // Moved from Server
-    console.log(`\nSTARTING SERVER SETUP:`); // Improved message
+  async setupServer() {
+    console.log(`\nSTARTING SERVER SETUP:`);
     try {
       console.log(`  - Starting Express...`);
       await this.setupExpress();
       if (!this.server.app) throw new Error('Start Express unsuccessful!!!');
-      console.log(`  - Start Express completed successfully.`); // Improved message
+      console.log(`  - Start Express completed successfully.`);
       console.log(`  - Starting Server...`);
       await this.createServer(); // Await server creation to ensure it completes
       if (!this.server.server) throw new Error('Start Server unsuccessful!!!');
-      console.log(`  - Server started successfully.`); // Improved message
+      console.log(`  - Server started successfully.`);
       console.log(`  - Starting Socket.IO...`);
       this.server.io = new this.server.SocketIOServer(this.server.server); // Initialize Socket.IO server
       if (!this.server.io) throw new Error('Start Socket.IO unsuccessful!!!');
-      console.log(`  - Socket.IO started successfully.`); // Improved message
+      console.log(`  - Socket.IO started successfully.`);
       console.log(`  - Starting Socket Events...`);
       this.server.socketEventManager.setupSocketEvents(); // Set up socket events
       if (!this.server.socketEventManager) throw new Error('Start Socket Events unsuccessful!!!');
-      console.log(`  - Socket Events started successfully.`); // Improved message
+      console.log(`  - Socket Events started successfully.`);
       console.log(`  - Starting Queue Manager...`);
       this.server.queueManager = new QueueManager(); // Ensure QueueManager is initialized correctly
       if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
-      console.log(`  - Queue Manager started successfully.`); // Improved message
-      console.log(`SERVER SETUP COMPLETED SUCCESSFULLY.`); // Improved message
+      console.log(`  - Queue Manager started successfully.`);
+      console.log(`SERVER SETUP COMPLETED SUCCESSFULLY.`);
     } catch (error) {
       console.error(`Error during server setup: ${error.message}`); // Log error message
     }
   }
-  async createServer() { // Moved from Server
+  async createServer() {
     const { MAGENTA, RESET } = await import('./config.js'); // Import constants from config file
     const sslOptions = { key: null, cert: null };
     try {
@@ -128,11 +125,11 @@ class ServerSetup {
     const isHttps = sslOptions.key && sslOptions.cert; // Determine server type
     const http = isHttps ? await import('https') : await import('http');
     this.server.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.server.app);
-    console.log(`    - Server created using ${isHttps ? 'HTTPS' : 'HTTP'}.`); // Log server type
-    console.log(`    - Starting server on ${isHttps ? 'HTTPS' : 'HTTP'}//${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`); // Improved message
+    console.log(`    - Server created using ${isHttps ? 'https' : 'http'}.`); // Log server type
+    console.log(`    - Starting server on ${isHttps ? 'https' : 'http'}://${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`);
     return this.server.server;
   }
-  async setupExpress() { // Moved from Server
+  async setupExpress() {
     this.server.app = this.server.express(); // Initialize the express app
     this.server.app.use(this.server.express.static('public')); // Use express to serve static files
     this.server.app.use((err, req, res, next) => { // Error handling middleware
@@ -151,26 +148,29 @@ class GameComponentInitializer {
   constructor(server) {
     this.server = server; // Reference to the server instance
   }
-  async initializeGameComponents() { // Moved from Server
-    console.log(`\nSTARTING GAME COMPONENTS:`); // Improved message
+  async initializeGameComponents() {
+    console.log(`\nSTARTING GAME COMPONENTS:`);
     try {
       console.log(`  - Starting Database Manager...`);
       this.server.databaseManager = new DatabaseManager(this.server); // Pass server instance
       await this.server.databaseManager.initialize(); // Ensure DatabaseManager is initialized
       if (!this.server.databaseManager) throw new Error('DatabaseManager initialization failed!!!'); // Check initialization
-      console.log(`  - Database Manager started successfully.`); // Improved message
+      console.log(`  - Database Manager started successfully.`);
       console.log(`  - Loading Game Data...`);
       this.server.gameDataLoader = new GameDataLoader(this.server); // Initialize GameDataLoader
       if (!this.server.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
-      console.log(`  - Game Data loaded successfully.`); // Improved message
+      console.log(`  - Game Data loaded successfully.`);
+      // @ debug: Uncomment this section of code to display all loaded game data in the server console for debugging and testing.
+      /*
       console.log(`  - Verifying Game Data...`); // New verification step
       const gameDataVerifier = new GameDataVerifier(this.server.databaseManager); // Pass databaseManager instance
       const verifiedData = await gameDataVerifier.verifyData(); // Call verifyData method
       console.log(`  - Game Data verified successfully.`); // Log verified data
+      */
       console.log(`  - Starting Game Manager...`); // Updated to remove redundant Game Component Initializer
       this.server.gameManager = new GameManager(); // Initialize GameManager directly
       if (!this.server.gameManager) throw new Error('GameManager initialization failed!!!');
-      console.log(`  - Game Manager started successfully.`); // Improved message
+      console.log(`  - Game Manager started successfully.`);
     } catch (error) {
       console.error(`Error during game component initialization: ${error.message} - ${error.stack}`); // Log error message with stack trace
     }
@@ -326,14 +326,13 @@ class DatabaseManager {
     this.initialize(); // Call the async initialization method
   }
   async initialize() { // New async method for initialization
-    this.fs = await import('fs').then(module => module.promises); // Use import instead of require
+    this.fs = await import('fs').then(module => module.promises);
     this.DATA_PATHS = { // Encapsulated DATA_PATHS
       LOCATIONS: this.server.CONFIG.LOCATION_DATA_PATH,
       NPCS: this.server.CONFIG.NPC_DATA_PATH,
       ITEMS: this.server.CONFIG.ITEM_DATA_PATH,
     };
   }
-
   async getFilesInDirectory(directoryPath) {
     const files = await this.fs.readdir(directoryPath); // Read all files in the directory
     return files
@@ -354,7 +353,7 @@ class DatabaseManager {
       throw error;
     }
   }
-  async loadNpcData() { // Updated method to load NPC data
+  async loadNpcData() {
     try {
       const files = await this.getFilesInDirectory(this.DATA_PATHS.NPCS); // Get all JSON files
       const npcData = [];
@@ -368,7 +367,7 @@ class DatabaseManager {
       throw error;
     }
   }
-  async loadItemData() { // Updated method to load item data
+  async loadItemData() {
     try {
       const files = await this.getFilesInDirectory(this.DATA_PATHS.ITEMS); // Get all JSON files
       const itemData = [];
@@ -393,12 +392,6 @@ class DatabaseManager {
       console.error(`Error saving data for ${key} to ${filePath}: ${error.message}`);
       // DatabaseManager.notifyDataSaveError(this, filePath, error); // Uncomment if notifyDataSaveError is defined
     }
-  }
-  async getFilesInDirectory(directoryPath) {
-    const files = await this.fs.readdir(directoryPath); // Read all files in the directory
-    return files
-      .filter(file => file.endsWith('.json')) // Filter for JSON files
-      .map(file => `${directoryPath}/${file}`); // Return full paths
   }
 }
 // Game Data Loader ******************************************************************************
@@ -435,24 +428,6 @@ class GameDataLoader {
     });
     console.log(`Finished loading game data.`);
     return results.map(result => result.value).filter(value => value && !value.error);
-  }
-}
-// GameDataVerifier ******************************************************************************
-/*
- * The GameDataVerifier class is responsible for verifying that all game data has been loaded
- * and displaying the contents of the loaded game data.
-*/
-class GameDataVerifier {
-  constructor(databaseManager) {
-    this.databaseManager = databaseManager; // Reference to the DatabaseManager instance
-  }
-  async verifyData() {
-    const locationData = await this.databaseManager.loadLocationData(); // Load location data
-    const npcData = await this.databaseManager.loadNpcData(); // Load NPC data
-    const itemData = await this.databaseManager.loadItemData(); // Load item data
-    const verifiedData = { locationData, npcData, itemData }; // Store verified data
-    console.log(`Game Data: `, JSON.stringify(verifiedData, null, 2)); // Log the verified data
-    return verifiedData; // Return all loaded data
   }
 }
 // Game Manager ***********************************************************************************
@@ -554,5 +529,27 @@ class EventEmitter {
     if (this.events[event]) {
       this.events[event] = this.events[event].filter(l => l !== listener);
     }
+  }
+}
+// Debugging and Testing **************************************************************************
+/*
+ * All code below this point is for debugging and testing purposes only.
+*/
+// GameDataVerifier *******************************************************************************
+/*
+ * The GameDataVerifier class is responsible for verifying that all game data has been loaded.
+ * It displays the contents of all loaded game data in the server console for debugging and testing.
+*/
+class GameDataVerifier {
+  constructor(databaseManager) {
+    this.databaseManager = databaseManager; // Reference to the DatabaseManager instance
+  }
+  async verifyData() {
+    const locationData = await this.databaseManager.loadLocationData(); // Load location data
+    const npcData = await this.databaseManager.loadNpcData(); // Load NPC data
+    const itemData = await this.databaseManager.loadItemData(); // Load item data
+    const verifiedData = { locationData, npcData, itemData }; // Store verified data
+    console.log(`Game Data: `, JSON.stringify(verifiedData, null, 2)); // Log the verified data
+    return verifiedData; // Return all loaded data
   }
 }
