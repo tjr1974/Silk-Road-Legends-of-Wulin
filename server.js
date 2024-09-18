@@ -8,17 +8,13 @@ class Server {
     this.activeSessions = new Map(); // Use a Map to track active sessions with socket IDs
     this.moduleImporter = new ModuleImporter(this); // Initialize ModuleImporter
     this.serverSetup = new ServerSetup(this); // Initialize ServerSetup
-    this.socketEventManager = new SocketEventManager(this); // Initialize SocketEventManager
-    this.gameComponentInitializer = new GameComponentInitializer(this); // Initialize GameComponentInitializer
   }
   async init() { // New init method
     try {
       await this.moduleImporter.importModules(); // Ensure modules are initialized first
       await this.serverSetup.setupServer(); // Call to setup the server
-      this.socketEventManager.setupSocketEvents(); // Ensure socket events are set up
-      await this.gameComponentInitializer.initializeGameComponents(); // Call to initialize game components
     } catch (error) {
-      console.error(`Error during server initialization: ${error.message}`); // Log initialization error
+      this.logger.error(`Error during server initialization: ${error.message}`, { error }); // Log initialization error
     }
   }
 }
@@ -35,17 +31,17 @@ class SocketEventManager {
     this.server.io.on('connection', (socket) => {
       const sessionId = socket.handshake.query.sessionId; // Get session ID from query
       if (this.server.activeSessions.has(sessionId)) {
-        console.log(`User with session ID ${sessionId} is already connected.`); // Log existing connection
+        this.server.logger.warn(`User with session ID ${sessionId} is already connected.`, { sessionId }); // Log existing connection
         socket.emit('sessionError', 'You are already connected.'); // Notify client of session error
         socket.disconnect(); // Disconnect if already connected
         return;
       }
       this.server.activeSessions.set(sessionId, socket.id); // Track the socket ID for the session
-      console.log(`A user connected: ${socket.id} with session ID ${sessionId}`); // Log connection
+      this.server.logger.info(`A user connected: ${socket.id} with session ID ${sessionId}`, { sessionId, socketId: socket.id }); // Log connection
       socket.on('playerAction', (actionData) => this.handlePlayerAction(socket, actionData)); // Handle player actions
       socket.on('sendMessage', (messageData) => this.handleMessage(socket, messageData)); // Handle messages
       socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`); // Log disconnection
+        this.server.logger.info(`User disconnected: ${socket.id}`, { socketId: socket.id }); // Log disconnection
         this.server.activeSessions.delete(sessionId); // Remove session ID on disconnect
       });
     });
@@ -63,7 +59,7 @@ class SocketEventManager {
         this.server.io.to(targetId).emit('receiveMessage', { senderId: socket.id, content }); // Send to specific player
         break;
       default:
-        console.error(`Unknown message type: ${type}`); // Log unknown message type
+        this.server.logger.error(`Unknown message type: ${type}`, { type }); // Log unknown message type
     }
   }
   handlePlayerAction(socket, actionData) {
@@ -77,7 +73,7 @@ class SocketEventManager {
         break;
       // Add more action types as needed
       default:
-        console.error(`Unknown action type: ${actionType}`); // Log unknown action
+        this.server.logger.error(`Unknown action type: ${actionType}`, { actionType }); // Log unknown action
     }
   }
   movePlayer(socket, { playerId, newLocationId }) {
@@ -106,25 +102,25 @@ class ModuleImporter {
   }
   async importModules() {
     try {
-      console.log(`\nSTARTING MODULE IMPORTS:`);
-      console.log(`  - Importing Config Module...`);
+      this.server.logger.info(`STARTING MODULE IMPORTS:`);
+      this.server.logger.info(`  - Importing Config Module...`);
       this.server.CONFIG = await import('./config.js'); // Await the import
-      console.log(`  - Config module imported successfully.`);
-      console.log(`  - Importing File System Module...`);
+      this.server.logger.info(`  - Config module imported successfully.`);
+      this.server.logger.info(`  - Importing File System Module...`);
       this.server.fs = await import('fs').then(module => module.promises); // Await the import
-      console.log(`  - File System module imported successfully.`);
-      console.log(`  - Importing Express Module...`);
+      this.server.logger.info(`  - File System module imported successfully.`);
+      this.server.logger.info(`  - Importing Express Module...`);
       this.server.express = (await import('express')).default; // Assign default or named export
-      console.log(`  - Express module imported successfully.`);
-      console.log(`  - Importing Socket.IO Module...`);
+      this.server.logger.info(`  - Express module imported successfully.`);
+      this.server.logger.info(`  - Importing Socket.IO Module...`);
       this.server.SocketIOServer = (await import('socket.io')).Server; // Assign to instance variable
-      console.log(`  - Socket.IO module imported successfully.`);
-      console.log(`  - Importing Queue Module...`);
+      this.server.logger.info(`  - Socket.IO module imported successfully.`);
+      this.server.logger.info(`  - Importing Queue Module...`);
       this.server.queue = new (await import('queue')).default(); // Await the import and instantiate the Queue class
-      console.log(`  - Queue module imported successfully.`);
-      console.log(`MODULE IMPORTS COMPLETED SUCCESSFULLY.`);
+      this.server.logger.info(`  - Queue module imported successfully.`);
+      this.server.logger.info(`MODULE IMPORTS COMPLETED SUCCESSFULLY.`);
     } catch (error) {
-      console.error(`Error during module imports: ${error.message}!!!`); // Log error message
+      this.server.logger.error(`Error during module imports: ${error.message}!!!`, { error }); // Log error message
     }
   }
 }
@@ -138,31 +134,39 @@ class ServerSetup {
     this.server = server; // Reference to the server instance
   }
   async setupServer() {
-    console.log(`\nSTARTING SERVER SETUP:`);
+    this.server.logger.info(`\nSTARTING SERVER SETUP:`);
     try {
-      console.log(`  - Starting Express...`);
+      this.server.logger.info(`  - Starting Express...`);
       await this.setupExpress();
       if (!this.server.app) throw new Error('Start Express unsuccessful!!!');
-      console.log(`  - Start Express completed successfully.`);
-      console.log(`  - Starting Server...`);
+      this.server.logger.info(`  - Start Express completed successfully.`);
+      this.server.logger.info(`  - Starting Server...`);
       await this.createServer(); // Await server creation to ensure it completes
       if (!this.server.server) throw new Error('Start Server unsuccessful!!!');
-      console.log(`  - Server started successfully.`);
-      console.log(`  - Starting Socket.IO...`);
+      this.server.logger.info(`  - Server started successfully.`);
+      this.server.logger.info(`  - Starting Logger...`);
+      this.logger = new Logger('./logs/app.log'); // Initialize Logger
+      this.server.logger.info(`  - Logger started successfully.`);
+      this.server.logger.info(`  - Starting Socket.IO...`);
       this.server.io = new this.server.SocketIOServer(this.server.server); // Initialize Socket.IO server
       if (!this.server.io) throw new Error('Start Socket.IO unsuccessful!!!');
-      console.log(`  - Socket.IO started successfully.`);
-      console.log(`  - Starting Socket Events...`);
-      this.server.socketEventManager.setupSocketEvents(); // Set up socket events
+      this.server.logger.info(`  - Socket.IO started successfully.`);
+      this.server.logger.info(`  - Starting Socket Events...`);
+      this.server.socketEventManager = new SocketEventManager(this.server); // Initialize SocketEventManager
+      await this.server.socketEventManager.setupSocketEvents(); // Set up socket events
       if (!this.server.socketEventManager) throw new Error('Start Socket Events unsuccessful!!!');
-      console.log(`  - Socket Events started successfully.`);
-      console.log(`  - Starting Queue Manager...`);
+      this.server.logger.info(`  - Socket Events started successfully.`);
+      this.server.logger.info(`  - Starting Queue Manager...`);
       this.server.queueManager = new QueueManager(); // Ensure QueueManager is initialized correctly
       if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
-      console.log(`  - Queue Manager started successfully.`);
-      console.log(`SERVER SETUP COMPLETED SUCCESSFULLY.`);
+      this.server.logger.info(`  - Queue Manager started successfully.`);
+      this.server.logger.info(`  - Starting Game Component Initializer...`);
+      this.gameComponentInitializer = new GameComponentInitializer(this); // Initialize GameComponentInitializer
+      if (!this.gameComponentInitializer) throw new Error('Start Game Component Initializer unsuccessful!!!');
+      this.server.logger.info(`  - Game Component Initializer started successfully.`);
+      this.server.logger.info(`SERVER SETUP COMPLETED SUCCESSFULLY.`);
     } catch (error) {
-      console.error(`Error during server setup: ${error.message}`); // Log error message
+      this.server.logger.error(`Error during server setup: ${error.message}`, { error }); // Log error message
     }
   }
   async createServer() {
@@ -171,27 +175,84 @@ class ServerSetup {
     try {
       sslOptions.key = await this.server.fs.readFile(this.server.CONFIG.SSL_KEY_PATH); // Use SSL_KEY_PATH from config
     } catch (error) {
-      console.log(`    - ${MAGENTA}WARNING: Read SSL key: ${error.message}...${RESET}`);
+      this.server.logger.warn(`    - ${MAGENTA}WARNING: Read SSL key: ${error.message}...${RESET}`, { error });
     }
     try {
       sslOptions.cert = await this.server.fs.readFile(this.server.CONFIG.SSL_CERT_PATH); // Use SSL_CERT_PATH from config
     } catch (error) {
-      console.log(`    - ${MAGENTA}WARNING: Read SSL cert: ${error.message}...${RESET}`);
+      this.server.logger.warn(`    - ${MAGENTA}WARNING: Read SSL cert: ${error.message}...${RESET}`, { error });
     }
     const isHttps = sslOptions.key && sslOptions.cert; // Determine server type
     const http = isHttps ? await import('https') : await import('http');
     this.server.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.server.app);
-    console.log(`    - Server created using ${isHttps ? 'https' : 'http'}.`); // Log server type
-    console.log(`    - Starting server on ${isHttps ? 'https' : 'http'}://${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`);
+    this.server.logger.info(`    - Server created using ${isHttps ? 'https' : 'http'}.`); // Log server type
+    this.server.logger.info(`    - Starting server on ${isHttps ? 'https' : 'http'}://${this.server.CONFIG.HOST}:${this.server.CONFIG.PORT}...`);
     return this.server.server;
   }
   async setupExpress() {
     this.server.app = this.server.express(); // Initialize the express app
     this.server.app.use(this.server.express.static('public')); // Use express to serve static files
     this.server.app.use((err, req, res, next) => { // Error handling middleware
-      console.error(err.stack); // Log the error stack
+      this.server.logger.error(err.stack, { error: err }); // Log the error stack
       res.status(500).send('Something broke!'); // Send a 500 response
     });
+  }
+}
+// Logger ****************************************************************************************
+/*
+ * The Logger class is responsible for logging messages to a file and the console, providing a structured
+ * log format with timestamps, levels, messages, and optional context.
+*/
+class Logger {
+  constructor(logFilePath, maxFileSize = 5 * 1024 * 1024) {
+    this.logFilePath = logFilePath;
+    this.maxFileSize = maxFileSize;
+    this.fs = require('fs'); // Moved fs import here
+    this.path = require('path'); // Moved path import here
+    this.createLogFile();
+  }
+  createLogFile() {
+    const dir = path.dirname(this.logFilePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(this.logFilePath)) fs.writeFileSync(this.logFilePath, '');
+  }
+  log(level, message, context = {}) {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ...context,
+    };
+    const logString = JSON.stringify(logEntry) + '\n';
+    this.writeToConsole(logString);
+    this.writeToFile(logString);
+  }
+  writeToConsole(logString) {
+    console.log(logString.trim());
+  }
+  writeToFile(logString) {
+    fs.appendFileSync(this.logFilePath, logString);
+    this.rotateLogs();
+  }
+  rotateLogs() {
+    const stats = fs.statSync(this.logFilePath);
+    if (stats.size >= this.maxFileSize) {
+      const newLogFilePath = `${this.logFilePath}.${Date.now()}`;
+      fs.renameSync(this.logFilePath, newLogFilePath);
+      this.createLogFile();
+    }
+  }
+  debug(message, context) {
+    this.log('DEBUG', message, context);
+  }
+  info(message, context) {
+    this.log('INFO', message, context);
+  }
+  warn(message, context) {
+    this.log('WARN', message, context);
+  }
+  error(message, context) {
+    this.log('ERROR', message, context);
   }
 }
 // Game Component Initializer ********************************************************************
@@ -205,32 +266,32 @@ class GameComponentInitializer {
     this.server = server; // Reference to the server instance
   }
   async initializeGameComponents() {
-    console.log(`\nSTARTING GAME COMPONENTS:`);
+    this.server.logger.info(`\nSTARTING GAME COMPONENTS:`);
     try {
-      console.log(`  - Starting Database Manager...`);
+      this.server.logger.info(`  - Starting Database Manager...`);
       this.server.databaseManager = new DatabaseManager(this.server); // Pass server instance
       await this.server.databaseManager.initialize(); // Ensure DatabaseManager is initialized
       if (!this.server.databaseManager) throw new Error('DatabaseManager initialization failed!!!'); // Check initialization
-      console.log(`  - Database Manager started successfully.`);
-      console.log(`  - Loading Game Data...`);
+      this.server.logger.info(`  - Database Manager started successfully.`);
+      this.server.logger.info(`  - Loading Game Data...`);
       this.server.gameDataLoader = new GameDataLoader(this.server); // Initialize GameDataLoader
       if (!this.server.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
-      console.log(`  - Game Data loaded successfully.`);
+      this.server.logger.info(`  - Game Data loaded successfully.`);
       // @ debug: Uncomment this section of code to display all loaded game data in the server console for debugging and testing.
       /*
-      console.log(`  - Verifying Game Data...`); // New verification step
+      this.server.logger.info(`  - Verifying Game Data...`); // New verification step
       const gameDataVerifier = new GameDataVerifier(this.server.databaseManager); // Pass databaseManager instance
       const verifiedData = await gameDataVerifier.verifyData(); // Call verifyData method
-      console.log(`  - Game Data verified successfully.`); // Log verified data
+      this.server.logger.info(`  - Game Data verified successfully.`); // Log verified data
       */
-      console.log(`  - Starting Game Manager...`); // Updated to remove redundant Game Component Initializer
+      this.server.logger.info(`  - Starting Game Manager...`); // Updated to remove redundant Game Component Initializer
       this.server.gameManager = new GameManager(); // Initialize GameManager directly
       if (!this.server.gameManager) throw new Error('GameManager initialization failed!!!');
-      console.log(`  - Game Manager started successfully.`);
+      this.server.logger.info(`  - Game Manager started successfully.`);
     } catch (error) {
-      console.error(`Error during game component initialization: ${error.message} - ${error.stack}`); // Log error message with stack trace
+      this.server.logger.error(`Error during game component initialization: ${error.message} - ${error.stack}`, { error }); // Log error message with stack trace
     }
-    console.log(`STARTING GAME COMPONENTS COMPLETED SUCCESSFULLY...`);
+    this.server.logger.info(`STARTING GAME COMPONENTS COMPLETED SUCCESSFULLY...`);
   }
 }
 // Object Pool ************************************************************************************
@@ -406,7 +467,7 @@ class DatabaseManager {
       }
       return locationData; // Return all loaded location data
     } catch (error) {
-      console.error(`Error loading location data: ${error.message}`);
+      this.server.logger.error(`Error loading location data: ${error.message}`, { error });
       throw error;
     }
   }
@@ -420,7 +481,7 @@ class DatabaseManager {
       }
       return npcData; // Return all loaded NPC data
     } catch (error) {
-      console.error(`Error loading NPC data: ${error.message}`);
+      this.server.logger.error(`Error loading NPC data: ${error.message}`, { error });
       throw error;
     }
   }
@@ -434,7 +495,7 @@ class DatabaseManager {
       }
       return itemData; // Return all loaded item data
     } catch (error) {
-      console.error(`Error loading item data: ${error.message}`);
+      this.server.logger.error(`Error loading item data: ${error.message}`, { error });
       throw error;
     }
   }
@@ -444,9 +505,9 @@ class DatabaseManager {
       const parsedData = JSON.parse(existingData); // Parse existing data
       parsedData[key] = data; // Update the data
       await this.fs.writeFile(filePath, JSON.stringify(parsedData, null, 2)); // Write updated data
-      console.log(`Data saved for ${key} to ${filePath}`);
+      this.server.logger.info(`Data saved for ${key} to ${filePath}`, { filePath, key });
     } catch (error) {
-      console.error(`Error saving data for ${key} to ${filePath}: ${error.message}`);
+      this.server.logger.error(`Error saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
       // DatabaseManager.notifyDataSaveError(this, filePath, error); // Uncomment if notifyDataSaveError is defined
     }
   }
@@ -461,15 +522,15 @@ class GameDataLoader {
     this.server = server;
   }
   async loadGameData() {
-    console.log(`\nStarting game data loading...`);
+    this.server.logger.info(`\nStarting game data loading...`);
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' };
     const loadData = async (loadFunction, type) => {
       try {
         const data = await loadFunction();
-        console.log(`${type} data loaded successfully.`);
+        this.server.logger.info(`${type} data loaded successfully.`, { type });
         return { type, data };
       } catch (error) {
-        console.error(`Error loading ${type} data: ${error.message}`);
+        this.server.logger.error(`Error loading ${type} data: ${error.message}`, { error, type });
         return { type, error };
       }
     };
@@ -480,10 +541,10 @@ class GameDataLoader {
     ]);
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`Failed to load data at index ${index}: ${result.reason.message}`);
+        this.server.logger.error(`Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index });
       }
     });
-    console.log(`Finished loading game data.`);
+    this.server.logger.info(`Finished loading game data.`);
     return results.map(result => result.value).filter(value => value && !value.error);
   }
 }
@@ -1606,10 +1667,7 @@ class CombatManager {
   handlePlayerDefeat(defeatingNpc, player) {
     player.status = "lying unconscious"; // Set player status to lying unconscious
     this.endCombat(player); // End combat for player
-    this.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), {
-      type: "combat",
-      content: MessageManager.notifyDefeat(player, defeatingNpc.getName()).content // Notify players of player defeat
-    });
+    this.gameManager.logger.info(`${player.getName()} has been defeated by ${defeatingNpc.getName()}.`, { playerId: player.getId(), npcId: defeatingNpc.id });
   }
   handleNpcDefeat(npc, player) {
     npc.status = player.killer ? "lying dead" : "lying unconscious"; // Set NPC status based on player
@@ -2131,3 +2189,6 @@ class MessageManager {
     return this.notify(null, `${npc.getName()} arrives ${direction}.`); // Notify players of NPC arrival
   }
 }
+
+const serverInstance = new Server(); // Create an instance of the Server class
+serverInstance.init(); // Initialize the server
