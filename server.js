@@ -12,6 +12,7 @@ class Server {
     this.socketEventManager = null; // Initialize as null
     this.serverConfigurator = null; // Initialize as null
     this.fs = null; // Initialize fs as null
+    this.activeSessions = new Map(); // Use Map for efficient session management
   }
   async init() {
     try {
@@ -40,8 +41,7 @@ class Server {
     const isHttps = sslOptions.key && sslOptions.cert;
     const http = isHttps ? await import('https') : await import('http');
     this.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.app);
-    this.logger.info(`- Server created using ${isHttps ? 'https' : 'http'}.`);
-    this.logger.info(`- Starting server on ${isHttps ? 'https' : 'http'}://${this.config.HOST}:${this.config.PORT}`);
+    this.logger.info(`- Server configured using ${isHttps ? 'https' : 'http'}://${this.config.HOST}:${this.config.PORT}`);
     return this.server;
   }
 }
@@ -54,6 +54,7 @@ class SocketEventManager {
   constructor({ server, logger }) {
     this.server = server;
     this.logger = logger;
+    this.socketListeners = new Map(); // Store listeners for efficient management
   }
   initializeSocketEvents() { // Renamed from 'setupSocketEvents' to 'initializeSocketEvents'
     this.logger.info(`Setting up Socket.IO events.`); // New log message
@@ -72,12 +73,18 @@ class SocketEventManager {
     });
   }
   initializeSocketListeners(socket, sessionId) { // Renamed from 'setupSocketListeners' to 'initializeSocketListeners'
-    socket.on('playerAction', (actionData) => this.handlePlayerAction(socket, actionData));
-    socket.on('sendMessage', (messageData) => this.handleMessage(socket, messageData));
-    socket.on('disconnect', () => {
-      this.logger.info(`User disconnected: ${socket.id}`, { socketId: socket.id });
-      this.server.activeSessions.delete(sessionId);
-    });
+    const listeners = {
+      playerAction: (actionData) => this.handlePlayerAction(socket, actionData),
+      sendMessage: (messageData) => this.handleMessage(socket, messageData),
+      disconnect: () => {
+        this.logger.info(`User disconnected: ${socket.id}`, { socketId: socket.id });
+        this.server.activeSessions.delete(sessionId);
+      }
+    };
+    for (const [event, listener] of Object.entries(listeners)) {
+      socket.on(event, listener);
+      this.socketListeners.set(socket.id, listener); // Store listener for cleanup
+    }
   }
   handleMessage(socket, { type, content, targetId }) {
     switch (type) {
@@ -178,7 +185,6 @@ class ServerConfigurator {
     } catch (error) {
       this.logger.error(`ERROR during Server configuration: ${error.message}`, { error });
     }
-
     try {
       this.logger.log('INFO', '- Configuring Queue Manager');
       this.server.queueManager = new QueueManager();
@@ -188,7 +194,6 @@ class ServerConfigurator {
     } catch (error) {
       this.logger.error(`ERROR during Queue Manager configuration: ${error.message}`, { error });
     }
-
     try {
       this.logger.log('INFO', '- Configuring Game Component Initializer');
       this.gameComponentInitializer = new GameComponentInitializer(this);
@@ -198,7 +203,6 @@ class ServerConfigurator {
     } catch (error) {
       this.logger.error(`ERROR during Game Component Initializer configuration: ${error.message}`, { error });
     }
-
     this.logger.info(`SERVER CONFIGURATION FINISHED.`);
   }
   async setupExpressApp() { // Renamed from 'initializeExpress' to 'setupExpressApp'
@@ -406,7 +410,7 @@ class GameManager {
   #isRunning = false;
   #combatManager;
   constructor({ eventEmitter }) {
-    this.players = new Map();
+    this.players = new Map(); // Use Map for efficient player management
     this.locations = new Map();
     this.npcs = new Map();
     this.#combatManager = new CombatManager(this);
@@ -428,6 +432,10 @@ class GameManager {
       for (const player of this.players.values()) {
         player.save();
       }
+      this.server.socketEventManager.server.io.close(() => { // Close all socket connections
+        this.server.logger.info('All socket connections closed.');
+        process.exit(0); // Exit the program
+      });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
       console.log(`ERROR shutting down game: ${error}`);
@@ -762,7 +770,6 @@ class Config {
     return this.CONFIG?.MAGENTA; // Use optional chaining
   }
 }
-
 // Start the server *******************************************************************************
 const config = new Config();
 await config.loadConfig(); // Load config first
@@ -770,9 +777,11 @@ const logger = new Logger(config.CONFIG); // Pass the loaded CONFIG to logger
 const server = new Server({ logger, moduleImporter: null, config }); // Initialize server with null moduleImporter
 const moduleImporter = new ModuleImporter({ logger, server }); // Pass server instance
 server.moduleImporter = moduleImporter; // Assign moduleImporter to server
-
 // Ensure modules are imported before initializing the server
 await server.init(); // Now initialize the server
-
 const gameComponentInitializer = new GameComponentInitializer({ server, logger });
 await gameComponentInitializer.setupGameComponents();
+// Start listening for incoming connections
+server.server.listen(server.config.PORT, server.config.HOST, () => {
+    server.logger.info(`Server is running on ${server.config.HOST}:${server.config.PORT}`);
+});
