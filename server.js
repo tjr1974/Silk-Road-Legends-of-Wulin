@@ -4,24 +4,45 @@
  * the server environment, setting up middleware, and managing the game loop.
 */
 class Server {
-  constructor({ logger, moduleImporter, config }) {
-    this.logger = logger;
-    this.moduleImporter = moduleImporter;
+  constructor({ config, logger, moduleImporter }) {
     this.config = config; // Add config dependency
+    this.logger = logger; // Ensure logger is available
+    this.moduleImporter = moduleImporter;
     this.databaseManager = null; // Initialize as null
     this.socketEventManager = null; // Initialize as null
-    this.serverSetup = null; // Initialize as null
+    this.serverConfigurator = null; // Initialize as null
+    this.fs = null; // Initialize fs as null
   }
   async init() {
     try {
-      await this.moduleImporter.importModules();
-      this.databaseManager = new DatabaseManager({ server: this, logger: this.logger });
-      this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger });
-      this.serverSetup = new ServerSetup({ server: this, logger: this.logger, socketEventManager: this.socketEventManager, config: this.config }); // Pass config
-      await this.serverSetup.setupServer();
+      await this.moduleImporter.loadModules();
+      this.fs = await import('fs').then(module => module.promises); // Import fs here
+      this.databaseManager = new DatabaseManager({ server: this, logger: this.logger }); // Pass logger
+      this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger }); // Pass logger
+      this.serverConfigurator = new ServerConfigurator({ server: this, logger: this.logger, socketEventManager: this.socketEventManager, config: this.config }); // Pass logger
+      await this.serverConfigurator.configureServer();
     } catch (error) {
       this.logger.error(`ERROR during server initialization: ${error.message}`, { error });
     }
+  }
+  async setupHttpServer() { // Renamed from 'initializeHttpServer' to 'setupHttpServer'
+    const sslOptions = { key: null, cert: null };
+    try {
+      sslOptions.cert = await this.fs.readFile(this.config.SSL_CERT_PATH); // Use config
+    } catch (error) {
+      this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL cert: ${error.message}${this.logger.CONFIG.RESET}`, { error });
+    }
+    try {
+      sslOptions.key = await this.fs.readFile(this.config.SSL_KEY_PATH); // Use config
+    } catch (error) {
+      this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL  key: ${error.message}${this.logger.CONFIG.RESET}`, { error });
+    }
+    const isHttps = sslOptions.key && sslOptions.cert;
+    const http = isHttps ? await import('https') : await import('http');
+    this.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.app);
+    this.logger.info(`- Server created using ${isHttps ? 'https' : 'http'}.`);
+    this.logger.info(`- Starting server on ${isHttps ? 'https' : 'http'}://${this.config.HOST}:${this.config.PORT}`);
+    return this.server;
   }
 }
 // Socket Event Manager ***************************************************************************
@@ -34,8 +55,10 @@ class SocketEventManager {
     this.server = server;
     this.logger = logger;
   }
-  setupSocketEvents() {
+  initializeSocketEvents() { // Renamed from 'setupSocketEvents' to 'initializeSocketEvents'
+    this.logger.info(`Setting up Socket.IO events.`); // New log message
     this.server.io.on('connection', (socket) => {
+      this.logger.info(`A new socket connection established: ${socket.id}`); // New log message
       const sessionId = socket.handshake.query.sessionId;
       if (this.server.activeSessions.has(sessionId)) {
         this.logger.warn(`${this.logger.CONFIG.MAGENTA}User with session ID ${sessionId} is already connected.${this.logger.CONFIG.RESET}`, { sessionId });
@@ -45,10 +68,10 @@ class SocketEventManager {
       }
       this.server.activeSessions.set(sessionId, socket.id);
       this.logger.info(`A user connected: ${socket.id} with session ID ${sessionId}`, { sessionId, socketId: socket.id });
-      this.setupSocketListeners(socket, sessionId);
+      this.initializeSocketListeners(socket, sessionId);
     });
   }
-  setupSocketListeners(socket, sessionId) {
+  initializeSocketListeners(socket, sessionId) { // Renamed from 'setupSocketListeners' to 'initializeSocketListeners'
     socket.on('playerAction', (actionData) => this.handlePlayerAction(socket, actionData));
     socket.on('sendMessage', (messageData) => this.handleMessage(socket, messageData));
     socket.on('disconnect', () => {
@@ -106,106 +129,94 @@ class SocketEventManager {
  * server to function. It ensures that all required modules are loaded before the server starts.
 */
 class ModuleImporter {
-  constructor({ logger }) {
+  constructor({ logger, server }) { // Add server to the constructor
     this.logger = logger;
+    this.server = server; // Store server reference
   }
-  async importModules() {
+  async loadModules() { // Renamed from 'importModules' to 'loadModules'
     try {
+      this.logger.info(`\n`);
       this.logger.info(`STARTING MODULE IMPORTS:`);
-      this.logger.info(`  - Importing Config Module...`);
-      this.CONFIG = await import('./config.js');
-      this.logger.info(`  - Config module imported successfully.`);
-      this.logger.info(`  - Importing File System Module...`);
+      this.logger.info(`- Importing File System Module`);
       this.fs = await import('fs').then(module => module.promises);
-      this.logger.info(`  - File System module imported successfully.`);
-      this.logger.info(`  - Importing Express Module...`);
-      this.express = (await import('express')).default;
-      this.logger.info(`  - Express module imported successfully.`);
-      this.logger.info(`  - Importing Socket.IO Module...`);
+      this.logger.info(`- Importing Express Module`);
+      this.express = (await import('express')).default; // Ensure express is imported correctly
+      this.server.app = this.express(); // Initialize app here
+      this.logger.info(`- Importing Socket.IO Module`);
       this.SocketIOServer = (await import('socket.io')).Server;
-      this.logger.info(`  - Socket.IO module imported successfully.`);
-      this.logger.info(`  - Importing Queue Module...`);
+      this.logger.info(`- Importing Queue Module`);
       this.queue = new (await import('queue')).default();
-      this.logger.info(`  - Queue module imported successfully.`);
-      this.logger.info(`MODULE IMPORTS COMPLETED SUCCESSFULLY.`);
+      this.logger.info(`MODULE IMPORTS FINISHED.`);
     } catch (error) {
       this.logger.error(`ERROR during module imports: ${error.message}`, { error });
     }
   }
 }
-// Server Setup ***********************************************************************************
+// Server Configurator ***********************************************************************************
 /*
- * The ServerSetup class is responsible for configuring the server environment, including setting up
- * the Express application, initializing the Socket.IO server, and managing middleware.
+ * The ServerConfigurator class is responsible for configuring the server environment.
 */
-class ServerSetup {
-  constructor({ server, logger, socketEventManager, config }) {
-    this.server = server;
-    this.logger = logger;
-    this.socketEventManager = socketEventManager;
+class ServerConfigurator {
+  constructor({ config, logger, server, socketEventManager  }) {
     this.config = config; // Add config dependency
+    this.logger = logger;
+    this.server = server;
+    this.socketEventManager = socketEventManager;
     this.server.app = null; // Ensure app is initialized
     this.server.express = null; // Ensure express is initialized
   }
-  async setupServer() {
-    this.logger.info(`\nSTARTING SERVER SETUP:`);
+  async configureServer() { // Renamed from 'setupServer' to 'configureServer'
+    this.logger.info(`\n`);
+    this.logger.info(`STARTING SERVER CONFIGURATION:`);
     try {
-      this.logger.info(`  - Starting Express...`);
-      this.server.express = (await import('express')).default; // Ensure this is correctly assigned
-      this.server.app = this.server.express(); // Ensure this is correctly assigned
-      this.server.app.use(this.server.express.static('public'));
-      this.server.app.use((err, req, res, next) => {
-        this.logger.error(err.message, { error: err });
-        res.status(500).send('An unexpected error occurred. Please try again later.');
-      });
-      this.logger.info(`  - Start Express completed successfully.`);
-      this.logger.info(`  - Starting Server...`);
-      await this.createServer();
-      if (!this.server.server) throw new Error('Start Server unsuccessful!!!');
-      this.logger.info(`  - Server started successfully.`);
-      this.logger.info(`  - Starting Logger...`);
-      this.logger = new Logger();
-      this.logger.info(`  - Logger started successfully.`);
-      this.logger.info(`  - Starting Socket.IO...`);
-      this.server.io = new this.server.SocketIOServer(this.server.server);
-      if (!this.server.io) throw new Error('Start Socket.IO unsuccessful!!!');
-      this.logger.info(`  - Socket.IO started successfully.`);
-      this.logger.info(`  - Starting Socket Events...`);
-      this.server.socketEventManager = new SocketEventManager(this.server);
-      await this.server.socketEventManager.setupSocketEvents();
-      if (!this.server.socketEventManager) throw new Error('Start Socket Events unsuccessful!!!');
-      this.logger.info(`  - Socket Events started successfully.`);
-      this.logger.info(`  - Starting Queue Manager...`);
+      await this.setupExpressApp(); // Ensure Express is initialized first
+      this.configureExpressMiddleware(); // Now setup Express
+      await this.server.setupHttpServer();
+      if (!this.server.server) {
+        this.logger.error('Server configuration unsuccessful!!!');
+      }
+    } catch (error) {
+      this.logger.error(`ERROR during Server configuration: ${error.message}`, { error });
+    }
+
+    try {
+      this.logger.log('INFO', '- Configuring Queue Manager');
       this.server.queueManager = new QueueManager();
-      if (!this.server.queueManager) throw new Error('Start queue manager unsuccessful!!!');
-      this.logger.info(`  - Queue Manager started successfully.`);
-      this.logger.info(`  - Starting Game Component Initializer...`);
+      if (!this.server.queueManager) {
+        this.logger.error('Queue Manager configuration unsuccessful!!!');
+      }
+    } catch (error) {
+      this.logger.error(`ERROR during Queue Manager configuration: ${error.message}`, { error });
+    }
+
+    try {
+      this.logger.log('INFO', '- Configuring Game Component Initializer');
       this.gameComponentInitializer = new GameComponentInitializer(this);
-      if (!this.gameComponentInitializer) throw new Error('Start Game Component Initializer unsuccessful!!!');
-      this.logger.info(`  - Game Component Initializer started successfully.`);
-      this.logger.info(`SERVER SETUP COMPLETED SUCCESSFULLY.`);
+      if (!this.gameComponentInitializer) {
+        this.logger.error('Game Component Initializer configuration unsuccessful!!!');
+      }
     } catch (error) {
-      this.logger.error(`ERROR during server setup: ${error.message}`, { error });
+      this.logger.error(`ERROR during Game Component Initializer configuration: ${error.message}`, { error });
     }
+
+    this.logger.info(`SERVER CONFIGURATION FINISHED.`);
   }
-  async createServer() {
-    const sslOptions = { key: null, cert: null };
-    try {
-      sslOptions.key = await this.server.fs.readFile(this.config.SSL_KEY_PATH); // Use config
-    } catch (error) {
-      this.logger.warn(`    - WARNING: Read SSL key: ${error.message}...`, { error });
+  async setupExpressApp() { // Renamed from 'initializeExpress' to 'setupExpressApp'
+    this.logger.log('INFO', '- Initializing Express');
+    this.server.express = (await import('express')).default; // Ensure express is imported correctly
+    this.server.app = this.server.express(); // Initialize app here
+  }
+  configureExpressMiddleware() { // Renamed from 'setupExpress' to 'configureExpressMiddleware'
+    this.logger.log('INFO', '- Configuring Express');
+    if (!this.server.app) {
+      this.logger.error('Express app is not initialized.');
+      return;
     }
-    try {
-      sslOptions.cert = await this.server.fs.readFile(this.config.SSL_CERT_PATH); // Use config
-    } catch (error) {
-      this.logger.warn(`    - WARNING: Read SSL cert: ${error.message}...`, { error });
-    }
-    const isHttps = sslOptions.key && sslOptions.cert;
-    const http = isHttps ? await import('https') : await import('http');
-    this.server.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.server.app);
-    this.logger.info(`    - Server created using ${isHttps ? 'https' : 'http'}.`);
-    this.logger.info(`    - Starting server on ${isHttps ? 'https' : 'http'}://${this.config.HOST}:${this.config.PORT}...`);
-    return this.server.server;
+    this.server.app.use(this.server.express.static('public'));
+    this.server.app.use((err, req, res, next) => {
+      this.logger.error(err.message, { error: err });
+      res.status(500).send('An unexpected error occurred. Please try again later.');
+    });
   }
 }
 // Logger Interface ********************************************************************************
@@ -239,17 +250,16 @@ class Logger extends ILogger {
   setLogLevel(level) { // Add this method
     this.logLevel = level; // Store the log level
   }
-  log(level, message, context = {}) {
-    const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : message; // Change here for error messages
+  log(level, message, context = {}, indentLevel = 0) {
+    const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : `${message}`;
     if (level === 'WARN') {
-      message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`; // Add magenta for warnings
+      message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
     }
     this.writeToConsole(logString);
   }
   writeToConsole(logString) {
     console.log(logString.trim());
   }
-
   debug(message, context) {
     this.log('DEBUG', message, context);
   }
@@ -362,30 +372,31 @@ class GameComponentInitializer {
     this.server = server;
     this.logger = logger;
   }
-  async initializeGameComponents() {
-    this.logger.info(`\nSTARTING GAME COMPONENTS:`);
+  async setupGameComponents() { // Renamed from 'initializeGameComponents' to 'setupGameComponents'
+    this.logger.info(`\n`);
+    this.logger.info(`STARTING INITIALIZE GAME COMPONENTS:`);
     try {
-      this.logger.info(`  - Starting Database Manager...`);
+      this.logger.log('INFO', '- Starting Database Manager');
       this.server.databaseManager = new DatabaseManager({ server: this.server, logger: this.logger });
       await this.server.databaseManager.initialize();
       if (!this.server.databaseManager) throw new Error('DatabaseManager initialization failed!!!');
-      this.logger.info(`  - Database Manager started successfully.`);
-      this.logger.info(`  - Loading Game Data...`);
+      this.logger.log('INFO', '- Loading Game Data');
       this.server.gameDataLoader = new GameDataLoader(this.server);
       if (!this.server.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
-      this.logger.info(`  - Game Data loaded successfully.`);
-      this.logger.debug(`  - Verifying Game Data...`);
-      const gameDataVerifier = new GameDataVerifier(this.server.databaseManager);
-      const verifiedData = await gameDataVerifier.verifyData();
-      this.logger.debug(`  - Game Data verified successfully.`);
-      this.logger.info(`  - Starting Game Manager...`);
+      this.logger.log('DEBUG', '\n');
+      if (this.logger.logLevel === 'DEBUG') { // Check if log level is DEBUG
+        this.logger.log('DEBUG', 'VERIFYING GAME DATA:');
+        const gameDataVerifier = new GameDataVerifier(this.server.databaseManager);
+        const verifiedData = await gameDataVerifier.validateGameData();
+        this.logger.log('DEBUG', '\n');
+      }
+      this.logger.log('INFO', '- Starting Game Manager');
       this.server.gameManager = new GameManager({ eventEmitter: this.server.eventEmitter });
       if (!this.server.gameManager) throw new Error('GameManager initialization failed!!!');
-      this.logger.info(`  - Game Manager started successfully.`);
     } catch (error) {
       this.logger.error(`ERROR during game component initialization: ${error.message} - ${error.stack}`, { error });
     }
-    this.logger.info(`STARTING GAME COMPONENTS COMPLETED SUCCESSFULLY...`);
+    this.logger.info(`GAME COMPONENTS INITIALIZED.`);
   }
 }
 // GameManager Class ********************************************************************************
@@ -500,13 +511,13 @@ class GameDataLoader {
   constructor(server) {
     this.server = server;
   }
-  async loadGameData() {
-    this.server.logger.info(`\nStarting game data loading...`);
+  async fetchGameData() { // Renamed from 'loadGameData' to 'fetchGameData'
+    this.server.logger.info(`\nStarting game data loading.`);
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' };
     const loadData = async (loadFunction, type) => {
       try {
         const data = await loadFunction();
-        this.server.logger.info(`${type} data loaded successfully.`, { type });
+        this.server.logger.info(`${type} data loaded.`, { type });
         return { type, data };
       } catch (error) {
         this.server.logger.error(`ERROR loading ${type} data: ${error.message}`, { error, type });
@@ -536,13 +547,12 @@ class GameDataVerifier {
   constructor(databaseManager) {
     this.databaseManager = databaseManager;
   }
-  async verifyData() {
+  async validateGameData() { // Renamed from 'verifyData' to 'validateGameData'
     const locationData = await this.databaseManager.loadLocationData();
     const npcData = await this.databaseManager.loadNpcData();
     const itemData = await this.databaseManager.loadItemData();
     const verifiedData = { locationData, npcData, itemData };
-    this.databaseManager.logger.debug(`Game Data:`, JSON.stringify(verifiedData, null, 2));
-    return verifiedData;
+    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`); // Updated to stringify
   }
 }
 // Object Pool ************************************************************************************
@@ -678,88 +688,91 @@ class QueueManager {
 // Config Class ************************************************************************************
 class Config {
   async loadConfig() {
-    console.log('Loading configuration...');
+    console.log(`\nSTARTING LOAD CONFIGURATION SETTINGS:`);
     try {
       this.CONFIG = await import('./config.js').then(module => module.default); // Ensure CONFIG is loaded correctly
-      console.log('Loaded CONFIG:', this.CONFIG); // Debugging log
+      console.log(`LOAD CONFIGURATION SETTINGS FINISHED.`);
+      //console.log('Loaded CONFIG:', this.CONFIG); // Debugging log
     } catch (error) {
-      console.error(`Failed to load config: ${error.message}`); // Log the error
-      throw new Error(`Failed to load config: ${error.message}`);
+      console.error(`ERROR LOADING CONFIG: ${error.message}`); // Log the error
     }
   }
   get SSL_KEY_PATH() {
-    return this.CONFIG.SSL_KEY_PATH;
+    return this.CONFIG?.SSL_KEY_PATH; // Use optional chaining
   }
   get SSL_CERT_PATH() {
-    return this.CONFIG.SSL_CERT_PATH;
+    return this.CONFIG?.SSL_CERT_PATH; // Use optional chaining
   }
   get HOST() {
-    return this.CONFIG.HOST;
+    return this.CONFIG?.HOST; // Use optional chaining
   }
   get PORT() {
-    return this.CONFIG.PORT;
+    return this.CONFIG?.PORT; // Use optional chaining
   }
   get LOG_LEVEL() {
     if (!this.CONFIG) throw new Error('CONFIG is not loaded');
-    return this.CONFIG.LOG_LEVEL;
+    return this.CONFIG?.LOG_LEVEL;
   }
   get LOG_FILE_PATH() {
-    return this.CONFIG.LOG_FILE_PATH;
+    return this.CONFIG?.LOG_FILE_PATH; // Use optional chaining
   }
   get LOG_MAX_FILE_SIZE() {
-    return this.CONFIG.LOG_MAX_FILE_SIZE;
+    return this.CONFIG?.LOG_MAX_FILE_SIZE; // Use optional chaining
   }
   get PLAYER_DATA_PATH() {
-    return this.CONFIG.PLAYER_DATA_PATH;
+    return this.CONFIG?.PLAYER_DATA_PATH; // Use optional chaining
   }
   get LOCATION_DATA_PATH() {
-    return this.CONFIG.LOCATION_DATA_PATH;
+    return this.CONFIG?.LOCATION_DATA_PATH; // Use optional chaining
   }
   get NPC_DATA_PATH() {
-    return this.CONFIG.NPC_DATA_PATH;
+    return this.CONFIG?.NPC_DATA_PATH; // Use optional chaining
   }
   get ITEM_DATA_PATH() {
-    return this.CONFIG.ITEM_DATA_PATH;
+    return this.CONFIG?.ITEM_DATA_PATH; // Use optional chaining
   }
   get GAME_DATA_PATH() {
-    return this.CONFIG.GAME_DATA_PATH;
+    return this.CONFIG?.GAME_DATA_PATH; // Use optional chaining
   }
   get TICK_RATE() {
-    return this.CONFIG.TICK_RATE;
+    return this.CONFIG?.TICK_RATE; // Use optional chaining
   }
   get NPC_MOVEMENT_INTERVAL() {
-    return this.CONFIG.NPC_MOVEMENT_INTERVAL;
+    return this.CONFIG?.NPC_MOVEMENT_INTERVAL; // Use optional chaining
   }
   get REGEN_INTERVAL() {
-    return this.CONFIG.REGEN_INTERVAL;
+    return this.CONFIG?.REGEN_INTERVAL; // Use optional chaining
   }
   get REGEN_RATES() {
-    return this.CONFIG.REGEN_RATES;
+    return this.CONFIG?.REGEN_RATES; // Use optional chaining
   }
   get LEVEL_UP_XP() {
-    return this.CONFIG.LEVEL_UP_XP;
+    return this.CONFIG?.LEVEL_UP_XP; // Use optional chaining
   }
   get INVENTORY_CAPACITY() {
-    return this.CONFIG.INVENTORY_CAPACITY;
+    return this.CONFIG?.INVENTORY_CAPACITY; // Use optional chaining
   }
   get RESET() {
-    return this.CONFIG.RESET;
+    return this.CONFIG?.RESET; // Use optional chaining
   }
   get RED() {
-    return this.CONFIG.RED;
+    return this.CONFIG?.RED; // Use optional chaining
   }
   get MAGENTA() {
-    return this.CONFIG.MAGENTA;
+    return this.CONFIG?.MAGENTA; // Use optional chaining
   }
 }
 
 // Start the server *******************************************************************************
 const config = new Config();
 await config.loadConfig(); // Load config first
-console.log('Config after loading:', config.CONFIG); // Debugging log
 const logger = new Logger(config.CONFIG); // Pass the loaded CONFIG to logger
-const moduleImporter = new ModuleImporter({ logger });
-const server = new Server({ logger, moduleImporter, config });
-await server.init();
+const server = new Server({ logger, moduleImporter: null, config }); // Initialize server with null moduleImporter
+const moduleImporter = new ModuleImporter({ logger, server }); // Pass server instance
+server.moduleImporter = moduleImporter; // Assign moduleImporter to server
+
+// Ensure modules are imported before initializing the server
+await server.init(); // Now initialize the server
+
 const gameComponentInitializer = new GameComponentInitializer({ server, logger });
-await gameComponentInitializer.initializeGameComponents();
+await gameComponentInitializer.setupGameComponents();
