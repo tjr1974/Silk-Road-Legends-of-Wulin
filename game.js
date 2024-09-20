@@ -291,9 +291,9 @@ class Player extends Character {
       MessageManager.notifyNoContainerHere(this, containerName); // Notify if no container found
       return;
     }
-    const container = items[containerId]; // Get container instance
+    const container = this.player.items[containerId]; // Use this.player.items instead of items
     if (container instanceof ContainerItem) {
-      const itemsInContainer = container.inventory.map(itemId => items[itemId].name); // Get items in container
+      const itemsInContainer = container.inventory.map(itemId => this.player.items[itemId].name); // Get items in container
       MessageManager.notifyLookInContainer(this, container.name, itemsInContainer); // Notify items in container
     } else {
       MessageManager.notifyNotAContainer(this, container.name); // Notify if not a container
@@ -604,7 +604,7 @@ class PlayerActions {
   attackNpc(target) {
     const location = gameManager.getLocation(this.player.currentLocation); // Get current location
     if (!location) return; // Early return if location is not found
-    const npcId = target ? getNpcIdByName(target, location.npcs) : this.getAvailableNpcId(location.npcs); // Get NPC ID
+    const npcId = target ? this.findEntity(target, location.npcs, "npc") : this.getAvailableNpcId(location.npcs); // Find NPC by name if specified
     if (!npcId) {
       if (target) {
         MessageManager.notifyTargetNotFound(this.player, target); // Notify if target NPC is not found
@@ -625,6 +625,13 @@ class PlayerActions {
     return npcs.find(id => {
       const npc = this.gameManager.getNpc(id);
       return npc && !npc.isUnconsciousOrDead(); // Check if NPC is available for combat
+    });
+  }
+  findEntity(name, entities, type) {
+    const nameLower = name.toLowerCase(); // Convert name to lowercase
+    return entities.find(entityId => {
+      const entity = gameManager.getEntity(entityId, type); // Get entity instance
+      return entity && entity.aliases.includes(nameLower); // Check if entity matches name
     });
   }
 }
@@ -892,7 +899,7 @@ class InventoryManager {
     return item; // Return found item or undefined
   }
   transferItem(itemId, source, sourceType) {
-    transferItem(itemId, source, sourceType, this.player); // Transfer item using utility function
+    this.player.transferItem(itemId, source, sourceType); // Use player's transferItem method
   }
 }
 // Combat Manager *********************************************************************************
@@ -1000,6 +1007,9 @@ class CombatManager {
         const result = this.performCombatAction(player, npc, true); // Perform combat action
         if (npc.health <= 0) {
           this.handleNpcDefeat(npc, player); // Handle NPC defeat
+        } else {
+          // Use result to notify players of the combat action outcome
+          this.notifyPlayersInLocation(player.currentLocation, result); // Notify combat action result
         }
       }
       if (player.health <= 0) {
