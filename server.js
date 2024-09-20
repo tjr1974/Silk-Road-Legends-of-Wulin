@@ -5,7 +5,6 @@
 */
 class Server {
   constructor({ config, logger, moduleImporter }) {
-    const { SSL_CERT_PATH, SSL_KEY_PATH, HOST, PORT } = config; // Destructure config
     this.config = config;
     this.logger = logger;
     this.moduleImporter = moduleImporter;
@@ -18,30 +17,30 @@ class Server {
   async init() {
     try {
       await this.moduleImporter.loadModules();
-      this.fs = await import('fs').then(module => module.promises); // Import fs here
-      this.databaseManager = new DatabaseManager({ server: this, logger: this.logger }); // Pass logger
-      this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger }); // Pass logger
-      this.serverConfigurator = new ServerConfigurator({ server: this, logger: this.logger, socketEventManager: this.socketEventManager, config: this.config }); // Pass logger
+      this.fs = await import('fs').then(module => module.promises);
+      this.databaseManager = new DatabaseManager({ server: this, logger: this.logger });
+      this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger });
+      this.serverConfigurator = new ServerConfigurator({ server: this, logger: this.logger, socketEventManager: this.socketEventManager, config: this.config });
       await this.serverConfigurator.configureServer();
     } catch (error) {
       this.logger.error(`ERROR during server initialization: ${error.message}`, { error });
     }
   }
-  async setupHttpServer() { // Kept async
+  async setupHttpServer() {
     const sslOptions = { key: null, cert: null };
-    const { SSL_CERT_PATH, SSL_KEY_PATH } = this.config; // Destructure config
+    const { SSL_CERT_PATH, SSL_KEY_PATH } = this.config;
     try {
-      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH); // Keep await here
+      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH);
     } catch (error) {
       this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL cert: ${error.message}${this.logger.CONFIG.RESET}`, { error });
     }
     try {
-      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH); // Keep await here
+      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH);
     } catch (error) {
       this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL  key: ${error.message}${this.logger.CONFIG.RESET}`, { error });
     }
     const isHttps = sslOptions.key && sslOptions.cert;
-    const http = isHttps ? await import('https') : await import('http'); // Keep await here
+    const http = isHttps ? await import('https') : await import('http');
     this.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.app);
     this.logger.info(`- Server configured using ${isHttps ? 'https' : 'http'}://${this.config.HOST}:${this.config.PORT}`);
     return this.server;
@@ -51,7 +50,7 @@ class Server {
     this.socketEventManager = null;
     this.serverConfigurator = null;
     this.fs = null;
-    this.activeSessions.clear(); // Clear active sessions
+    this.activeSessions.clear();
   }
 }
 // Base Manager Class ******************************************************************************
@@ -61,8 +60,8 @@ class Server {
 */
 class BaseManager {
   constructor({ server, logger }) {
-    this.server = server; // Store server reference
-    this.logger = logger; // Store logger reference
+    this.server = server;
+    this.logger = logger;
   }
 }
 // Socket Event Manager ***************************************************************************
@@ -77,23 +76,23 @@ class SocketEventManager extends BaseManager {
     this.activeSessions = new Set(); // Use Set for unique session IDs
     this.actionData = {}; // Reusable object for action data
   }
-  initializeSocketEvents() { // Renamed from 'setupSocketEvents' to 'initializeSocketEvents'
-    this.logger.info(`Setting up Socket.IO events.`); // New log message
+  initializeSocketEvents() {
+    this.logger.info(`Setting up Socket.IO events.`);
     this.server.io.on('connection', (socket) => {
-      this.logger.info(`A new socket connection established: ${socket.id}`); // New log message
+      this.logger.info(`A new socket connection established: ${socket.id}`);
       const sessionId = socket.handshake.query.sessionId;
-      if (this.activeSessions.has(sessionId)) { // Check if sessionId is already connected
+      if (this.activeSessions.has(sessionId)) {
         this.logger.warn(`${this.logger.CONFIG.MAGENTA}User with session ID ${sessionId} is already connected.${this.logger.CONFIG.RESET}`, { sessionId });
         socket.emit('sessionError', 'You are already connected.');
         socket.disconnect();
         return;
       }
-      this.activeSessions.add(sessionId); // Add sessionId to Set
+      this.activeSessions.add(sessionId);
       this.logger.info(`A user connected: ${socket.id} with session ID ${sessionId}`, { sessionId, socketId: socket.id });
       this.initializeSocketListeners(socket, sessionId);
     });
   }
-  initializeSocketListeners(socket, sessionId) { // Renamed from 'setupSocketListeners' to 'initializeSocketListeners'
+  initializeSocketListeners(socket, sessionId) {
     const listeners = {
       playerAction: (actionData) => this.handleAction(socket, { ...actionData }),
       sendMessage: (messageData) => this.handleAction(socket, { ...messageData }),
@@ -104,7 +103,7 @@ class SocketEventManager extends BaseManager {
     };
     for (const [event, listener] of Object.entries(listeners)) {
       socket.on(event, listener);
-      this.socketListeners.set(socket.id, listener); // Store listener for cleanup
+      this.socketListeners.set(socket.id, listener);
     }
   }
   handleAction(socket, { type, content, targetId, actionType, payload }) {
@@ -171,15 +170,30 @@ class ModuleImporter extends BaseManager {
       this.logger.info(`\n`);
       this.logger.info(`STARTING MODULE IMPORTS:`);
       this.logger.info(`- Importing File System Module`);
-      const fsModule = await import('fs'); // Corrected import
-      this.fs = fsModule.promises; // Access promises property correctly
+      try {
+        const fsModule = await import('fs');
+        this.fs = fsModule.promises;
+      } catch (error) {
+        this.logger.error(`ERROR importing File System Module: ${error.message}`, { error });
+      }
       this.logger.info(`- Importing Express Module`);
-      this.express = (await import('express')).default;
-      this.server.app = this.express();
+      try {
+        this.express = (await import('express')).default;
+      } catch (error) {
+        this.logger.error(`ERROR importing Express Module: ${error.message}`, { error });
+      }
       this.logger.info(`- Importing Socket.IO Module`);
-      this.SocketIOServer = (await import('socket.io')).Server;
+      try {
+        this.SocketIOServer = (await import('socket.io')).Server;
+      } catch (error) {
+        this.logger.error(`ERROR importing Socket.IO Module: ${error.message}`, { error });
+      }
       this.logger.info(`- Importing Queue Module`);
-      this.queue = new (await import('queue')).default();
+      try {
+        this.queue = new (await import('queue')).default();
+      } catch (error) {
+        this.logger.error(`ERROR importing Queue Module: ${error.message}`, { error });
+      }
       this.logger.info(`MODULE IMPORTS FINISHED.`);
     } catch (error) {
       this.logger.error(`ERROR during module imports: ${error.message}`, { error });
@@ -190,17 +204,16 @@ class ModuleImporter extends BaseManager {
 /*
  * The ServerConfigurator class is responsible for configuring the server environment.
 */
-class ServerConfigurator extends BaseManager { // Extend BaseManager
+class ServerConfigurator extends BaseManager {
   constructor({ config, logger, server, socketEventManager }) {
-    super({ server, logger }); // Call the parent constructor
-    const { SSL_CERT_PATH, SSL_KEY_PATH } = config; // Destructure config
+    super({ server, logger });
+    const { SSL_CERT_PATH, SSL_KEY_PATH } = config;
     this.config = config;
     this.socketEventManager = socketEventManager;
     this.server.app = null;
-    this.server.express = null;
   }
   async configureServer() {
-    const { logger, server } = this; // Destructure this
+    const { logger, server } = this;
     logger.info(`\n`);
     logger.info(`STARTING SERVER CONFIGURATION:`);
     try {
@@ -233,12 +246,12 @@ class ServerConfigurator extends BaseManager { // Extend BaseManager
     }
     logger.info(`SERVER CONFIGURATION FINISHED.`);
   }
-  async setupExpressApp() { // Renamed from 'initializeExpress' to 'setupExpressApp'
+  async setupExpressApp() {
     this.logger.log('INFO', '- Initializing Express');
-    this.server.express = (await import('express')).default; // Ensure express is imported correctly
-    this.server.app = this.server.express(); // Initialize app here
+    this.server.express = (await import('express')).default;
+    this.server.app = this.server.express();
   }
-  configureExpressMiddleware() { // Removed async
+  configureExpressMiddleware() {
     this.logger.log('INFO', '- Configuring Express');
     if (!this.server.app) {
       this.logger.error('Express app is not initialized.');
@@ -253,11 +266,11 @@ class ServerConfigurator extends BaseManager { // Extend BaseManager
 }
 // Logger Interface ********************************************************************************
 class ILogger {
-  log(level, message, context = {}) {}
-  debug(message, context) {}
-  info(message, context) {}
-  warn(message, context) {}
-  error(message, context) {}
+  log(level, message) {}
+  debug(message) {}
+  info(message) {}
+  warn(message) {}
+  error(message) {}
 }
 // Database Manager Interface ************************************************************************
 class IDatabaseManager {
@@ -276,13 +289,13 @@ class IEventEmitter {
 class Logger extends ILogger {
   constructor(config) {
     super();
-    this.CONFIG = config; // Initialize CONFIG here
-    this.setLogLevel(this.CONFIG.LOG_LEVEL); // Ensure this method is defined
+    this.CONFIG = config;
+    this.setLogLevel(this.CONFIG.LOG_LEVEL);
   }
-  setLogLevel(level) { // Add this method
-    this.logLevel = level; // Store the log level
+  setLogLevel(level) {
+    this.logLevel = level;
   }
-  log(level, message, context = {}, indentLevel = 0) {
+  log(level, message) {
     const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : `${message}`;
     if (level === 'WARN') {
       message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
@@ -292,17 +305,17 @@ class Logger extends ILogger {
   writeToConsole(logString) {
     console.log(logString.trim());
   }
-  debug(message, context) {
-    this.log('DEBUG', message, context);
+  debug(message) {
+    this.log('DEBUG', message);
   }
-  info(message, context) {
-    this.log('INFO', message, context);
+  info(message) {
+    this.log('INFO', message);
   }
-  warn(message, context) {
-    this.log('WARN', message, context);
+  warn(message) {
+    this.log('WARN', message);
   }
-  error(message, context) {
-    this.log('ERROR', message, context);
+  error(message) {
+    this.log('ERROR', message);
   }
 }
 // EventEmitter Class ******************************************************************************
@@ -349,7 +362,7 @@ class DatabaseManager extends BaseManager {
   async loadItemData() {
     return this.loadData(this.DATA_PATHS.ITEMS, 'item');
   }
-  async loadData(dataPath, type) { // New utility method
+  async loadData(dataPath, type) {
     try {
       const files = await this.getFilesInDirectory(dataPath);
       const data = await Promise.all(files.map(file => this.fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
@@ -371,7 +384,7 @@ class DatabaseManager extends BaseManager {
     }
   }
   cleanup() {
-    this.fs = null; // Clear fs reference
+    this.fs = null;
   }
 }
 // GameComponentInitializer Class ******************************************************************
@@ -379,7 +392,7 @@ class GameComponentInitializer extends BaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
   }
-  async setupGameComponents() { // Renamed from 'initializeGameComponents' to 'setupGameComponents'
+  async setupGameComponents() {
     this.logger.info(`\n`);
     this.logger.info(`STARTING INITIALIZE GAME COMPONENTS:`);
     try {
@@ -391,7 +404,7 @@ class GameComponentInitializer extends BaseManager {
       this.server.gameDataLoader = new GameDataLoader(this.server);
       if (!this.server.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
       this.logger.log('DEBUG', '\n');
-      if (this.logger.logLevel === 'DEBUG') { // Check if log level is DEBUG
+      if (this.logger.logLevel === 'DEBUG') {
         this.logger.log('DEBUG', 'VERIFYING GAME DATA:');
         const gameDataVerifier = new GameDataVerifier(this.server.databaseManager);
         const verifiedData = await gameDataVerifier.validateGameData();
@@ -413,9 +426,9 @@ class GameManager {
   #isRunning = false;
   #combatManager;
   constructor({ eventEmitter }) {
-    this.players = new Map(); // Use Map for efficient player management
-    this.locations = new Map(); // Efficient location management
-    this.npcs = new Map(); // Efficient NPC management
+    this.players = new Map();
+    this.locations = new Map();
+    this.npcs = new Map();
     this.#combatManager = new CombatManager(this);
     this.eventEmitter = eventEmitter;
     this.eventEmitter.on("tick", this._gameTick.bind(this));
@@ -435,9 +448,9 @@ class GameManager {
       for (const player of this.players.values()) {
         player.save();
       }
-      this.server.socketEventManager.cleanup(); // Call cleanup on SocketEventManager
-      this.server.databaseManager.cleanup(); // Call cleanup on DatabaseManager
-      this.server.queueManager.cleanup(); // Call cleanup on QueueManager
+      this.server.socketEventManager.cleanup();
+      this.server.databaseManager.cleanup();
+      this.server.queueManager.cleanup();
       this.server.socketEventManager.server.io.close(() => {
         this.server.logger.info('All socket connections closed.');
         process.exit(0);
@@ -482,7 +495,7 @@ class GameManager {
       MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
     }
     entity.currentLocation = newLocationId;
-    if (!newLocation) return; // Early return if newLocation is not found
+    if (!newLocation) return;
     newLocation.addEntity(entity, "players");
     MessageManager.notifyEnteringLocation(entity, newLocationId);
     const direction = DirectionManager.getDirectionFrom(oldLocationId);
@@ -497,7 +510,7 @@ class GameManager {
   }
   _updatePlayerAffects() {
     this.players.forEach(player => {
-      if (player.hasChangedState()) { // Check if player has changed state
+      if (player.hasChangedState()) {
         player.checkAndRemoveExpiredAffects();
       }
     });
@@ -526,8 +539,8 @@ class GameDataLoader {
   constructor(server) {
     this.server = server;
   }
-  async fetchGameData() { // Renamed from 'loadGameData' to 'fetchGameData'
-    const { logger, databaseManager } = this.server; // Destructure server
+  async fetchGameData() {
+    const { logger, databaseManager } = this.server;
     logger.info(`\nStarting game data loading.`);
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' };
     const loadData = async (loadFunction, type) => {
@@ -563,12 +576,12 @@ class GameDataVerifier {
   constructor(databaseManager) {
     this.databaseManager = databaseManager;
   }
-  async validateGameData() { // Renamed from 'verifyData' to 'validateGameData'
+  async validateGameData() {
     const locationData = await this.databaseManager.loadLocationData();
     const npcData = await this.databaseManager.loadNpcData();
     const itemData = await this.databaseManager.loadItemData();
     const verifiedData = { locationData, npcData, itemData };
-    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`); // Updated to stringify
+    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`);
   }
 }
 // Object Pool ************************************************************************************
@@ -620,18 +633,21 @@ class QueueManager {
     this.processQueue();
   }
   processQueue() {
-    if (this.isProcessing) return;
+    if (this.isProcessing || this.queue.length === 0) return;
     this.isProcessing = true;
-    while (this.queue.length > 0) {
-      const task = this.queue.shift();
-      try {
-        task.run();
-      } catch (error) {
-        console.error(`ERROR processing task: ${error.message}`);
+    const processNextTask = async () => {
+      while (this.queue.length > 0) {
+        const task = this.queue.shift();
+        try {
+          await task.run();
+        } catch (error) {
+          console.error(`ERROR processing task: ${error.message}`);
+        }
       }
-    }
-    this.isProcessing = false;
-    this.cleanup();
+      this.isProcessing = false;
+      this.cleanup();
+    };
+    processNextTask();
   }
   addDataLoadTask(filePath, key) {
     const task = this.objectPool.acquire();
@@ -698,7 +714,6 @@ class QueueManager {
   cleanup() {
     this.queue = [];
     this.isProcessing = false;
-    this.objectPool = null; // Clear object pool reference
   }
 }
 // Config Class ************************************************************************************
@@ -706,76 +721,75 @@ class Config {
   async loadConfig() {
     console.log(`\nSTARTING LOAD CONFIGURATION SETTINGS:`);
     try {
-      this.CONFIG = await import('./config.js').then(module => module.default); // Ensure CONFIG is loaded correctly
+      this.CONFIG = await import('./config.js').then(module => module.default);
       console.log(`LOAD CONFIGURATION SETTINGS FINISHED.`);
-      //console.log('Loaded CONFIG:', this.CONFIG); // Debugging log
     } catch (error) {
-      console.error(`ERROR LOADING CONFIG: ${error.message}`); // Log the error
+      console.error(`ERROR LOADING CONFIG: ${error.message}`);
     }
   }
   get SSL_KEY_PATH() {
-    return this.CONFIG?.SSL_KEY_PATH; // Use optional chaining
+    return this.CONFIG?.SSL_KEY_PATH;
   }
   get SSL_CERT_PATH() {
-    return this.CONFIG?.SSL_CERT_PATH; // Use optional chaining
+    return this.CONFIG?.SSL_CERT_PATH;
   }
   get HOST() {
-    return this.CONFIG?.HOST; // Use optional chaining
+    return this.CONFIG?.HOST;
   }
   get PORT() {
-    return this.CONFIG?.PORT; // Use optional chaining
+    return this.CONFIG?.PORT;
   }
   get LOG_LEVEL() {
     if (!this.CONFIG) throw new Error('CONFIG is not loaded');
     return this.CONFIG?.LOG_LEVEL;
   }
   get LOG_FILE_PATH() {
-    return this.CONFIG?.LOG_FILE_PATH; // Use optional chaining
+    return this.CONFIG?.LOG_FILE_PATH;
   }
   get LOG_MAX_FILE_SIZE() {
-    return this.CONFIG?.LOG_MAX_FILE_SIZE; // Use optional chaining
+    return this.CONFIG?.LOG_MAX_FILE_SIZE;
   }
   get PLAYER_DATA_PATH() {
-    return this.CONFIG?.PLAYER_DATA_PATH; // Use optional chaining
+    return this.CONFIG?.PLAYER_DATA_PATH;
   }
   get LOCATION_DATA_PATH() {
-    return this.CONFIG?.LOCATION_DATA_PATH; // Use optional chaining
+    return this.CONFIG?.LOCATION_DATA_PATH;
   }
   get NPC_DATA_PATH() {
-    return this.CONFIG?.NPC_DATA_PATH; // Use optional chaining
+    return this.CONFIG?.NPC_DATA_PATH;
   }
   get ITEM_DATA_PATH() {
-    return this.CONFIG?.ITEM_DATA_PATH; // Use optional chaining
+    return this.CONFIG?.ITEM_DATA_PATH;
   }
   get GAME_DATA_PATH() {
-    return this.CONFIG?.GAME_DATA_PATH; // Use optional chaining
+    return this.CONFIG?.GAME_DATA_PATH;
   }
   get TICK_RATE() {
-    return this.CONFIG?.TICK_RATE; // Use optional chaining
+    return this.CONFIG?.TICK_RATE;
   }
   get NPC_MOVEMENT_INTERVAL() {
-    return this.CONFIG?.NPC_MOVEMENT_INTERVAL; // Use optional chaining
+    return this.CONFIG?.NPC_MOVEMENT_INTERVAL;
   }
   get REGEN_INTERVAL() {
-    return this.CONFIG?.REGEN_INTERVAL; // Use optional chaining
+    return this.CONFIG?.REGEN_INTERVAL;
   }
   get REGEN_RATES() {
-    return this.CONFIG?.REGEN_RATES; // Use optional chaining
+    return this.CONFIG?.REGEN_RATES;
   }
   get LEVEL_UP_XP() {
-    return this.CONFIG?.LEVEL_UP_XP; // Use optional chaining
+    return this.CONFIG?.LEVEL_UP_XP;
   }
   get INVENTORY_CAPACITY() {
-    return this.CONFIG?.INVENTORY_CAPACITY; // Use optional chaining
+    return this.CONFIG?.INVENTORY_CAPACITY;
   }
   get RESET() {
-    return this.CONFIG?.RESET; // Use optional chaining
+    return this.CONFIG?.RESET;
   }
   get RED() {
-    return this.CONFIG?.RED; // Use optional chaining
+    return this.CONFIG?.RED;
   }
   get MAGENTA() {
-    return this.CONFIG?.MAGENTA; // Use optional chaining
+    return this.CONFIG?.MAGENTA;
   }
 }
 // Start the server *******************************************************************************
