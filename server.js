@@ -106,13 +106,14 @@ class SocketEventManager extends BaseManager {
     }
   }
   handleAction(socket, { type, content, targetId, actionType, payload }) {
+    let locationId = null;
     if (type) {
       switch (type) {
         case 'public':
           this.server.io.emit('receiveMessage', { senderId: socket.id, content });
           break;
         case 'semiPublic':
-          const locationId = this.server.gameManager.getPlayerLocation(socket.id);
+          locationId = this.server.gameManager.getPlayerLocation(socket.id);
           this.server.io.to(locationId).emit('receiveMessage', { senderId: socket.id, content });
           break;
         case 'private':
@@ -161,7 +162,7 @@ class SocketEventManager extends BaseManager {
  * server to function. It ensures that all required modules are loaded before the server starts.
 */
 class ModuleImporter extends BaseManager {
-  constructor({ logger, server }) {
+  constructor({ server }) {
     super({ server, logger });
   }
   async loadModules() {
@@ -206,7 +207,6 @@ class ModuleImporter extends BaseManager {
 class ServerConfigurator extends BaseManager { // Extend BaseManager
   constructor({ config, logger, server, socketEventManager }) {
     super({ server, logger }); // Call the parent constructor
-    const { SSL_CERT_PATH, SSL_KEY_PATH } = config; // Destructure config
     this.config = config;
     this.socketEventManager = socketEventManager;
     this.server.app = null;
@@ -258,7 +258,7 @@ class ServerConfigurator extends BaseManager { // Extend BaseManager
       return;
     }
     this.server.app.use(this.server.express.static('public'));
-    this.server.app.use((err, req, res, next) => {
+    this.server.app.use((err, res ) => {
       this.logger.error(err.message, { error: err });
       res.status(500).send('An unexpected error occurred. Please try again later.');
     });
@@ -266,18 +266,23 @@ class ServerConfigurator extends BaseManager { // Extend BaseManager
 }
 // Logger Interface ********************************************************************************
 class ILogger {
-  log(level, message) {}
-  debug(message) {}
-  info(message) {}
-  warn(message) {}
-  error(message) {}
+  log() {}
+  debug() {}
+  info() {}
+  warn() {}
+  error() {}
 }
 // Database Manager Interface ************************************************************************
 class IDatabaseManager {
-  async loadLocationData() {}
-  async loadNpcData() {}
-  async loadItemData() {}
-  async saveData(filePath, key, data) {}
+  constructor({ server, logger }) {
+    this.server = server; // Store server reference
+    this.logger = logger; // Store logger reference
+  }
+  async loadLocationData() {} // Method to load location data
+  async loadNpcData() {} // Method to load NPC data
+  async loadItemData() {} // Method to load item data
+  async saveData(filePath, key, data) {} // Method to save data
+  async initialize() {} // New method for initialization
 }
 // Event Emitter Interface *************************************************************************
 class IEventEmitter {
@@ -290,10 +295,6 @@ class Logger extends ILogger {
   constructor(config) {
     super();
     this.CONFIG = config; // Initialize CONFIG here
-    this.setLogLevel(this.CONFIG.LOG_LEVEL); // Ensure this method is defined
-  }
-  setLogLevel(level) { // Add this method
-    this.logLevel = level; // Store the log level
   }
   log(level, message) {
     const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : `${message}`;
@@ -337,7 +338,7 @@ class EventEmitter extends IEventEmitter {
   }
 }
 // DatabaseManager Class ****************************************************************************
-class DatabaseManager extends BaseManager {
+class DatabaseManager extends IDatabaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
     this.DATA_PATHS = {
@@ -389,7 +390,7 @@ class DatabaseManager extends BaseManager {
 }
 // GameComponentInitializer Class ******************************************************************
 class GameComponentInitializer extends BaseManager {
-  constructor({ server, logger }) {
+  constructor({ server }) {
     super({ server, logger });
   }
   async setupGameComponents() { // Renamed from 'initializeGameComponents' to 'setupGameComponents'
@@ -798,12 +799,12 @@ class Config {
 const config = new Config();
 await config.loadConfig(); // Load config first
 const logger = new Logger(config.CONFIG); // Pass the loaded CONFIG to logger
-const server = new Server({ logger, config }); // Initialize server without moduleImporter
-const moduleImporter = new ModuleImporter({ logger, server }); // Pass server instance
+const server = new Server({ config, logger }); // Initialize server with null moduleImporter
+const moduleImporter = new ModuleImporter({ server }); // Pass server instance
 server.moduleImporter = moduleImporter; // Assign moduleImporter to server
 // Ensure modules are imported before initializing the server
 await server.init(); // Now initialize the server
-const gameComponentInitializer = new GameComponentInitializer({ server, logger });
+const gameComponentInitializer = new GameComponentInitializer({ server });
 await gameComponentInitializer.setupGameComponents();
 // Start listening for incoming connections
 server.server.listen(server.config.PORT, server.config.HOST, () => {
