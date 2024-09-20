@@ -8,7 +8,7 @@ const PORT = 6400;                  // Port number for the server
 const SSL_KEY_PATH = './ssl/server.key'; // Moved SSL key path to config
 const SSL_CERT_PATH = './ssl/server.crt'; // Moved SSL cert path to config
 // Logger Configuration
-const LOG_LEVEL = 'INFO'; // Set the default logger level. Options: DEBUG, INFO, WARN, ERROR
+const LOG_LEVEL = 'DEBUG'; // Set the default logger level. Options: DEBUG, INFO, WARN, ERROR
 const LOG_FILE_PATH = './server logs';     // Path for log files
 const LOG_MAX_FILE_SIZE = 1048576;  // Max file size for logger = 1 MB in bytes
 // File Paths for Game Data
@@ -19,6 +19,7 @@ const ITEM_DATA_PATH = './source code/world data/items'; // Named constant
 const GAME_DATA_PATH = './source code/world data/gameData.json'; // Named constant
 // Game Configuration
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute
+const WORLD_EVENT_INTERVAL = 1440;  //
 const NPC_MOVEMENT_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_RATES = new Map([
@@ -46,6 +47,7 @@ const CONFIG = {
   ITEM_DATA_PATH, // Added to config
   GAME_DATA_PATH, // Added to config
   TICK_RATE,
+  WORLD_EVENT_INTERVAL,
   NPC_MOVEMENT_INTERVAL,
   REGEN_INTERVAL,
   REGEN_RATES,

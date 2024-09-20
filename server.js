@@ -169,8 +169,10 @@ class ModuleImporter extends BaseManager {
     try {
       this.logger.info(`\n`);
       this.logger.info(`STARTING MODULE IMPORTS:`);
-      this.logger.info(`- Importing File System Module`);
       try {
+        this.logger.info(`- Importing Process Module`);
+        await import('process'); // Update the import in loadModules
+        this.logger.info(`- Importing File System Module`);
         const fsModule = await import('fs'); // Corrected import
         this.fs = fsModule.promises; // Access promises property correctly
       } catch (error) {
@@ -281,27 +283,34 @@ class IDatabaseManager {
   async loadLocationData() {} // Method to load location data
   async loadNpcData() {} // Method to load NPC data
   async loadItemData() {} // Method to load item data
-  async saveData(filePath, key, data) {} // Method to save data
+  async saveData() {} // Method to save data
   async initialize() {} // New method for initialization
 }
 // Event Emitter Interface *************************************************************************
 class IEventEmitter {
-  on(event, listener) {}
-  emit(event, ...args) {}
-  off(event, listener) {}
+  on() {}
+  emit() {}
+  off() {}
 }
 // Logger Class ************************************************************************************
 class Logger extends ILogger {
   constructor(config) {
     super();
     this.CONFIG = config; // Initialize CONFIG here
+    this.logLevel = config.LOG_LEVEL; // Store log level from config
   }
   log(level, message) {
-    const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : `${message}`;
-    if (level === 'WARN') {
-      message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
+    if (this.shouldLog(level)) {
+      const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : `${message}`;
+      if (level === 'WARN') {
+        message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
+      }
+      this.writeToConsole(logString);
     }
-    this.writeToConsole(logString);
+  }
+  shouldLog(level) {
+    const levels = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
+    return levels.indexOf(level) >= levels.indexOf(this.logLevel);
   }
   writeToConsole(logString) {
     console.log(logString.trim());
@@ -322,6 +331,7 @@ class Logger extends ILogger {
 // EventEmitter Class ******************************************************************************
 class EventEmitter extends IEventEmitter {
   constructor() {
+    super(); // Call the parent constructor
     this.events = {};
   }
   on(event, listener) {
@@ -407,10 +417,10 @@ class GameComponentInitializer extends BaseManager {
       this.logger.log('DEBUG', '\n');
       if (this.logger.logLevel === 'DEBUG') { // Check if log level is DEBUG
         this.logger.log('DEBUG', 'VERIFYING GAME DATA:');
-        const gameDataVerifier = new GameDataVerifier(this.server.databaseManager);
-        const verifiedData = await gameDataVerifier.validateGameData();
-        this.logger.log('DEBUG', '\n');
-      }
+      const gameDataVerifier = new GameDataVerifier(this.server.databaseManager);
+      await gameDataVerifier.validateGameData();
+      this.logger.log('DEBUG', '\n');
+    }
       this.logger.log('INFO', '- Starting Game Manager');
       this.server.gameManager = new GameManager({ eventEmitter: this.server.eventEmitter });
       if (!this.server.gameManager) throw new Error('GameManager initialization failed!!!');
@@ -436,12 +446,16 @@ class GameManager {
     this.eventEmitter.on("newDay", this._newDayHandler.bind(this));
   }
   startGame() {
+    if (this.isGameRunning()) return; // Prevent starting if already running
     try {
       this.startGameLoop();
       this.#isRunning = true;
     } catch (error) {
       console.log(`ERROR Start game: ${error}`);
     }
+  }
+  isGameRunning() { // New method to check if the game is running
+    return this.#isRunning;
   }
   shutdownGame() {
     try {
@@ -454,7 +468,7 @@ class GameManager {
       this.server.queueManager.cleanup(); // Call cleanup on QueueManager
       this.server.socketEventManager.server.io.close(() => {
         this.server.logger.info('All socket connections closed.');
-        process.exit(0);
+        this.shutdownServer(); // Call a new method to handle server shutdown
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
@@ -463,8 +477,12 @@ class GameManager {
       throw error;
     }
   }
+  async shutdownServer() { // New method for server shutdown
+    const { exit } = await import('process'); // Import exit from process
+    exit(0); // Use exit instead of process.exit
+  }
   startGameLoop() {
-    this.#gameLoopInterval = setInterval(() => this._gameTick(), TICK_RATE);
+    this.#gameLoopInterval = setInterval(() => this._gameTick(), this.server.config.TICK_RATE); // Use config for TICK_RATE
   }
   stopGameLoop() {
     if (this.#gameLoopInterval) {
@@ -522,7 +540,7 @@ class GameManager {
     }
   }
   isTimeForWorldEvent() {
-    return this.#gameTime % WORLD_EVENT_INTERVAL === 0;
+    return this.#gameTime % this.server.config.WORLD_EVENT_INTERVAL === 0; // Use config for WORLD_EVENT_INTERVAL
   }
   triggerWorldEvent() {
     console.log(`A world event has occurred!`);

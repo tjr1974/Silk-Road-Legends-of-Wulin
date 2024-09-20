@@ -164,7 +164,7 @@ class Player extends Character {
     this.notifyPlayer(`Target ${target} not found in location.`); // Use utility method
   }
   moveToLocation(newLocationId) {
-    Utility.notifyPlayerMovement(this, this.currentLocation, newLocationId); // Notify player movement
+    notifyPlayerMovement(this, this.currentLocation, newLocationId); // Notify player movement
   }
   notifyPlayer(message) {
     MessageManager.notify(this, message); // Centralized notification method
@@ -286,7 +286,7 @@ class Player extends Character {
   }
   lookIn(containerName) {
     const location = gameManager.getLocation(this.currentLocation); // Get current location
-    const containerId = this.getContainerId(containerName) || findEntity(containerName, location.items, 'item'); // Get container ID
+    const containerId = getContainerId(containerName, location.items, 'item') || findEntity(containerName, location.items, 'item'); // Get container ID
     if (!containerId) {
       MessageManager.notifyNoContainerHere(this, containerName); // Notify if no container found
       return;
@@ -604,7 +604,7 @@ class PlayerActions {
   attackNpc(target) {
     const location = gameManager.getLocation(this.player.currentLocation); // Get current location
     if (!location) return; // Early return if location is not found
-    const npcId = target ? Utility.getNpcIdByName(target, location.npcs) : this.getAvailableNpcId(location.npcs); // Get NPC ID
+    const npcId = target ? getNpcIdByName(target, location.npcs) : this.getAvailableNpcId(location.npcs); // Get NPC ID
     if (!npcId) {
       if (target) {
         MessageManager.notifyTargetNotFound(this.player, target); // Notify if target NPC is not found
@@ -649,10 +649,10 @@ class InventoryManager {
     this.messageManager = new MessageManager(); // Initialize message manager
   }
   addToInventory(item) {
-    Utility.addToInventory(this.player, item); // Add item to inventory using utility function
+    addToInventory(this.player, item); // Add item to inventory using utility function
   }
   removeFromInventory(item) {
-    Utility.removeFromInventory(this.player, item); // Remove item from inventory using utility function
+    removeFromInventory(this.player, item); // Remove item from inventory using utility function
   }
   getAllItemsFromSource(source, sourceType, containerName) {
     if (source && source.length > 0) {
@@ -693,7 +693,7 @@ class InventoryManager {
     }
   }
   getSingleItemFromLocation(target1) {
-    const itemId = Utility.findEntity(target1, location[this.player.currentLocation].items, 'item'); // Find item in location
+    const itemId = findEntity(target1, location[this.player.currentLocation].items, 'item'); // Find item in location
     if (itemId) {
       this.transferItem(itemId, location[this.player.currentLocation], 'location'); // Transfer item from location to player
     } else {
@@ -704,7 +704,7 @@ class InventoryManager {
     this.dropItems(this.player.inventory, 'all'); // Drop all items from inventory
   }
   dropAllSpecificItems(itemType) {
-    const itemsToDrop = this.player.inventory.filter(item => Utility.itemMatchesType(item, itemType)); // Filter items by type
+    const itemsToDrop = this.player.inventory.filter(item => itemMatchesType(item, itemType)); // Filter items by type
     this.dropItems(itemsToDrop, 'specific', itemType); // Drop specific items
   }
   dropSingleItem(target1) {
@@ -748,10 +748,10 @@ class InventoryManager {
       this.messageManager.notify(this.player, error); // Notify container error
       return;
     }
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
+    const containerId = findEntity(containerName, this.player.inventory, 'item'); // Find container ID
     const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      const itemsToPut = this.player.inventory.filter(item => item !== container && Utility.itemMatchesType(item, itemType)); // Filter items by type
+      const itemsToPut = this.player.inventory.filter(item => item !== container && itemMatchesType(item, itemType)); // Filter items by type
       if (itemsToPut.length === 0) {
         this.messageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name); // Notify if no specific items to put
         return;
@@ -764,7 +764,7 @@ class InventoryManager {
   getAllSpecificItemsFromLocation(itemType) {
     const currentLocation = location[this.player.currentLocation]; // Get current location
     if (currentLocation.items && currentLocation.items.length > 0) {
-      const itemsTaken = currentLocation.items.filter(itemId => Utility.itemMatchesType(items[itemId], itemType)); // Filter items by type
+      const itemsTaken = currentLocation.items.filter(itemId => itemMatchesType(items[itemId], itemType)); // Filter items by type
       if (itemsTaken.length > 0) {
         this.player.inventory.push(...itemsTaken.map(itemId => items[itemId])); // Add items to player's inventory
         currentLocation.items = currentLocation.items.filter(itemId => !itemsTaken.includes(itemId)); // Remove items from location
@@ -782,10 +782,10 @@ class InventoryManager {
       this.messageManager.notify(this.player, error); // Notify container error
       return;
     }
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
+    const containerId = findEntity(containerName, this.player.inventory, 'item'); // Find container ID
     const container = items[containerId]; // Get container instance
     if (container instanceof ContainerItem) {
-      const itemsTaken = container.inventory.filter(itemId => Utility.itemMatchesType(items[itemId], itemType)); // Filter items by type
+      const itemsTaken = container.inventory.filter(itemId => itemMatchesType(items[itemId], itemType)); // Filter items by type
       if (itemsTaken.length > 0) {
         this.player.inventory.push(...itemsTaken.map(itemId => items[itemId])); // Add items to player's inventory
         container.inventory = container.inventory.filter(itemId => !itemsTaken.includes(itemId)); // Remove items from container
@@ -805,7 +805,7 @@ class InventoryManager {
     return null; // No items to loot
   }
   lootNPC(target1) {
-    const npcId = Utility.findEntity(target1, location[this.player.currentLocation].npcs, 'npc'); // Find NPC in location
+    const npcId = findEntity(target1, location[this.player.currentLocation].npcs, 'npc'); // Find NPC in location
     if (npcId) {
       const npc = npcs[npcId]; // Get NPC instance
       if (npc.status === "lying unconscious" || npc.status === "lying dead") {
@@ -848,7 +848,7 @@ class InventoryManager {
     }
   }
   containerErrorMessage(containerName, action) {
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
+    const containerId = findEntity(containerName, this.player.inventory, 'item'); // Find container ID
     if (!containerId) {
       return `${this.player.getName()} doesn't have a ${containerName} to ${action}.`; // Return error message if container not found
     }
@@ -873,7 +873,7 @@ class InventoryManager {
     }
   }
   getContainerId(containerName) {
-    const containerId = Utility.findEntity(containerName, this.player.inventory, 'item'); // Find container ID
+    const containerId = findEntity(containerName, this.player.inventory, 'item'); // Find container ID
     if (!containerId) {
       this.messageManager.notifyNoContainer(this.player, containerName); // Notify if no container found
       return null; // Return null if not found
@@ -892,7 +892,7 @@ class InventoryManager {
     return item; // Return found item or undefined
   }
   transferItem(itemId, source, sourceType) {
-    Utility.transferItem(itemId, source, sourceType, this.player); // Transfer item using utility function
+    transferItem(itemId, source, sourceType, this.player); // Transfer item using utility function
   }
 }
 // Combat Manager *********************************************************************************
@@ -1097,7 +1097,7 @@ class CombatManager {
   attackNpc(player, target1) {
     const location = this.gameManager.getLocation(player.currentLocation); // Get current location
     if (!location) return; // Early return if location is not found
-    const npcId = target1 ? this.gameManager.findEntity(target1, location.npcs, "npc") : this.getAvailableNpcId(location.npcs); // Find NPC by name if specified
+    const npcId = target1 ? findEntity(target1, location.npcs, "npc") : this.getAvailableNpcId(location.npcs); // Find NPC by name if specified
     if (!npcId) {
       if (target1) {
         MessageManager.notifyTargetNotFound(player, target1); // Notify player if target NPC is not found
@@ -1315,12 +1315,5 @@ class MessageManager {
   }
   static notifyDropItem(player, itemName) {
     return this.notifyAction(player, 'drops', itemName, FormatMessageManager.getIdForMessage('dropItem'));
-  }
-  static notifyInventoryStatus(player) {
-    return this.notify(player, `${player.getName()}'s inventory:`, FormatMessageManager.getIdForMessage('inventoryStatus'));
-  }
-  static notifyLootedNPC(player, npc, lootedItems) {
-    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", ");
-    return this.notify(player, `${player.getName()} searches ${npc.getName()} and grabs ${itemsList}`, FormatMessageManager.getIdForMessage('lootAction'));
   }
 }
