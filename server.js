@@ -49,7 +49,7 @@ class Server {
     const isHttps = sslOptions.key && sslOptions.cert;
     const http = isHttps ? await import('https') : await import('http'); // Keep await here
     this.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.app); // Ensure this.server is assigned
-    this.logger.info(`- Server configured using ${isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
+    this.logger.info(`- Configuring Server using ${isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
     return this.server;
   }
   cleanup() {
@@ -240,25 +240,37 @@ class ServerConfigurator extends BaseManager {
     const { logger, server } = this;
     logger.info(`\n`);
     logger.info(`STARTING SERVER CONFIGURATION:`);
+    logger.info(`- Configuring Express`);
     try {
-      await this.setupExpressApp(); // Ensure this method is defined
-      this.configureExpressMiddleware(); // Call the middleware configuration
-      await server.setupHttpServer();
+      await this.setupExpress(); // Ensure this method is defined
     } catch (error) {
       logger.error(`ERROR: During Express configuration: ${error.message}`, { error });
     }
+    logger.info(`- Configuring Server`);
+    try {
+      await server.setupHttpServer();
+    } catch (error) {
+      logger.error(`ERROR: During Http Server configuration: ${error.message}`, { error });
+    }
+    logger.info(`- Configuring Middleware`);
+    try {
+      this.configureMiddleware(); // Call the middleware configuration
+    } catch (error) {
+      logger.error(`ERROR: During Middleware configuration: ${error.message}`, { error });
+    }
+    logger.log('INFO', '- Configuring Queue Manager');
+    try {
+      server.queueManager = new QueueManager();
+    } catch (error) {
+      logger.error(`ERROR during Queue Manager configuration: ${error.message}`, { error });
+    }
+    logger.info(`SERVER CONFIGURATION FINISHED.`);
   }
-  async setupExpressApp() { // Renamed from 'initializeExpress' to 'setupExpressApp'
-    this.logger.log('INFO', '- Initializing Express');
+  async setupExpress() { // Renamed from 'initializeExpress' to 'setupExpressApp'
     this.server.express = (await import('express')).default; // Ensure express is imported correctly
     this.server.app = this.server.express(); // Initialize app here
   }
-  configureExpressMiddleware() { // Removed async
-    this.logger.log('INFO', '- Configuring Express');
-    if (!this.server.app) {
-      this.logger.error('Express app is not initialized.');
-      return;
-    }
+  configureMiddleware() { // Removed async
     this.server.app.use(this.server.express.static('public'));
     this.server.app.use((err, res ) => {
       this.logger.error(err.message, { error: err });
@@ -273,26 +285,25 @@ class GameComponentInitializer extends BaseManager {
   }
   async setupGameComponents() { // Renamed from 'initializeGameComponents' to 'setupGameComponents'
     this.logger.info(`\n`);
-    this.logger.info(`STARTING INITIALIZE GAME COMPONENTS:`);
-    this.logger.log('INFO', '- Configuring Game Component Initializer');
+    this.logger.info(`STARTING GAME COMPONENTS INITIALIZATION:`);
+    this.logger.log('INFO', '- Starting Game Components');
     try {
       this.gameComponentInitializer = new GameComponentInitializer(this);
     } catch (error) {
-      this.logger.error(`ERROR: Game Component Initializer configuration unsuccessful: ${error.message}`, { error });
+      this.logger.error(`ERROR: Starting Game Components unsuccessful: ${error.message}`, { error });
     }
     this.logger.log('INFO', '- Starting Database Manager');
     try {
       this.server.databaseManager = new DatabaseManager({ server: this.server, logger: this.logger });
       await this.server.databaseManager.initialize();
     } catch (error) {
-      this.logger.error(`ERROR: Database Manager configuration unsuccessful: ${error.message}`, { error });
+      this.logger.error(`ERROR: Starting Database Manager unsuccessful: ${error.message}`, { error });
     }
-    this.logger.log('INFO', '- Loading Game Data');
+    this.logger.log('INFO', '- Starting Load Game Data');
     try {
       this.server.gameDataLoader = new GameDataLoader(this.server);
-      if (!this.server.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
     } catch (error) {
-      this.logger.error(`ERROR: GameDataLoader configuration unsuccessful: ${error.message}`, { error });
+      this.logger.error(`ERROR: Starting Load Game Data unsuccessful: ${error.message}`, { error });
     }
     if (this.logger.logLevel === 'DEBUG') { // Check if log level is DEBUG
       this.logger.log('DEBUG', '\n');
@@ -305,9 +316,9 @@ class GameComponentInitializer extends BaseManager {
     try {
       this.server.gameManager = new GameManager({ eventEmitter: this.server.eventEmitter });
     } catch (error) {
-      this.logger.error(`ERROR: GameManager configuration unsuccessful: ${error.message}`, { error });
+      this.logger.error(`ERROR: Starting Game Manager unsuccessful: ${error.message}`, { error });
     }
-    this.logger.info(`GAME COMPONENTS INITIALIZED.`);
+    this.logger.info(`GAME COMPONENTS INITIALIZATION FINISHED.`);
   }
 }
 // Logger Interface *******************************************************************************
