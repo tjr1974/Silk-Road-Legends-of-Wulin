@@ -13,36 +13,46 @@ class CreateNewPlayer {
     player.updateData(playerData); // Update player data
     return player; // Return the created player
   }
-  updateData(updatedData) {
-    if (updatedData.health !== undefined) this.setHealth(updatedData.health); // Update health if provided
-    if (updatedData.experience !== undefined) this.setExperience(updatedData.experience); // Update experience if provided
-    if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
+  async updateData(updatedData) {
+    if (updatedData.health !== undefined) await this.setHealth(updatedData.health); // Await health update if provided
+    if (updatedData.experience !== undefined) await this.setExperience(updatedData.experience); // Await experience update if provided
+    if (updatedData.level !== undefined) await this.setLevel(updatedData.level); // Await level update if provided
   }
 }
-// Character ***************************************************************************************
+// Entity ***************************************************************************************
 /*
- * The Character class represents a character in the game.
- * It contains various properties and methods related to the character's state and actions.
+ * The Entity class is a base class for all entities in the game.
+ * It contains shared properties and methods for characters and players.
 */
-class Character {
+class Entity {
   constructor(name, health) {
-    this.name = name; // Character's name
-    this.health = health; // Character's health
+    this.name = name; // Entity's name
+    this.health = health; // Entity's health
   }
   getName() {
-    return this.name; // Return character's name
+    return this.name; // Return entity's name
   }
   getHealth() {
-    return this.health; // Return character's health
+    return this.health; // Return entity's health
   }
   setHealth(newHealth) {
     this.health = newHealth; // Set new health value
   }
 }
+// Character ***************************************************************************************
+/*
+ * The Character class represents a character in the game.
+ * It extends the Entity class.
+*/
+class Character extends Entity {
+  constructor(name, health) {
+    super(name, health); // Call the parent constructor
+  }
+}
 // Player *****************************************************************************************
 /*
 * The Player class represents a player in the game.
-* It contains various properties and methods related to the player's state and actions.
+* It extends the Character class.
 */
 class Player extends Character {
   #uid; // Unique identifier for the player
@@ -60,7 +70,7 @@ class Player extends Character {
     this.#inventory = new Set(); // Initialize inventory Set
     this.#lastAttacker; // Reference to the last attacker
     this.#colorPreferences; // Player's color preferences
-    this.#healthRegenerator; // Instance of health regenerator for health management
+    this.#healthRegenerator = new HealthRegenerator(this); // Initialize health regenerator
     this.password = ""; // Player's password
     this.description = ""; // Player's description
     this.title = ""; // Player's title
@@ -87,14 +97,17 @@ class Player extends Character {
     this.lastLoginTime = Date.now(); // Timestamp of the last login
     this.totalPlayingTime = 0; // Total time spent playing
     this.colorPreferences = {}; // Object to hold color preferences
-    this.#healthRegenerator = new HealthRegenerator(this); // Initialize health regenerator
     this.previousState = { health: this.health, status: this.status }; // Track previous state
     this.actions = new PlayerActions(this); // Initialize PlayerActions
     this.inventoryManager = new InventoryManager(this); // Initialize InventoryManager
     this.combatActions = new CombatActions(this); // Initialize CombatActions
   }
-  async importConfig() {
-    this.CONFIG = await import('./config.js'); // Direct import of config
+  importConfig() {
+    try {
+      this.CONFIG = import('./config.js'); // Direct import of config
+    } catch (error) {
+      console.error('Failed to import config:', error); // Handle import error
+    }
   }
   getId() {
     return this.#uid; // Return unique identifier
@@ -124,7 +137,8 @@ class Player extends Character {
     return false; // Return false if authentication fails
   }
   attackNpc(target) {
-    this.actions.attackNpc(target); // Delegate to PlayerActions
+    const { currentLocation, actions } = this; // Destructure properties
+    actions.attackNpc(target); // Delegate to PlayerActions
   }
   incrementFailedLoginAttempts() {
     this.failedLoginAttempts++; // Increment failed login attempts
@@ -135,8 +149,8 @@ class Player extends Character {
     }
   }
   showInventory() {
-    const inventoryList = Array.from(this.#inventory).map(item => item.name).join(", "); // Convert Set to Array for display
-    MessageManager.notifyInventoryStatus(this, inventoryList); // Notify player of inventory status
+    const inventoryList = this.getInventoryList(); // Use utility method
+    this.notifyPlayer(inventoryList); // Use utility method
   }
   lootSpecifiedNpc(target) {
     const location = gameManager.getLocation(this.currentLocation); // Get current location
@@ -144,16 +158,16 @@ class Player extends Character {
     const targetLower = target.toLowerCase(); // Convert target name to lowercase
     const targetEntity = location.entities.find(entity => entity.name.toLowerCase() === targetLower); // Find target entity in location
     if (targetEntity) {
-      MessageManager.notifyLootAction(this, targetEntity); // Notify loot action
-    } else {
-      MessageManager.notifyTargetNotFoundInLocation(this, target); // Notify if target is not found in location
+      this.notifyPlayer(`You loot ${targetEntity.name}.`); // Use utility method
+      return; // Early return if target is found
     }
+    this.notifyPlayer(`Target ${target} not found in location.`); // Use utility method
   }
   moveToLocation(newLocationId) {
     Utility.notifyPlayerMovement(this, this.currentLocation, newLocationId); // Notify player movement
   }
-  notify(message) {
-    MessageManager.notify(this, message); // Send notification to player
+  notifyPlayer(message) {
+    MessageManager.notify(this, message); // Centralized notification method
   }
   resetFailedLoginAttempts() {
     this.failedLoginAttempts = 0; // Reset failed login attempts
@@ -161,7 +175,22 @@ class Player extends Character {
     this.lastLoginTime = Date.now(); // Update last login time
   }
   save() {
-    QueueManager.addDataSaveTask(DatabaseManager.PLAYER_DATA_PATH, this.getId(), this); // Add save task to queue
+    const playerData = this.collectPlayerData(); // Collect player data for batch saving
+    QueueManager.addDataSaveTask(DatabaseManager.PLAYER_DATA_PATH, this.getId(), playerData); // Add save task to queue
+  }
+  collectPlayerData() {
+    return {
+      name: this.name,
+      age: this.age,
+      health: this.health,
+      experience: this.experience,
+      level: this.level,
+      // ... add other relevant properties ...
+    }; // Return an object with relevant player data
+  }
+  static async loadBatch(playerIds) {
+    const playerDataArray = await DatabaseManager.loadPlayersData(playerIds); // Load data for multiple players
+    return playerDataArray.map(data => new Player(data.uid, data.name, data.bcrypt)); // Create Player instances from loaded data
   }
   // @ todo: add code for this.
   score() {
@@ -173,11 +202,15 @@ class Player extends Character {
     if (updatedData.experience !== undefined) this.setExperience(updatedData.experience); // Update experience if provided
     if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
   }
-  hashUid() {
-    this.hashedUid = this.#bcrypt.hash(this.#uid, 5); // Hash the unique identifier
+  async hashUid() {
+    try {
+      this.hashedUid = await this.#bcrypt.hash(this.#uid, 5); // Await hashing the unique identifier
+    } catch (error) {
+      console.error('Failed to hash UID:', error); // Handle hashing error
+    }
   }
-  login(inputPassword) {
-    const isAuthenticated = this.authenticate(inputPassword); // Authenticate user
+  async login(inputPassword) {
+    const isAuthenticated = await this.authenticate(inputPassword); // Await authentication
     if (isAuthenticated) {
       MessageManager.notifyLoginSuccess(this); // Notify successful login
       return true; // Return true if login is successful
@@ -216,13 +249,15 @@ class Player extends Character {
   sit() {
     if (this.status === "sitting") {
       MessageManager.notifyAlreadySitting(this); // Notify if already sitting
-    } else if (this.status === "standing") {
+      return; // Early return if already sitting
+    }
+    if (this.status === "standing") {
       this.startHealthRegeneration(); // Start health regeneration
       this.status = "sitting"; // Set status to sitting
       MessageManager.notifySittingDown(this); // Notify sitting down action
-    } else {
-      MessageManager.notifyStoppingMeditation(this); // Notify stopping meditation
+      return; // Early return after sitting down
     }
+    MessageManager.notifyStoppingMeditation(this); // Notify stopping meditation
   }
   stand() {
     if (this.status === "lying unconscious") {
@@ -236,12 +271,14 @@ class Player extends Character {
     if (this.status === "lying unconscious") {
       this.status = "standing"; // Set status to standing
       MessageManager.notifyStandingUp(this); // Notify standing up action
-    } else if (this.status === "sleeping") {
+      return; // Early return after waking up
+    }
+    if (this.status === "sleeping") {
       this.status = "standing"; // Set status to standing
       MessageManager.notifyWakingUp(this); // Notify waking up action
-    } else {
-      MessageManager.notifyAlreadyAwake(this); // Notify if already awake
+      return; // Early return after waking up
     }
+    MessageManager.notifyAlreadyAwake(this); // Notify if already awake
   }
   autoLootToggle() {
     this.autoLoot = !this.autoLoot; // Toggle auto-loot setting
@@ -269,6 +306,9 @@ class Player extends Character {
     }
     return hasChanged; // Return if state has changed
   }
+  getInventoryList() {
+    return Array.from(this.#inventory).map(item => item.name).join(", "); // Centralized inventory list retrieval
+  }
 }
 // Health Regenerator ****************************************************************************
 /*
@@ -282,8 +322,12 @@ class HealthRegenerator {
     this.regenInterval = null; // Interval for health regeneration
     this.importConfig(); // Call method to load config
   }
-  async importConfig() {
-    this.CONFIG = await import('./config.js'); // Direct import of config
+  importConfig() {
+    try {
+      this.CONFIG = import('./config.js'); // Direct import of config
+    } catch (error) {
+      console.error('Failed to import config:', error); // Handle import error
+    }
   }
   start() {
     if (!this.regenInterval) {
@@ -291,14 +335,15 @@ class HealthRegenerator {
     }
   }
   regenerate() {
+    const { health, maxHealth, lastRegenTime } = this.player; // Destructure properties
     const now = Date.now(); // Get current time
-    const timeSinceLastRegen = (now - this.player.lastRegenTime) / 1000; // Calculate time since last regeneration
+    const timeSinceLastRegen = (now - lastRegenTime) / 1000; // Calculate time since last regeneration
     const regenAmount = (this.getRegenAmountPerMinute() / 60) * timeSinceLastRegen; // Calculate regeneration amount
-    if (regenAmount > 0 && this.player.health < this.player.maxHealth) {
-      this.player.health = Math.min(this.player.health + regenAmount, this.player.maxHealth); // Regenerate health
+    if (regenAmount > 0 && health < maxHealth) {
+      this.player.health = Math.min(health + regenAmount, maxHealth); // Regenerate health
       this.player.lastRegenTime = now; // Update last regeneration time
     }
-    if (this.player.health >= this.player.maxHealth) {
+    if (health >= maxHealth) {
       this.stop(); // Stop regeneration if max health is reached
     }
   }
@@ -330,22 +375,23 @@ class LookAt {
     this.player = player; // Reference to the player instance
   }
   look(target) {
-    const location = gameManager.getLocation(this.player.currentLocation); // Get current location
+    const { currentLocation, player } = this; // Destructure properties
+    const location = gameManager.getLocation(currentLocation); // Get current location
     if (!location) return; // Early return if location is not found
     const targetLower = target.toLowerCase(); // Convert target name to lowercase
-    const playerNameLower = this.player.getName().toLowerCase(); // Convert player name to lowercase
+    const playerNameLower = player.getName().toLowerCase(); // Convert player name to lowercase
     if (targetLower === 'self' || targetLower === playerNameLower || playerNameLower.startsWith(targetLower)) {
       this.lookAtSelf(); // Look at self if target is self
       return;
     }
-    const itemInInventory = this.player.inventory.find(item => item.aliases.includes(targetLower)); // Find item in inventory
+    const itemInInventory = player.inventory.find(item => item.aliases.includes(targetLower)); // Find item in inventory
     if (itemInInventory) {
-      MessageManager.notifyLookAtItemInInventory(this.player, itemInInventory); // Notify looking at item in inventory
+      MessageManager.notifyLookAtItemInInventory(player, itemInInventory); // Notify looking at item in inventory
       return;
     }
     const itemInLocation = location.items.find(item => item.aliases.includes(targetLower)); // Find item in location
     if (itemInLocation) {
-      MessageManager.notifyLookAtItemInLocation(this.player, itemInLocation); // Notify looking at item in location
+      MessageManager.notifyLookAtItemInLocation(player, itemInLocation); // Notify looking at item in location
       return;
     }
     const npcId = location.npcs.find(npcId => {
@@ -354,15 +400,15 @@ class LookAt {
     });
     if (npcId) {
       const npc = gameManager.getNpc(npcId); // Get NPC instance
-      MessageManager.notifyLookAtNpc(this.player, npc); // Notify looking at NPC
+      MessageManager.notifyLookAtNpc(player, npc); // Notify looking at NPC
       return;
     }
     const otherPlayer = location.playersInLocation.find(player => player.name.toLowerCase() === targetLower); // Find other player in location
     if (otherPlayer) {
-      MessageManager.notifyLookAtOtherPlayer(this.player, otherPlayer); // Notify looking at other player
+      MessageManager.notifyLookAtOtherPlayer(player, otherPlayer); // Notify looking at other player
       return;
     }
-    MessageManager.notifyTargetNotFoundInLocation(this.player, target); // Notify if target is not found in location
+    MessageManager.notifyTargetNotFoundInLocation(player, target); // Notify if target is not found in location
   }
   lookAtSelf() {
     MessageManager.notifyLookAtSelf(this.player); // Notify looking at self
@@ -376,8 +422,7 @@ class LookAt {
 class UidGenerator {
   static generateUid() {
     const uniqueValue = Date.now() + Math.random(); // Generate a unique value based on time and randomness
-    const hashedUid = bcrypt.hash(uniqueValue.toString(), 5); // Hash the unique value
-    return hashedUid; // Return the hashed UID
+    return bcrypt.hash(uniqueValue.toString(), 5); // Hash the unique value
   }
 }
 // Direction Manager ******************************************************************************
@@ -450,7 +495,7 @@ class Location {
 // NPC ********************************************************************************************
 /*
  * The Npc class is responsible for representing non-player characters in the game.
- * It stores the NPC's ID, name, sex, current health, maximum health, attack power, CSML, aggro, assist, status, current location, aliases, and mobile status.
+ * It extends the Character class.
 */
 class Npc extends Character {
   constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile = false, zones = [], aliases) {
@@ -471,8 +516,12 @@ class Npc extends Character {
     this.previousState = { currHealth, status }; // Track previous state
     if (this.mobile) this.startMovement(); // Start movement if NPC is mobile
   }
-  async importConfig() {
-    this.CONFIG = await import('./config.js'); // Direct import of config
+  importConfig() {
+    try {
+      this.CONFIG = import('./config.js'); // Direct import of config
+    } catch (error) {
+      console.error('Failed to import config:', error); // Handle import error
+    }
   }
   startMovement() {
     setInterval(() => {
@@ -550,11 +599,12 @@ class WeaponItem extends BaseItem {
 class PlayerActions {
   constructor(player) {
     this.player = player; // Reference to the player instance
+    this.messageData = {}; // Reusable message data object
   }
   attackNpc(target) {
     const location = gameManager.getLocation(this.player.currentLocation); // Get current location
     if (!location) return; // Early return if location is not found
-    const npcId = target ? Utility.getNpcIdByName(target, location.npcs) : Utility.getFirstAvailableNpcId(location.npcs); // Get NPC ID
+    const npcId = target ? Utility.getNpcIdByName(target, location.npcs) : this.getAvailableNpcId(location.npcs); // Get NPC ID
     if (!npcId) {
       if (target) {
         MessageManager.notifyTargetNotFound(this.player, target); // Notify if target NPC is not found
@@ -567,10 +617,15 @@ class PlayerActions {
     if (!npc) return; // Early return if NPC is not found
     if (npc.isUnconsciousOrDead()) {
       MessageManager.notifyNpcAlreadyInStatus(this.player, npc); // Notify if NPC is already in a specific status
-      return; // Early return if NPC is already in a specific status
+    } else {
+      this.startCombat(npcId, this.player, true); // Start combat with the NPC
     }
-    CombatManager.startCombat(npcId, this.player, !target); // Start combat with the NPC
-    MessageManager.notifyPlayersInLocation(this.player.currentLocation, MessageManager.notifyCombatInitiation(this.player, npc.getName())); // Notify players of combat initiation
+  }
+  getAvailableNpcId(npcs) {
+    return npcs.find(id => {
+      const npc = this.gameManager.getNpc(id);
+      return npc && !npc.isUnconsciousOrDead(); // Check if NPC is available for combat
+    });
   }
 }
 // Combat Actions Class ***************************************************************************
@@ -841,13 +896,8 @@ class InventoryManager {
   }
 }
 // Combat Manager *********************************************************************************
-/*
-* The CombatManager class is responsible for managing combat between the player and NPCs.
-* It handles the initiation, execution, and termination of combat, as well as the generation
-* of combat messages and the handling of combat outcomes.
-*/
 class CombatManager {
-  #combatOrder = new Set(); // Set to track combat order
+  #combatOrder = new Map(); // Map to track combat order
   #defeatedNpcs = new Set(); // Set to track defeated NPCs
   #combatInitiatedNpcs = new Set(); // Set to track initiated combat NPCs
   constructor(gameManager) {
@@ -908,7 +958,7 @@ class CombatManager {
   startCombat(npcId, player, playerInitiated) {
     const npc = this.gameManager.getNpc(npcId); // Get NPC instance
     if (!npc || this.#combatOrder.has(npcId)) return; // Return if NPC not found or already in combat
-    this.#combatOrder.add(npcId); // Add NPC to combat order
+    this.#combatOrder.set(npcId, { state: 'engaged' }); // Add NPC to combat order
     player.status !== "in combat"
       ? this.initiateCombat(player, npc, playerInitiated) // Initiate combat if player is not in combat
       : this.notifyCombatJoin(npc, player); // Notify if player joins combat
@@ -1045,12 +1095,9 @@ class CombatManager {
     return FormatMessageManager.createMessageData(descriptions[outcome] || `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`); // Return combat description
   }
   attackNpc(player, target1) {
-    // Initiates an attack on the specified NPC by the player
-    const location = this.gameManager.getLocation(player.currentLocation);
+    const location = this.gameManager.getLocation(player.currentLocation); // Get current location
     if (!location) return; // Early return if location is not found
-    const npcId = target1
-      ? this.gameManager.findEntity(target1, location.npcs, "npc") // Find NPC by name if specified
-      : this.getAvailableNpcId(location.npcs); // Get available NPC ID if no target specified
+    const npcId = target1 ? this.gameManager.findEntity(target1, location.npcs, "npc") : this.getAvailableNpcId(location.npcs); // Find NPC by name if specified
     if (!npcId) {
       if (target1) {
         MessageManager.notifyTargetNotFound(player, target1); // Notify player if target NPC is not found
@@ -1059,7 +1106,7 @@ class CombatManager {
       }
       return; // Early return if no NPC found
     }
-    const npc = this.gameManager.getNpc(npcId);
+    const npc = this.gameManager.getNpc(npcId); // Get NPC instance
     if (!npc) return; // Early return if NPC is not found
     if (npc.isUnconsciousOrDead()) {
       MessageManager.notifyNpcAlreadyInStatus(player, npc); // Notify player if NPC is already in a non-combat state
@@ -1079,7 +1126,7 @@ class CombatManager {
     return this.#combatOrder; // Return the set of NPCs in combat order
   }
   getNextNpcInCombatOrder() {
-    return Array.from(this.#combatOrder)[0]; // Returns the first NPC in combat order
+    return Array.from(this.#combatOrder.keys())[0]; // Returns the first NPC in combat order
   }
   notifyPlayersInLocation(locationId, content) {
     MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(locationId), content);
@@ -1127,6 +1174,7 @@ class CombatManager {
 class DescribeLocationManager {
   constructor(player) {
     this.player = player; // Reference to the player instance
+    this.description = {}; // Reusable description object
   }
   describe() {
     const location = gameManager.getLocation(this.player.currentLocation); // Get current location
@@ -1134,8 +1182,8 @@ class DescribeLocationManager {
       MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`); // Notify if location is unknown
       return;
     }
-    const description = this.formatDescription(location); // Format location description
-    MessageManager.notify(this.player, description); // Send description to player
+    this.description = this.formatDescription(location); // Format location description
+    MessageManager.notify(this.player, this.description); // Send description to player
   }
   formatDescription(location) {
     const title = { cssid: `location-title`, text: location.getName() }; // Title of the location
@@ -1233,252 +1281,46 @@ class FormatMessageManager {
   }
 }
 // Message Manager ********************************************************************************
-/*
- * The MessageManager class is responsible for handling communication of messages to players within the
- * game. This centralizes message handling, ensuring consistency in how messages are constructed,
- * and sent to players. Centralizing all messages in one place is convenient for editing
- * purposes. Each method formats the message with cssid. This is used by the client to style HTML
- * elements. It also includes methods for notifying players in specific locations, handling errors,
- * and managing inventory notifications.
-*/
 class MessageManager {
-  static socket; // Add a static socket property
+  static socket;
   static setSocket(socketInstance) {
-    this.socket = socketInstance; // Method to set the socket instance
+    this.socket = socketInstance; // Set socket instance
   }
   static notify(player, message, cssid = '') {
-    console.log(`Message to ${player.getName()}: ${message}`); // Log message to player
-    const messageData = FormatMessageManager.createMessageData(cssid, message); // Create message data using FormatMessageManager
+    console.log(`Message to ${player.getName()}: ${message}`); // Log message
+    const messageData = FormatMessageManager.createMessageData(cssid, message); // Create message data
     if (this.socket) {
-      this.socket.emit('message', { playerId: player.getId(), messageData }); // Emit message to client
+      this.socket.emit('message', { playerId: player.getId(), messageData }); // Emit message
     }
     return messageData; // Return message data
   }
-  // Notification Methods *************************************************************************
-  static notify(player, message, cssid = '') {
-    console.log(`Message to ${player.getName()}: ${message}`); // Log message to player
-    return FormatMessageManager.createMessageData(cssid, message); // Create message data using FormatMessageManager
+  static notifyPlayersInLocation(location, message) {
+    if (!location || !location.playersInLocation) return;
+    location.playersInLocation.forEach(player => this.notify(player, message));
   }
-  // Login Notifications **************************************************************************
+  static notifyAction(player, action, targetName, cssid) {
+    return this.notify(player, `${player.getName()} ${action} ${targetName}.`, cssid);
+  }
   static notifyLoginSuccess(player) {
-    return this.notify(player, `${player.getName()} has logged in successfully!`, FormatMessageManager.getIdForMessage('loginSuccess')); // Notify player of successful login
+    return this.notifyAction(player, 'has logged in successfully!', '', FormatMessageManager.getIdForMessage('loginSuccess'));
   }
   static notifyIncorrectPassword(player) {
-    return this.notify(player, `Incorrect password. Please try again.`, FormatMessageManager.getIdForMessage('incorrectPassword')); // Notify player of incorrect password
+    return this.notify(player, `Incorrect password. Please try again.`, FormatMessageManager.getIdForMessage('incorrectPassword'));
   }
   static notifyDisconnectionDueToFailedAttempts(player) {
-    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, FormatMessageManager.getIdForMessage('disconnectionFailedAttempts')); // Notify player of disconnection
-  }
-  // Player Notifications *************************************************************************
-  static notifyPlayersInLocation(location, message) {
-    if (!location || !location.playersInLocation) return; // Return if location or players are not found
-    location.playersInLocation.forEach(player => {
-      this.notify(player, message); // Notify each player in location
-    });
-  }
-  // Inventory Notifications **********************************************************************
-  static notifyInventoryStatus(player) {
-    return this.notify(player, `${player.getName()}'s inventory:`, FormatMessageManager.getIdForMessage('inventoryStatus')); // Notify player of inventory status
+    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, FormatMessageManager.getIdForMessage('disconnectionFailedAttempts'));
   }
   static notifyPickupItem(player, itemName) {
-    return this.notify(player, `${player.getName()} picks up ${itemName}.`, FormatMessageManager.getIdForMessage('pickupItem')); // Notify player of item pickup
+    return this.notifyAction(player, 'picks up', itemName, FormatMessageManager.getIdForMessage('pickupItem'));
   }
   static notifyDropItem(player, itemName) {
-    return this.notify(player, `${player.getName()} drops ${itemName}.`, FormatMessageManager.getIdForMessage('dropItem')); // Notify player of item drop
+    return this.notifyAction(player, 'drops', itemName, FormatMessageManager.getIdForMessage('dropItem'));
   }
-  static notifyInventoryFull(player) {
-    return this.notify(player, `${player.getName()}'s inventory is full.`, FormatMessageManager.getIdForMessage('inventoryFull')); // Notify player of full inventory
-  }
-  static notifyItemNotFoundInInventory(player) {
-    return this.notify(player, `Item not found in ${player.getName()}'s inventory.`, FormatMessageManager.getIdForMessage('itemNotFoundInInventory')); // Notify player of item not found
-  }
-  static notifyInvalidItemAddition(player, itemName) {
-    return this.notify(player, `Cannot add invalid item: ${itemName}`, FormatMessageManager.getIdForMessage('invalidItemAddition')); // Notify player of invalid item addition
-  }
-  // Combat Notifications *************************************************************************
-  static notifyCombatInitiation(attacker, defenderName) {
-    return this.notify(attacker, `${attacker.getName()} attacks ${defenderName}.`, FormatMessageManager.getIdForMessage('combatInitiation')); // Notify combat initiation
-  }
-  static notifyCombatJoin(npc, player) {
-    return this.notify(null, `${npc.getName()} attacks ${player.getName()}!`, FormatMessageManager.getIdForMessage('combatJoin')); // Notify combat join
-  }
-  static createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage) {
-    return FormatMessageManager.createMessageData(
-      '',
-      `${player.getName()}: ${playerHealthPercentage.toFixed(2)}% | ${npc.getName()}: ${npcHealthPercentage.toFixed(2)}%` // Create health status message
-    );
-  }
-  static notifyDefeat(player, defeatingNpcName) {
-    return this.notify(player, `${player.getName()} has been defeated by ${defeatingNpcName}.`, FormatMessageManager.getIdForMessage('defeat')); // Notify player of defeat
-  }
-  static notifyVictory(player, defeatedNpcName) {
-    return this.notify(player, `${player.getName()} has defeated ${defeatedNpcName}!`, FormatMessageManager.getIdForMessage('victory')); // Notify player of victory
-  }
-  static notifyCombatActionMessage(player, message) {
-    return this.notify(player, message, FormatMessageManager.getIdForMessage('combatActionMessage')); // Notify player of combat action
-  }
-  static notifyNpcAlreadyInStatus(player, npc) {
-    const pronoun = npc.getPronoun(); // Get NPC pronoun
-    return this.notify(player, `${npc.getName()} is already ${npc.getStatus()}. It would be dishonorable to attack ${pronoun} now.`); // Notify player of NPC status
-  }
-  // Inventory Notifications **********************************************************************
-  static notifyNoItemInContainer(player, itemName, containerName) {
-    return this.notify(player, `There doesn't seem to be any ${itemName} in the ${containerName}.`); // Notify player of no item in container
-  }
-  static notifyNoItemHere(player, itemName) {
-    return this.notify(player, `There doesn't seem to be any ${itemName} here.`); // Notify player of no item here
-  }
-  static notifyNoItemToDrop(player, itemName) {
-    return this.notify(player, `${player.getName()} doesn't seem to have any ${itemName}'s to drop.`); // Notify player of no item to drop
-  }
-  static notifyItemPutInContainer(player, itemName, containerName) {
-    return this.notify(player, `${player.getName()} places a ${itemName} into a ${containerName}.`); // Notify player of item placement in container
-  }
-  static notifyNoItemsToPut(player, containerName) {
-    return this.notify(player, `${player.getName()} has nothing to put in the ${containerName}.`); // Notify player of no items to put
-  }
-  static notifyItemsPutInContainer(player, items, containerName) {
-    const itemsList = items.map(item => item.name).join(", "); // Create list of item names
-    return this.notify(player, `${player.getName()} places the following items into the ${containerName}: ${itemsList}`); // Notify player of items placed in container
-  }
-  static notifyNoSpecificItemsToPut(player, itemType, containerName) {
-    return this.notify(player, `${player.getName()} has no ${itemType} to put in the ${containerName}.`); // Notify player of no specific items to put
-  }
-  static notifyItemsTaken(player, items) {
-    const itemsList = items.map(item => item.name).join(", "); // Create list of item names
-    return this.notify(player, `${player.getName()} picks up: ${itemsList}`); // Notify player of items taken
-  }
-  static notifyNoSpecificItemsHere(player, itemType) {
-    return this.notify(player, `There doesn't seem to be any ${itemType} here.`); // Notify player of no specific items here
-  }
-  static notifyNoItemsHere(player, itemType) {
-    return this.notify(player, `There doesn't seem to be any ${itemType} to take here.`); // Notify player of no items here
-  }
-  static notifyItemsTakenFromContainer(player, items, containerName) {
-    const itemsList = items.map(itemId => items[itemId].name).join(", "); // Create list of item names
-    return this.notify(player, `${player.getName()} retrieves the following items from a ${containerName}: ${itemsList}`); // Notify player of items taken from container
-  }
-  static notifyNoSpecificItemsInContainer(player, itemType, containerName) {
-    return this.notify(player, `There doesn't seem to be any ${itemType} in the ${containerName}.`); // Notify player of no specific items in container
-  }
-  static createAutoLootMessage(player, npc, lootedItems) {
-    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", "); // Create list of looted item names
-    return `${player.getName()} searches ${npc.getName()} and grabs: ${itemsList}`; // Create auto loot message
+  static notifyInventoryStatus(player) {
+    return this.notify(player, `${player.getName()}'s inventory:`, FormatMessageManager.getIdForMessage('inventoryStatus'));
   }
   static notifyLootedNPC(player, npc, lootedItems) {
-    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", "); // Create list of looted item names
-    return this.notify(player, `${player.getName()} searches ${npc.getName()} and grabs ${itemsList}`); // Notify player of looted NPC
-  }
-  static notifyNothingToLoot(player, npc) {
-    return this.notify(player, `${player.getName()} searches diligently, but finds nothing worth looting from ${npc.getName()}.`); // Notify player of nothing to loot
-  }
-  static notifyCannotLootNPC(player, npc) {
-    return this.notify(player, `${npc.getName()} is not unconscious or dead. ${player.getName()} it would be dishonorable to loot them.`); // Notify player of looting restrictions
-  }
-  static notifyNoNPCToLoot(player, target) {
-    return this.notify(player, `There doesn't seem to be any ${target} here to loot.`); // Notify player of no NPC to loot
-  }
-  static notifyNoNPCsToLoot(player) {
-    return this.notify(player, `There doesn't seem to be anyone here to loot.`); // Notify player of no NPCs to loot
-  }
-  static notifyLootedAllNPCs(player, lootedNPCs, lootedItems) {
-    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", "); // Create list of looted item names
-    return this.notify(player, `${player.getName()} searches ${lootedNPCs.join(", ")} and grabs: ${itemsList}`); // Notify player of looted NPCs
-  }
-  static notifyNothingToLootFromNPCs(player) {
-    return this.notify(player, `${player.getName()} searches diligently, but finds nothing worth looting.`); // Notify player of nothing to loot from NPCs
-  }
-  static notifyItemsDropped(player, items) {
-    const itemsList = items.map(item => item.name).join(", "); // Create list of item names
-    return this.notify(player, `${player.getName()} drops: ${itemsList}`); // Notify player of items dropped
-  }
-  static notifyNoItemsToDrop(player, type, itemType) {
-    const itemTypeText = type === 'all' ? 'items' : itemType; // Determine item type text
-    return this.notify(player, `${player.getName()} has no ${itemTypeText} to drop.`); // Notify player of no items to drop
-  }
-  static notifyNoContainer(player, containerName) {
-    return this.notify(player, `${player.getName()} doesn't seem to have any ${containerName}.`); // Notify player of no container
-  }
-  static notifyNotAContainer(player, itemName, action) {
-    return this.notify(player, `The ${itemName} is not a container.`); // Notify player of non-container item
-  }
-  static notifyItemNotInInventory(player, itemName, location) {
-    return this.notify(player, `${player.getName()} doesn't seem to have any ${itemName} in ${player.getPossessivePronoun()} inventory.`); // Notify player of item not in inventory
-  }
-  static notifyItemTaken(player, itemName) {
-    return this.notify(player, `${player.getName()} grabs a ${itemName}.`); // Notify player of item taken
-  }
-  // Look Notifications ***************************************************************************
-  static notifyLookAtSelf(player) { // New method for looking at self
-    return this.notify(player, `${player.getName()} looks at themselves, feeling a sense of self-awareness.`, FormatMessageManager.getIdForMessage('lookAtSelf')); // Notify player of self-examination
-  }
-  static notifyLookAtItemInInventory(player, item) {
-    return this.notify(player, `${player.getName()} looks at ${item.name} in their inventory.`, FormatMessageManager.getIdForMessage('lookAtItem')); // Notify player of item in inventory
-  }
-  static notifyLookAtItemInLocation(player, item) {
-    return this.notify(player, `${player.getName()} looks at the ${item.name} lying here.`, FormatMessageManager.getIdForMessage('lookAtItem')); // Notify player of item in location
-  }
-  static notifyLookAtNpc(player, npc) {
-    return this.notify(player, `${player.getName()} looks at ${npc.getName()}, who is currently ${npc.status}.`, FormatMessageManager.getIdForMessage('lookAtNpc')); // Notify player of NPC status
-  }
-  static notifyLookAtOtherPlayer(player, otherPlayer) {
-    return this.notify(player, `${player.getName()} looks at ${otherPlayer.getName()}, who is currently ${otherPlayer.getStatus()}.`, FormatMessageManager.getIdForMessage('lookAtOtherPlayer')); // Notify player of other player's status
-  }
-  static notifyLookInContainer(player, containerName, items) {
-    const itemsList = items.length > 0 ? items.join(", ") : 'nothing.'; // Create list of items or indicate nothing
-    return this.notify(player, `You look inside the ${containerName} and see: ${itemsList}`); // Notify player of container contents
-  }
-  static notifyNoContainerHere(player, containerName) {
-    return this.notify(player, `You don't see a ${containerName} here.`); // Notify player of no container
-  }
-  static notifyNotAContainer(player, containerName) {
-    return this.notify(player, `The ${containerName} is not a container.`); // Notify player of non-container item
-  }
-  // Status Notifications *************************************************************************
-  static notifyMeditationAction(player) {
-    return this.notify(player, `${player.getName()} starts meditating.`, FormatMessageManager.getIdForMessage('meditationAction')); // Notify player of meditation action
-  }
-  static notifyMeditationStart(player) {
-    return this.notify(player, `${player.getName()} is now meditating.`, FormatMessageManager.getIdForMessage('meditationStart')); // Notify player of meditation start
-  }
-  static notifySleepAction(player) {
-    return this.notify(player, `${player.getName()} goes to sleep.`, FormatMessageManager.getIdForMessage('sleepAction')); // Notify player of sleep action
-  }
-  static notifyStandingUp(player) {
-    return this.notify(player, `${player.getName()} stands up.`, FormatMessageManager.getIdForMessage('standingUp')); // Notify player of standing up
-  }
-  static notifyWakingUp(player) {
-    return this.notify(player, `${player.getName()} wakes up.`, FormatMessageManager.getIdForMessage('wakingUp')); // Notify player of waking up
-  }
-  static notifyAlreadySitting(player) {
-    return this.notify(player, `${player.getName()} is already sitting.`, FormatMessageManager.getIdForMessage('alreadySitting')); // Notify player of already sitting
-  }
-  static notifyAlreadyStanding(player) {
-    return this.notify(player, `${player.getName()} is already standing.`, FormatMessageManager.getIdForMessage('alreadyStanding')); // Notify player of already standing
-  }
-  // Location Notifications ***********************************************************************
-  static notifyLeavingLocation(player, oldLocationId, newLocationId) {
-    const direction = DirectionManager.getDirectionTo(newLocationId); // Use DirectionManager directly
-    return this.notify(player, `${player.getName()} travels ${direction}.`, FormatMessageManager.getIdForMessage('leavingLocation')); // Notify player of leaving location
-  }
-  static notifyEnteringLocation(player, newLocationId) {
-    const direction = DirectionManager.getDirectionFrom(newLocationId); // Use DirectionManager directly
-    return this.notify(player, `${player.getName()} arrives ${direction}.`, FormatMessageManager.getIdForMessage('enteringLocation')); // Notify player of entering location
-  }
-  // Log Error Notifications **********************************************************************
-  static notifyDataLoadError(manager, key, error) {
-    console.error(`Error loading data for ${key}: ${error.message}`); // Log data load error
-  }
-  static notifyDataSaveError(manager, filePath, error) {
-    console.error(`Error saving data to ${filePath}: ${error.message}`); // Log data save error
-  }
-  static notifyError(manager, message) {
-    console.error(`Error: ${message}`); // Log general error
-  }
-  static notifyNpcDeparture(npc, direction) {
-    return this.notify(null, `${npc.getName()} travels ${direction}.`); // Notify players of NPC departure
-  }
-  static notifyNpcArrival(npc, direction) {
-    return this.notify(null, `${npc.getName()} arrives ${direction}.`); // Notify players of NPC arrival
+    const itemsList = lootedItems.map(itemId => items[itemId].name).join(", ");
+    return this.notify(player, `${player.getName()} searches ${npc.getName()} and grabs ${itemsList}`, FormatMessageManager.getIdForMessage('lootAction'));
   }
 }

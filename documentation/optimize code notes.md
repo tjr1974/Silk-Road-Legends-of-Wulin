@@ -32,6 +32,7 @@
 
 ## 11. Optimize Loops
 - Utilize array methods like `map`, `filter`, and `reduce` instead of traditional loops where applicable.
+- In loops, only perform necessary updates for entities that have changed state.
 
 ## 12. Reduce Object Creation
 - Minimize the creation of temporary objects in loops or frequently called functions to enhance performance.
@@ -49,28 +50,27 @@
 - Ensure all async functions are awaited where necessary and check for unhandled promise rejections.
 
 ## 17. Avoid Unnecessary Async/Await
-- If a function does not require async behavior, avoid using async/await to reduce overhead.
+- If a method does not require async behavior, avoid using async/await to reduce overhead.
 
 ## 18. Batch Database Operations
 - When loading or saving data, batch operations to minimize I/O calls.
 
-## 19. Optimize Game Loop
-- In game loops, only perform necessary updates for entities that have changed state.
-
-## 20. Memory Management
+## 19. Memory Management
 - Regularly clean up unused objects or references to prevent memory leaks.
 
-## 21. Design Patterns
+## 20. Design Patterns
 - Implement design patterns (e.g., Factory, Strategy) where applicable to streamline object creation and behavior.
-
-## 22. Testing Imports
-- Add logger debug messages in each module to ensure they are loaded correctly.
 
 ### Factory Pattern
 The Factory Pattern is used to create objects without specifying the exact class of the object that will be created. It defines an interface for creating an object but allows subclasses to alter the type of objects that will be created. This is useful when the creation process is complex or when the exact type of the object isn't known until runtime.
 
 ### Strategy Pattern
 The Strategy Pattern defines a family of algorithms, encapsulates each one, and makes them interchangeable. This allows the algorithm to vary independently from the clients that use it. It is particularly useful for situations where multiple algorithms can be applied to a problem.
+
+## 22. Testing Imports
+- Add logger debug messages in each module to ensure they are loaded correctly.
+
+
 
 # CLIENT
 
