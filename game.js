@@ -47,7 +47,7 @@ class Character {
 class Player extends Character {
   #uid; // Unique identifier for the player
   #bcrypt; // Bcrypt instance for password hashing
-  #inventory; // Array to hold player's inventory items
+  #inventory; // Set to hold player's inventory items
   #lastAttacker; // Reference to the last attacker
   #colorPreferences; // Player's color preferences
   #healthRegenerator; // Instance of health regenerator for health management
@@ -57,7 +57,7 @@ class Player extends Character {
     this.importConfig(); // Call method to load config
     this.#uid = uid; // Initialize unique identifier
     this.#bcrypt = bcrypt; // Initialize bcrypt instance
-    this.#inventory = []; // Initialize inventory array
+    this.#inventory = new Set(); // Initialize inventory Set
     this.#lastAttacker; // Reference to the last attacker
     this.#colorPreferences; // Player's color preferences
     this.#healthRegenerator; // Instance of health regenerator for health management
@@ -103,13 +103,13 @@ class Player extends Character {
     return this.sex === 'male' ? 'his' : 'her'; // Return possessive pronoun based on sex
   }
   addToInventory(item) {
-    this.inventoryManager.addToInventory(item); // Delegate to InventoryManager
+    this.#inventory.add(item); // Add item to inventory Set
   }
   removeFromInventory(item) {
-    this.inventoryManager.removeFromInventory(item); // Delegate to InventoryManager
+    this.#inventory.delete(item); // Remove item from inventory Set
   }
   canAddToInventory(item) {
-    return this.#inventory.length < this.getInventoryCapacity() && item.isValid(); // Check if item can be added to inventory
+    return this.#inventory.size < this.getInventoryCapacity() && item.isValid(); // Check size of Set
   }
   getInventoryCapacity() {
     return INVENTORY_CAPACITY; // Return maximum inventory capacity
@@ -135,7 +135,7 @@ class Player extends Character {
     }
   }
   showInventory() {
-    const inventoryList = this.#inventory.map(item => item.name).join(", "); // Create a list of inventory items
+    const inventoryList = Array.from(this.#inventory).map(item => item.name).join(", "); // Convert Set to Array for display
     MessageManager.notifyInventoryStatus(this, inventoryList); // Notify player of inventory status
   }
   lootSpecifiedNpc(target) {

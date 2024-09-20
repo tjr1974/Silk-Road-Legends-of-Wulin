@@ -21,14 +21,14 @@ const GAME_DATA_PATH = './source code/world data/gameData.json'; // Named consta
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute
 const NPC_MOVEMENT_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
-const REGEN_RATES = {
-  IN_COMBAT: 0.125, // 12.5% per minute
-  STANDING: 0.25,   // 25% per minute
-  SITTING: 0.5,     // 50% per minute
-  SLEEPING: 0.75,   // 75% per minute
-  UNCONSCIOUS: 1,   // 100% per minute
-  MEDITATING: 2.0,  // 200% per minute
-};
+const REGEN_RATES = new Map([
+  ['IN_COMBAT', 0.125], // 12.5% per minute
+  ['STANDING', 0.25],   // 25% per minute
+  ['SITTING', 0.5],     // 50% per minute
+  ['SLEEPING', 0.75],   // 75% per minute
+  ['UNCONSCIOUS', 1],   // 100% per minute
+  ['MEDITATING', 2.0],  // 200% per minute
+]);
 const LEVEL_UP_XP = 100; // Experience points required to level up
 const INVENTORY_CAPACITY = 20; // Inventory capacity for players
 // Export configuration settings

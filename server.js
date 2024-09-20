@@ -55,19 +55,20 @@ class SocketEventManager {
     this.server = server;
     this.logger = logger;
     this.socketListeners = new Map(); // Store listeners for efficient management
+    this.activeSessions = new Set(); // Use Set for unique session IDs
   }
   initializeSocketEvents() { // Renamed from 'setupSocketEvents' to 'initializeSocketEvents'
     this.logger.info(`Setting up Socket.IO events.`); // New log message
     this.server.io.on('connection', (socket) => {
       this.logger.info(`A new socket connection established: ${socket.id}`); // New log message
       const sessionId = socket.handshake.query.sessionId;
-      if (this.server.activeSessions.has(sessionId)) {
+      if (this.activeSessions.has(sessionId)) { // Check if sessionId is already connected
         this.logger.warn(`${this.logger.CONFIG.MAGENTA}User with session ID ${sessionId} is already connected.${this.logger.CONFIG.RESET}`, { sessionId });
         socket.emit('sessionError', 'You are already connected.');
         socket.disconnect();
         return;
       }
-      this.server.activeSessions.set(sessionId, socket.id);
+      this.activeSessions.add(sessionId); // Add sessionId to Set
       this.logger.info(`A user connected: ${socket.id} with session ID ${sessionId}`, { sessionId, socketId: socket.id });
       this.initializeSocketListeners(socket, sessionId);
     });
@@ -78,7 +79,7 @@ class SocketEventManager {
       sendMessage: (messageData) => this.handleMessage(socket, messageData),
       disconnect: () => {
         this.logger.info(`User disconnected: ${socket.id}`, { socketId: socket.id });
-        this.server.activeSessions.delete(sessionId);
+        this.activeSessions.delete(sessionId);
       }
     };
     for (const [event, listener] of Object.entries(listeners)) {
@@ -319,11 +320,7 @@ class DatabaseManager extends IDatabaseManager {
   async loadLocationData() {
     try {
       const files = await this.getFilesInDirectory(this.DATA_PATHS.LOCATIONS);
-      const locationData = [];
-      for (const file of files) {
-        const data = await this.fs.readFile(file, 'utf-8');
-        locationData.push(JSON.parse(data));
-      }
+      const locationData = await Promise.all(files.map(file => this.fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
       return locationData;
     } catch (error) {
       this.logger.error(`ERROR loading location data: ${error.message}`, { error });
