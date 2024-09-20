@@ -4,10 +4,9 @@
  * the server environment, setting up middleware, and managing the game loop.
 */
 class Server {
-  constructor({ config, logger, moduleImporter }) {
+  constructor({ config, logger }) {
     this.config = config;
     this.logger = logger;
-    this.moduleImporter = moduleImporter;
     this.databaseManager = null;
     this.socketEventManager = null;
     this.serverConfigurator = null;
@@ -26,21 +25,21 @@ class Server {
       this.logger.error(`ERROR during server initialization: ${error.message}`, { error });
     }
   }
-  async setupHttpServer() {
+  async setupHttpServer() { // Kept async
     const sslOptions = { key: null, cert: null };
-    const { SSL_CERT_PATH, SSL_KEY_PATH } = this.config;
+    const { SSL_CERT_PATH, SSL_KEY_PATH } = this.config; // Destructure config
     try {
-      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH);
+      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH); // Keep await here
     } catch (error) {
       this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL cert: ${error.message}${this.logger.CONFIG.RESET}`, { error });
     }
     try {
-      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH);
+      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH); // Keep await here
     } catch (error) {
       this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL  key: ${error.message}${this.logger.CONFIG.RESET}`, { error });
     }
     const isHttps = sslOptions.key && sslOptions.cert;
-    const http = isHttps ? await import('https') : await import('http');
+    const http = isHttps ? await import('https') : await import('http'); // Keep await here
     this.server = http.createServer(isHttps ? { key: sslOptions.key, cert: sslOptions.cert } : this.app);
     this.logger.info(`- Server configured using ${isHttps ? 'https' : 'http'}://${this.config.HOST}:${this.config.PORT}`);
     return this.server;
@@ -50,7 +49,7 @@ class Server {
     this.socketEventManager = null;
     this.serverConfigurator = null;
     this.fs = null;
-    this.activeSessions.clear();
+    this.activeSessions.clear(); // Clear active sessions
   }
 }
 // Base Manager Class ******************************************************************************
@@ -60,8 +59,8 @@ class Server {
 */
 class BaseManager {
   constructor({ server, logger }) {
-    this.server = server;
-    this.logger = logger;
+    this.server = server; // Store server reference
+    this.logger = logger; // Store logger reference
   }
 }
 // Socket Event Manager ***************************************************************************
@@ -76,23 +75,23 @@ class SocketEventManager extends BaseManager {
     this.activeSessions = new Set(); // Use Set for unique session IDs
     this.actionData = {}; // Reusable object for action data
   }
-  initializeSocketEvents() {
-    this.logger.info(`Setting up Socket.IO events.`);
+  initializeSocketEvents() { // Renamed from 'setupSocketEvents' to 'initializeSocketEvents'
+    this.logger.info(`Setting up Socket.IO events.`); // New log message
     this.server.io.on('connection', (socket) => {
-      this.logger.info(`A new socket connection established: ${socket.id}`);
+      this.logger.info(`A new socket connection established: ${socket.id}`); // New log message
       const sessionId = socket.handshake.query.sessionId;
-      if (this.activeSessions.has(sessionId)) {
+      if (this.activeSessions.has(sessionId)) { // Check if sessionId is already connected
         this.logger.warn(`${this.logger.CONFIG.MAGENTA}User with session ID ${sessionId} is already connected.${this.logger.CONFIG.RESET}`, { sessionId });
         socket.emit('sessionError', 'You are already connected.');
         socket.disconnect();
         return;
       }
-      this.activeSessions.add(sessionId);
+      this.activeSessions.add(sessionId); // Add sessionId to Set
       this.logger.info(`A user connected: ${socket.id} with session ID ${sessionId}`, { sessionId, socketId: socket.id });
       this.initializeSocketListeners(socket, sessionId);
     });
   }
-  initializeSocketListeners(socket, sessionId) {
+  initializeSocketListeners(socket, sessionId) { // Renamed from 'setupSocketListeners' to 'initializeSocketListeners'
     const listeners = {
       playerAction: (actionData) => this.handleAction(socket, { ...actionData }),
       sendMessage: (messageData) => this.handleAction(socket, { ...messageData }),
@@ -103,7 +102,7 @@ class SocketEventManager extends BaseManager {
     };
     for (const [event, listener] of Object.entries(listeners)) {
       socket.on(event, listener);
-      this.socketListeners.set(socket.id, listener);
+      this.socketListeners.set(socket.id, listener); // Store listener for cleanup
     }
   }
   handleAction(socket, { type, content, targetId, actionType, payload }) {
@@ -171,8 +170,8 @@ class ModuleImporter extends BaseManager {
       this.logger.info(`STARTING MODULE IMPORTS:`);
       this.logger.info(`- Importing File System Module`);
       try {
-        const fsModule = await import('fs');
-        this.fs = fsModule.promises;
+        const fsModule = await import('fs'); // Corrected import
+        this.fs = fsModule.promises; // Access promises property correctly
       } catch (error) {
         this.logger.error(`ERROR importing File System Module: ${error.message}`, { error });
       }
@@ -204,16 +203,17 @@ class ModuleImporter extends BaseManager {
 /*
  * The ServerConfigurator class is responsible for configuring the server environment.
 */
-class ServerConfigurator extends BaseManager {
+class ServerConfigurator extends BaseManager { // Extend BaseManager
   constructor({ config, logger, server, socketEventManager }) {
-    super({ server, logger });
-    const { SSL_CERT_PATH, SSL_KEY_PATH } = config;
+    super({ server, logger }); // Call the parent constructor
+    const { SSL_CERT_PATH, SSL_KEY_PATH } = config; // Destructure config
     this.config = config;
     this.socketEventManager = socketEventManager;
     this.server.app = null;
+    this.server.express = null;
   }
   async configureServer() {
-    const { logger, server } = this;
+    const { logger, server } = this; // Destructure this
     logger.info(`\n`);
     logger.info(`STARTING SERVER CONFIGURATION:`);
     try {
@@ -246,12 +246,12 @@ class ServerConfigurator extends BaseManager {
     }
     logger.info(`SERVER CONFIGURATION FINISHED.`);
   }
-  async setupExpressApp() {
+  async setupExpressApp() { // Renamed from 'initializeExpress' to 'setupExpressApp'
     this.logger.log('INFO', '- Initializing Express');
-    this.server.express = (await import('express')).default;
-    this.server.app = this.server.express();
+    this.server.express = (await import('express')).default; // Ensure express is imported correctly
+    this.server.app = this.server.express(); // Initialize app here
   }
-  configureExpressMiddleware() {
+  configureExpressMiddleware() { // Removed async
     this.logger.log('INFO', '- Configuring Express');
     if (!this.server.app) {
       this.logger.error('Express app is not initialized.');
@@ -289,11 +289,11 @@ class IEventEmitter {
 class Logger extends ILogger {
   constructor(config) {
     super();
-    this.CONFIG = config;
-    this.setLogLevel(this.CONFIG.LOG_LEVEL);
+    this.CONFIG = config; // Initialize CONFIG here
+    this.setLogLevel(this.CONFIG.LOG_LEVEL); // Ensure this method is defined
   }
-  setLogLevel(level) {
-    this.logLevel = level;
+  setLogLevel(level) { // Add this method
+    this.logLevel = level; // Store the log level
   }
   log(level, message) {
     const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : `${message}`;
@@ -362,7 +362,7 @@ class DatabaseManager extends BaseManager {
   async loadItemData() {
     return this.loadData(this.DATA_PATHS.ITEMS, 'item');
   }
-  async loadData(dataPath, type) {
+  async loadData(dataPath, type) { // New utility method
     try {
       const files = await this.getFilesInDirectory(dataPath);
       const data = await Promise.all(files.map(file => this.fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
@@ -384,7 +384,7 @@ class DatabaseManager extends BaseManager {
     }
   }
   cleanup() {
-    this.fs = null;
+    this.fs = null; // Clear fs reference
   }
 }
 // GameComponentInitializer Class ******************************************************************
@@ -392,7 +392,7 @@ class GameComponentInitializer extends BaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
   }
-  async setupGameComponents() {
+  async setupGameComponents() { // Renamed from 'initializeGameComponents' to 'setupGameComponents'
     this.logger.info(`\n`);
     this.logger.info(`STARTING INITIALIZE GAME COMPONENTS:`);
     try {
@@ -404,7 +404,7 @@ class GameComponentInitializer extends BaseManager {
       this.server.gameDataLoader = new GameDataLoader(this.server);
       if (!this.server.gameDataLoader) throw new Error('GameDataLoader is not initialized!');
       this.logger.log('DEBUG', '\n');
-      if (this.logger.logLevel === 'DEBUG') {
+      if (this.logger.logLevel === 'DEBUG') { // Check if log level is DEBUG
         this.logger.log('DEBUG', 'VERIFYING GAME DATA:');
         const gameDataVerifier = new GameDataVerifier(this.server.databaseManager);
         const verifiedData = await gameDataVerifier.validateGameData();
@@ -426,9 +426,9 @@ class GameManager {
   #isRunning = false;
   #combatManager;
   constructor({ eventEmitter }) {
-    this.players = new Map();
-    this.locations = new Map();
-    this.npcs = new Map();
+    this.players = new Map(); // Use Map for efficient player management
+    this.locations = new Map(); // Efficient location management
+    this.npcs = new Map(); // Efficient NPC management
     this.#combatManager = new CombatManager(this);
     this.eventEmitter = eventEmitter;
     this.eventEmitter.on("tick", this._gameTick.bind(this));
@@ -448,9 +448,9 @@ class GameManager {
       for (const player of this.players.values()) {
         player.save();
       }
-      this.server.socketEventManager.cleanup();
-      this.server.databaseManager.cleanup();
-      this.server.queueManager.cleanup();
+      this.server.socketEventManager.cleanup(); // Call cleanup on SocketEventManager
+      this.server.databaseManager.cleanup(); // Call cleanup on DatabaseManager
+      this.server.queueManager.cleanup(); // Call cleanup on QueueManager
       this.server.socketEventManager.server.io.close(() => {
         this.server.logger.info('All socket connections closed.');
         process.exit(0);
@@ -495,7 +495,7 @@ class GameManager {
       MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
     }
     entity.currentLocation = newLocationId;
-    if (!newLocation) return;
+    if (!newLocation) return; // Early return if newLocation is not found
     newLocation.addEntity(entity, "players");
     MessageManager.notifyEnteringLocation(entity, newLocationId);
     const direction = DirectionManager.getDirectionFrom(oldLocationId);
@@ -510,7 +510,7 @@ class GameManager {
   }
   _updatePlayerAffects() {
     this.players.forEach(player => {
-      if (player.hasChangedState()) {
+      if (player.hasChangedState()) { // Check if player has changed state
         player.checkAndRemoveExpiredAffects();
       }
     });
@@ -539,8 +539,8 @@ class GameDataLoader {
   constructor(server) {
     this.server = server;
   }
-  async fetchGameData() {
-    const { logger, databaseManager } = this.server;
+  async fetchGameData() { // Renamed from 'loadGameData' to 'fetchGameData'
+    const { logger, databaseManager } = this.server; // Destructure server
     logger.info(`\nStarting game data loading.`);
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' };
     const loadData = async (loadFunction, type) => {
@@ -576,12 +576,12 @@ class GameDataVerifier {
   constructor(databaseManager) {
     this.databaseManager = databaseManager;
   }
-  async validateGameData() {
+  async validateGameData() { // Renamed from 'verifyData' to 'validateGameData'
     const locationData = await this.databaseManager.loadLocationData();
     const npcData = await this.databaseManager.loadNpcData();
     const itemData = await this.databaseManager.loadItemData();
     const verifiedData = { locationData, npcData, itemData };
-    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`);
+    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`); // Updated to stringify
   }
 }
 // Object Pool ************************************************************************************
@@ -633,21 +633,21 @@ class QueueManager {
     this.processQueue();
   }
   processQueue() {
-    if (this.isProcessing || this.queue.length === 0) return;
+    if (this.isProcessing || this.queue.length === 0) return; // Check if already processing or queue is empty
     this.isProcessing = true;
     const processNextTask = async () => {
       while (this.queue.length > 0) {
         const task = this.queue.shift();
         try {
-          await task.run();
+          await task.run(); // Ensure task.run() is awaited
         } catch (error) {
           console.error(`ERROR processing task: ${error.message}`);
         }
       }
-      this.isProcessing = false;
+      this.isProcessing = false; // Reset processing state after all tasks are done
       this.cleanup();
     };
-    processNextTask();
+    processNextTask(); // Start processing tasks
   }
   addDataLoadTask(filePath, key) {
     const task = this.objectPool.acquire();
@@ -714,6 +714,7 @@ class QueueManager {
   cleanup() {
     this.queue = [];
     this.isProcessing = false;
+    this.objectPool = null; // Clear object pool reference
   }
 }
 // Config Class ************************************************************************************
@@ -721,82 +722,83 @@ class Config {
   async loadConfig() {
     console.log(`\nSTARTING LOAD CONFIGURATION SETTINGS:`);
     try {
-      this.CONFIG = await import('./config.js').then(module => module.default);
+      this.CONFIG = await import('./config.js').then(module => module.default); // Ensure CONFIG is loaded correctly
       console.log(`LOAD CONFIGURATION SETTINGS FINISHED.`);
+      //console.log('Loaded CONFIG:', this.CONFIG); // Debugging log
     } catch (error) {
-      console.error(`ERROR LOADING CONFIG: ${error.message}`);
+      console.error(`ERROR LOADING CONFIG: ${error.message}`); // Log the error
     }
   }
   get SSL_KEY_PATH() {
-    return this.CONFIG?.SSL_KEY_PATH;
+    return this.CONFIG?.SSL_KEY_PATH; // Use optional chaining
   }
   get SSL_CERT_PATH() {
-    return this.CONFIG?.SSL_CERT_PATH;
+    return this.CONFIG?.SSL_CERT_PATH; // Use optional chaining
   }
   get HOST() {
-    return this.CONFIG?.HOST;
+    return this.CONFIG?.HOST; // Use optional chaining
   }
   get PORT() {
-    return this.CONFIG?.PORT;
+    return this.CONFIG?.PORT; // Use optional chaining
   }
   get LOG_LEVEL() {
     if (!this.CONFIG) throw new Error('CONFIG is not loaded');
     return this.CONFIG?.LOG_LEVEL;
   }
   get LOG_FILE_PATH() {
-    return this.CONFIG?.LOG_FILE_PATH;
+    return this.CONFIG?.LOG_FILE_PATH; // Use optional chaining
   }
   get LOG_MAX_FILE_SIZE() {
-    return this.CONFIG?.LOG_MAX_FILE_SIZE;
+    return this.CONFIG?.LOG_MAX_FILE_SIZE; // Use optional chaining
   }
   get PLAYER_DATA_PATH() {
-    return this.CONFIG?.PLAYER_DATA_PATH;
+    return this.CONFIG?.PLAYER_DATA_PATH; // Use optional chaining
   }
   get LOCATION_DATA_PATH() {
-    return this.CONFIG?.LOCATION_DATA_PATH;
+    return this.CONFIG?.LOCATION_DATA_PATH; // Use optional chaining
   }
   get NPC_DATA_PATH() {
-    return this.CONFIG?.NPC_DATA_PATH;
+    return this.CONFIG?.NPC_DATA_PATH; // Use optional chaining
   }
   get ITEM_DATA_PATH() {
-    return this.CONFIG?.ITEM_DATA_PATH;
+    return this.CONFIG?.ITEM_DATA_PATH; // Use optional chaining
   }
   get GAME_DATA_PATH() {
-    return this.CONFIG?.GAME_DATA_PATH;
+    return this.CONFIG?.GAME_DATA_PATH; // Use optional chaining
   }
   get TICK_RATE() {
-    return this.CONFIG?.TICK_RATE;
+    return this.CONFIG?.TICK_RATE; // Use optional chaining
   }
   get NPC_MOVEMENT_INTERVAL() {
-    return this.CONFIG?.NPC_MOVEMENT_INTERVAL;
+    return this.CONFIG?.NPC_MOVEMENT_INTERVAL; // Use optional chaining
   }
   get REGEN_INTERVAL() {
-    return this.CONFIG?.REGEN_INTERVAL;
+    return this.CONFIG?.REGEN_INTERVAL; // Use optional chaining
   }
   get REGEN_RATES() {
-    return this.CONFIG?.REGEN_RATES;
+    return this.CONFIG?.REGEN_RATES; // Use optional chaining
   }
   get LEVEL_UP_XP() {
-    return this.CONFIG?.LEVEL_UP_XP;
+    return this.CONFIG?.LEVEL_UP_XP; // Use optional chaining
   }
   get INVENTORY_CAPACITY() {
-    return this.CONFIG?.INVENTORY_CAPACITY;
+    return this.CONFIG?.INVENTORY_CAPACITY; // Use optional chaining
   }
   get RESET() {
-    return this.CONFIG?.RESET;
+    return this.CONFIG?.RESET; // Use optional chaining
   }
   get RED() {
-    return this.CONFIG?.RED;
+    return this.CONFIG?.RED; // Use optional chaining
   }
   get MAGENTA() {
-    return this.CONFIG?.MAGENTA;
+    return this.CONFIG?.MAGENTA; // Use optional chaining
   }
 }
 // Start the server *******************************************************************************
 const config = new Config();
 await config.loadConfig(); // Load config first
 const logger = new Logger(config.CONFIG); // Pass the loaded CONFIG to logger
-const server = new Server({ logger, moduleImporter: null, config }); // Initialize server with null moduleImporter
+const server = new Server({ logger, config }); // Initialize server without moduleImporter
 const moduleImporter = new ModuleImporter({ logger, server }); // Pass server instance
 server.moduleImporter = moduleImporter; // Assign moduleImporter to server
 // Ensure modules are imported before initializing the server
