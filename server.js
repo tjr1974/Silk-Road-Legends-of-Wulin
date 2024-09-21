@@ -769,36 +769,6 @@ class GameDataLoader {
     }
   }
 }
-// GameDataVerifier Class *******************************************************************************
-/*
- * The GameDataVerifier class is responsible for verifying that all game data has been loaded.
- * It displays the contents of all loaded game data in the server console for debugging and testing.
-*/
-class GameDataVerifier {
-  constructor(databaseManager) {
-    this.databaseManager = databaseManager;
-  }
-  async validateGameData() {
-    const { locationData, filenames } = await this.databaseManager.loadLocationData(); // Load location data
-    const npcData = await this.databaseManager.loadNpcData(); // Load NPC data
-    const itemData = await this.databaseManager.loadItemData(); // Load item data
-    const verifiedData = { locationData, npcData, itemData }; // Collect all verified data
-    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`); // Log game data
-    // Display locations with coordinates
-    this.displayLocationsWithCoordinates(locationData); // Call method to display locations
-    this.databaseManager.logger.info(`Loaded Locations: ${filenames.join(', ')}`); // Log loaded filenames
-  }
-  displayLocationsWithCoordinates(locations) {
-    if (typeof locations !== 'object' || locations === null) {
-      this.databaseManager.logger.warn(`Expected locations to be an object, but got: ${typeof locations}`);
-      return; // Exit if not an object
-    }
-    const locationsArray = Array.from(locations.values()); // Convert Map to array
-    locationsArray.forEach(location => {
-      console.log(location); // Log the entire location object
-    });
-  }
-}
 // Object Pool ************************************************************************************
 /*
  * The ObjectPool class manages a pool of reusable objects to optimize memory usage and performance
