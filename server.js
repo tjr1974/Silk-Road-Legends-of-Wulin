@@ -1,8 +1,108 @@
-// Server *****************************************************************************************
-/*
- * The Server class is the main entry point for the game server. It is responsible for initializing
- * the server environment, setting up middleware, and managing the game loop.
-*/
+/**************************************************************************************************
+Config Manager Class
+The Config Manager class is responsible for loading and providing access to configuration settings.
+It ensures that the configuration is loaded only once and provides a method to retrieve values by key.
+***************************************************************************************************/
+class ConfigManager {
+  static instance = null;
+  constructor() {
+    if (ConfigManager.instance) {
+      return ConfigManager.instance;
+    }
+    this.CONFIG = null;
+    ConfigManager.instance = this;
+  }
+  async loadConfig() {
+    if (!this.CONFIG) {
+      console.log(`\nSTARTING LOAD CONFIGURATION SETTINGS:`);
+      try {
+        this.CONFIG = await import('./config.js').then(module => module.default);
+        console.log(`LOAD CONFIGURATION SETTINGS FINISHED.`);
+      } catch (error) {
+        console.error(`ERROR LOADING CONFIG: ${error.message}`);
+        console.error(error.stack); // Log stack trace
+      }
+    }
+  }
+  get(key) {
+    return this.CONFIG?.[key];
+  }
+}
+/**************************************************************************************************
+Base Manager Class
+The Base Manager class serves as a base class for all manager classes, providing common functionality
+and access to the server and logger instances.
+***************************************************************************************************/
+class BaseManager {
+  constructor({ server, logger }) {
+    this.server = server; // Store server reference
+    this.logger = logger; // Store logger reference
+  }
+}
+/**************************************************************************************************
+Server Initializer Class
+The Server Initializer class is responsible for setting up and starting the server.
+It encapsulates the initialization process, including configuration loading, component setup,
+and server startup.
+***************************************************************************************************/
+class ServerInitializer {
+  constructor() {
+    this.configManager = new ConfigManager();
+    this.logger = null;
+    this.server = null;
+    this.moduleImporter = null;
+  }
+  async initialize() {
+    try {
+      await this.loadConfig();
+      this.setupLogger();
+      this.createServer();
+      this.createModuleImporter();
+      await this.initializeServer();
+      await this.setupGameComponents();
+      this.startListening();
+    } catch (error) {
+      this.handleInitializationError(error);
+    }
+  }
+  async loadConfig() {
+    await this.configManager.loadConfig();
+  }
+  setupLogger() {
+    this.logger = new Logger(this.configManager.CONFIG);
+  }
+  createServer() {
+    this.server = new Server({ logger: this.logger });
+  }
+  createModuleImporter() {
+    this.moduleImporter = new ModuleImporter({ server: this.server });
+    this.server.moduleImporter = this.moduleImporter;
+  }
+  async initializeServer() {
+    await this.server.init();
+  }
+  async setupGameComponents() {
+    const gameComponentInitializer = new GameComponentInitializer({ server: this.server });
+    await gameComponentInitializer.setupGameComponents();
+  }
+  startListening() {
+    const { PORT, HOST, HTTPS_ENABLED } = this.configManager.CONFIG;
+    this.server.server.listen(PORT, HOST, () => {
+      const protocol = HTTPS_ENABLED ? 'https' : 'http';
+      this.logger.info(`\n`);
+      this.logger.info(`SERVER IS RUNNING AT: ${protocol}://${HOST}:${PORT}`);
+    });
+  }
+  handleInitializationError(error) {
+    this.logger.error('ERROR: Starting the server:', error);
+    this.logger.error(error.stack);
+  }
+}
+/**************************************************************************************************
+Server Class
+The Server class is the main entry point for the game server. It is responsible for initializing
+the server environment, setting up middleware, and managing the game loop.
+***************************************************************************************************/
 class Server {
   constructor({ logger }) {
     this.eventEmitter = new EventEmitter(); // Instantiate EventEmitter
@@ -19,9 +119,9 @@ class Server {
     try {
       await this.moduleImporter.loadModules();
       this.fs = await import('fs').then(module => module.promises);
-      this.databaseManager = new DatabaseManager({ server: this, logger: this.logger });
-      this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger });
-      this.serverConfigurator = new ServerConfigurator({ server: this, logger: this.logger, socketEventManager: this.socketEventManager, config: this.configManager });
+      this.databaseManager = new DatabaseManager(this);
+      this.socketEventManager = new SocketEventManager(this);
+      this.serverConfigurator = new ServerConfigurator(this);
       await this.serverConfigurator.configureServer();
       await this.configManager.loadConfig(); // Load configuration
       this.eventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this)); // Listen for player connection
@@ -67,45 +167,200 @@ class Server {
     this.activeSessions.clear(); // Clear active sessions
   }
 }
-// Base Manager Class ******************************************************************************
-/*
- * The BaseManager class serves as a base class for all manager classes, providing common functionality
- * and access to the server and logger instances.
-*/
-class BaseManager {
-  constructor({ server, logger }) {
-    this.server = server; // Store server reference
-    this.logger = logger; // Store logger reference
+/**************************************************************************************************
+Module Importer Class
+The Module Importer class is responsible for importing necessary modules and dependencies for
+the server to function. It ensures that all required modules are loaded before the server starts.
+***************************************************************************************************/
+class ModuleImporter extends BaseManager {
+  constructor({ server }) {
+    super({ server, logger });
+  }
+  async loadModules() {
+    try {
+      this.logger.info(`\n`);
+      this.logger.info(`STARTING MODULE IMPORTS:`);
+      this.logger.info(`- Importing Process Module`);
+      try {
+        await import('process'); // Update the import in loadModules
+        this.logger.info(`- Importing File System Module`);
+        const fsModule = await import('fs'); // Corrected import
+        this.fs = fsModule.promises; // Access promises property correctly
+      } catch (error) {
+        this.logger.error(`ERROR: Importing File System Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
+      }
+      this.logger.info(`- Importing Express Module`);
+      try {
+        this.express = (await import('express')).default;
+      } catch (error) {
+        this.logger.error(`ERROR: Importing Express Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
+      }
+      this.logger.info(`- Importing Socket.IO Module`);
+      try {
+        this.SocketIOServer = (await import('socket.io')).Server;
+      } catch (error) {
+        this.logger.error(`ERROR: Importing Socket.IO Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
+      }
+      this.logger.info(`- Importing Queue Module`);
+      try {
+        this.queue = new (await import('queue')).default();
+      } catch (error) {
+        this.logger.error(`ERROR: Importing Queue Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
+      }
+      this.logger.info(`MODULE IMPORTS FINISHED.`);
+    } catch (error) {
+      this.logger.error(`ERROR: During module imports: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
+    }
   }
 }
-// Socket Event Manager ***************************************************************************
-/*
- * The SocketEventManager class handles socket events for real-time communication between the server
- * and connected clients. It manages user connections and disconnections.
-*/
-class SocketEventManager extends BaseManager {
-  constructor({ server, logger }) {
+/**************************************************************************************************
+Server Configurator Class
+The Server Configurator class is responsible for configuring the server environment.
+***************************************************************************************************/
+class ServerConfigurator extends BaseManager {
+  constructor({ config, logger, server, socketEventManager }) {
     super({ server, logger });
+    this.config = config;
+    this.socketEventManager = socketEventManager;
+    this.server.app = null;
+    this.server.express = null;
+  }
+  async configureServer() {
+    const { logger, server } = this;
+    logger.info(`\n`);
+    logger.info(`STARTING SERVER CONFIGURATION:`);
+    logger.info(`- Configuring Express`);
+    try {
+      await this.setupExpress(); // Ensure this method is defined
+    } catch (error) {
+      logger.error(`ERROR: During Express configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
+    }
+    logger.info(`- Configuring Server`);
+    try {
+      await server.setupHttpServer();
+    } catch (error) {
+      logger.error(`ERROR: During Http Server configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
+    }
+    logger.info(`- Configuring Middleware`);
+    try {
+      this.configureMiddleware(); // Call the middleware configuration
+    } catch (error) {
+      logger.error(`ERROR: During Middleware configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
+    }
+    logger.log('INFO', '- Configuring Queue Manager');
+    try {
+      server.queueManager = new QueueManager();
+    } catch (error) {
+      logger.error(`ERROR: During Queue Manager configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
+    }
+    logger.info(`SERVER CONFIGURATION FINISHED.`);
+  }
+  async setupExpress() { // Renamed from 'initializeExpress' to 'setupExpressApp'
+    this.server.express = (await import('express')).default; // Ensure express is imported correctly
+    this.server.app = this.server.express(); // Initialize app here
+  }
+  configureMiddleware() { // Removed async
+    this.server.app.use(this.server.express.static('public'));
+    this.server.app.use((err, res ) => {
+      this.logger.error(err.message, { error: err });
+      this.logger.error(err.stack); // Log stack trace
+      res.status(500).send('An unexpected error occurred. Please try again later.');
+    });
+  }
+}
+/**************************************************************************************************
+Logger Interface Class
+The ILogger interface defines the methods that a logger must implement.
+***************************************************************************************************/
+class ILogger {
+  log() { }
+  debug() { }
+  info() { }
+  warn() { }
+  error() { }
+}
+/**************************************************************************************************
+Logger Class
+The Logger class implements the ILogger interface and provides methods for logging messages
+to the console with different levels of severity.
+***************************************************************************************************/
+class Logger extends ILogger {
+  constructor(config) {
+    super();
+    this.CONFIG = config; // Initialize CONFIG here
+    this.logLevel = config.LOG_LEVEL; // Store log level from config
+  }
+  log(level, message) {
+    if (this.shouldLog(level)) {
+      if (level === 'DEBUG') {
+        message = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
+      } else if (level === 'WARN') {
+        message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
+      } else if (level === 'ERROR') {
+        message = `${this.CONFIG.RED}${message}${this.CONFIG.RESET}`;
+      }
+      const logString = `${message}`;
+      this.writeToConsole(logString);
+    }
+  }
+  shouldLog(level) {
+    const levels = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
+    return levels.indexOf(level) >= levels.indexOf(this.logLevel);
+  }
+  writeToConsole(logString) {
+    console.log(logString.trim());
+  }
+  debug(message) {
+    this.log('DEBUG', message);
+  }
+  info(message) {
+    this.log('INFO', message);
+  }
+  warn(message) {
+    this.log('WARN', message);
+  }
+  error(message) {
+    this.log('ERROR', message);
+  }
+}
+/**************************************************************************************************
+Socket Event Manager Class
+The Socket Event Manager class handles socket events for real-time communication between the server
+and connected clients. It manages user connections and disconnections.
+***************************************************************************************************/
+class SocketEventManager extends BaseManager {
+  constructor(server) {
+    super(server);
     this.socketListeners = new Map(); // Store listeners for efficient management
     this.activeSessions = new Set(); // Use Set for unique session IDs
     this.actionData = {}; // Reusable object for action data
   }
   initializeSocketEvents() { // Renamed from 'setupSocketEvents' to 'initializeSocketEvents'
     this.logger.info(`Setting up Socket.IO events.`); // New log message
-    this.server.io.on('connection', (socket) => {
-      this.logger.info(`A new socket connection established: ${socket.id}`); // New log message
-      const sessionId = socket.handshake.query.sessionId;
-      if (this.activeSessions.has(sessionId)) { // Check if sessionId is already connected
-        this.logger.warn(`${this.logger.CONFIG.MAGENTA}User with session ID ${sessionId} is already connected.${this.logger.CONFIG.RESET}`, { sessionId });
-        socket.emit('sessionError', 'You are already connected.');
-        socket.disconnect();
-        return;
-      }
-      this.activeSessions.add(sessionId); // Add sessionId to Set
-      this.logger.info(`A user connected: ${socket.id} with session ID ${sessionId}`, { sessionId, socketId: socket.id });
-      this.initializeSocketListeners(socket, sessionId);
-    });
+    this.server.io.on('connection', this.handleConnection.bind(this));
     this.server.eventEmitter.on('playerAction', this.handlePlayerAction.bind(this)); // Listen for player actions
+  }
+  handleConnection(socket) {
+    this.logger.info(`A new socket connection established: ${socket.id}`); // New log message
+    const sessionId = socket.handshake.query.sessionId;
+    if (this.activeSessions.has(sessionId)) { // Check if sessionId is already connected
+      this.logger.warn(`${this.logger.CONFIG.MAGENTA}User with session ID ${sessionId} is already connected.${this.logger.CONFIG.RESET}`, { sessionId });
+      socket.emit('sessionError', 'You are already connected.');
+      socket.disconnect();
+      return;
+    }
+    this.activeSessions.add(sessionId); // Add sessionId to Set
+    this.logger.info(`A user connected: ${socket.id} with session ID ${sessionId}`, { sessionId, socketId: socket.id });
+    this.initializeSocketListeners(socket, sessionId);
   }
   handlePlayerAction(actionData) {
     const { type, targetId, payload } = actionData; // Destructure actionData
@@ -185,240 +440,20 @@ class SocketEventManager extends BaseManager {
     this.actionData = {}; // Reset action data
   }
 }
-// Module Importer ********************************************************************************
-/*
- * The ModuleImporter class is responsible for importing necessary modules and dependencies for the
- * server to function. It ensures that all required modules are loaded before the server starts.
-*/
-class ModuleImporter extends BaseManager {
-  constructor({ server }) {
-    super({ server, logger });
-  }
-  async loadModules() {
-    try {
-      this.logger.info(`\n`);
-      this.logger.info(`STARTING MODULE IMPORTS:`);
-      this.logger.info(`- Importing Process Module`);
-      try {
-        await import('process'); // Update the import in loadModules
-        this.logger.info(`- Importing File System Module`);
-        const fsModule = await import('fs'); // Corrected import
-        this.fs = fsModule.promises; // Access promises property correctly
-      } catch (error) {
-        this.logger.error(`ERROR: Importing File System Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack); // Log stack trace
-      }
-      this.logger.info(`- Importing Express Module`);
-      try {
-        this.express = (await import('express')).default;
-      } catch (error) {
-        this.logger.error(`ERROR: Importing Express Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack); // Log stack trace
-      }
-      this.logger.info(`- Importing Socket.IO Module`);
-      try {
-        this.SocketIOServer = (await import('socket.io')).Server;
-      } catch (error) {
-        this.logger.error(`ERROR: Importing Socket.IO Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack); // Log stack trace
-      }
-      this.logger.info(`- Importing Queue Module`);
-      try {
-        this.queue = new (await import('queue')).default();
-      } catch (error) {
-        this.logger.error(`ERROR: Importing Queue Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack); // Log stack trace
-      }
-      this.logger.info(`MODULE IMPORTS FINISHED.`);
-    } catch (error) {
-      this.logger.error(`ERROR: During module imports: ${error.message}`, { error });
-      this.logger.error(error.stack); // Log stack trace
-    }
-  }
-}
-// Server Configurator ***********************************************************************************
-/*
- * The ServerConfigurator class is responsible for configuring the server environment.
-*/
-class ServerConfigurator extends BaseManager {
-  constructor({ config, logger, server, socketEventManager }) {
-    super({ server, logger });
-    this.config = config;
-    this.socketEventManager = socketEventManager;
-    this.server.app = null;
-    this.server.express = null;
-  }
-  async configureServer() {
-    const { logger, server } = this;
-    logger.info(`\n`);
-    logger.info(`STARTING SERVER CONFIGURATION:`);
-    logger.info(`- Configuring Express`);
-    try {
-      await this.setupExpress(); // Ensure this method is defined
-    } catch (error) {
-      logger.error(`ERROR: During Express configuration: ${error.message}`, { error });
-      logger.error(error.stack); // Log stack trace
-    }
-    logger.info(`- Configuring Server`);
-    try {
-      await server.setupHttpServer();
-    } catch (error) {
-      logger.error(`ERROR: During Http Server configuration: ${error.message}`, { error });
-      logger.error(error.stack); // Log stack trace
-    }
-    logger.info(`- Configuring Middleware`);
-    try {
-      this.configureMiddleware(); // Call the middleware configuration
-    } catch (error) {
-      logger.error(`ERROR: During Middleware configuration: ${error.message}`, { error });
-      logger.error(error.stack); // Log stack trace
-    }
-    logger.log('INFO', '- Configuring Queue Manager');
-    try {
-      server.queueManager = new QueueManager();
-    } catch (error) {
-      logger.error(`ERROR: During Queue Manager configuration: ${error.message}`, { error });
-      logger.error(error.stack); // Log stack trace
-    }
-    logger.info(`SERVER CONFIGURATION FINISHED.`);
-  }
-  async setupExpress() { // Renamed from 'initializeExpress' to 'setupExpressApp'
-    this.server.express = (await import('express')).default; // Ensure express is imported correctly
-    this.server.app = this.server.express(); // Initialize app here
-  }
-  configureMiddleware() { // Removed async
-    this.server.app.use(this.server.express.static('public'));
-    this.server.app.use((err, res ) => {
-      this.logger.error(err.message, { error: err });
-      this.logger.error(err.stack); // Log stack trace
-      res.status(500).send('An unexpected error occurred. Please try again later.');
-    });
-  }
-}
-// GameComponentInitializer Class ******************************************************************
-class GameComponentInitializer extends BaseManager {
-  constructor({ server }) {
-    super({ server, logger });
-  }
-
-  async setupGameComponents() {
-    try {
-      // Initialize DatabaseManager first
-      this.server.databaseManager = new DatabaseManager({
-        server: this.server,
-        logger: this.server.logger
-      });
-      await this.server.databaseManager.initialize();
-
-      // Initialize GameManager
-      this.server.gameManager = new GameManager(this.server);
-
-      // Load locations data
-      await this.loadLocationsData();
-
-      // Now initialize other components
-      this.server.gameDataLoader = new GameDataLoader(this.server);
-      // ... other component initializations ...
-
-      // Load remaining game data
-      await this.server.gameDataLoader.fetchGameData();
-    } catch (error) {
-      this.server.logger.error('ERROR: Loading game data:', error);
-      this.server.logger.error(error.stack);
-    }
-  }
-
-  async loadLocationsData() {
-    try {
-      const locationsData = await this.server.databaseManager.loadLocationData();
-      this.server.gameManager.initializeLocations(locationsData);
-    } catch (error) {
-      this.server.logger.error('ERROR: Loading locations data:', error);
-      this.server.logger.error(error.stack);
-    }
-  }
-}
-// Logger Interface *******************************************************************************
-/*
- * The ILogger interface defines the methods that a logger must implement.
-*/
-class ILogger {
-  log() { }
-  debug() { }
-  info() { }
-  warn() { }
-  error() { }
-}
-// Database Manager Interface *********************************************************************
-/*
- * The IDatabaseManager interface defines the methods that a database manager must implement.
-*/
-class IDatabaseManager {
-  constructor({ server, logger }) {
-    this.server = server; // Store server reference
-    this.logger = logger; // Store logger reference
-  }
-  async loadLocationData() { } // Method to load location data
-  async loadNpcData() { } // Method to load NPC data
-  async loadItemData() { } // Method to load item data
-  async saveData() { } // Method to save data
-  async initialize() { } // New method for initialization
-}
-// Event Emitter Interface ************************************************************************
+/**************************************************************************************************
+Event Emitter Interface Class
+The IEventEmitter interface defines the methods that an event emitter must implement.
+***************************************************************************************************/
 class IEventEmitter {
   on() { }
   emit() { }
   off() { }
 }
-// Logger Class ***********************************************************************************
-/*
- * The Logger class implements the ILogger interface and provides methods for logging messages
- * to the console with different levels of severity.
-*/
-class Logger extends ILogger {
-  constructor(config) {
-    super();
-    this.CONFIG = config; // Initialize CONFIG here
-    this.logLevel = config.LOG_LEVEL; // Store log level from config
-  }
-  log(level, message) {
-    if (this.shouldLog(level)) {
-      if (level === 'DEBUG') {
-        message = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
-      } else if (level === 'WARN') {
-        message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
-      } else if (level === 'ERROR') {
-        message = `${this.CONFIG.RED}${message}${this.CONFIG.RESET}`;
-      }
-      const logString = `${message}`;
-      this.writeToConsole(logString);
-    }
-  }
-  shouldLog(level) {
-    const levels = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
-    return levels.indexOf(level) >= levels.indexOf(this.logLevel);
-  }
-  writeToConsole(logString) {
-    console.log(logString.trim());
-  }
-  debug(message) {
-    this.log('DEBUG', message);
-  }
-  info(message) {
-    this.log('INFO', message);
-  }
-  warn(message) {
-    this.log('WARN', message);
-  }
-  error(message) {
-    this.log('ERROR', message);
-  }
-}
-// EventEmitter Class ******************************************************************************
-/*
- * The EventEmitter class implements the IEventEmitter interface and provides methods for
- * registering and emitting events.
-*/
+/**************************************************************************************************
+Event Emitter Class
+The Event Emitter class implements the IEventEmitter interface and provides methods for
+registering and emitting events.
+***************************************************************************************************/
 class EventEmitter extends IEventEmitter {
   constructor() {
     super(); // Call the parent constructor
@@ -437,33 +472,246 @@ class EventEmitter extends IEventEmitter {
     }
   }
 }
-// DatabaseManager Class ****************************************************************************
-/*
- * The DatabaseManager class implements the IDatabaseManager interface and provides methods
- * for loading and saving game data from the database.
-*/
-import { promises as fs } from 'fs';
-import path from 'path';
-
+/**************************************************************************************************
+Queue Manager Class
+The Queue Manager class manages a queue of tasks to be executed. It handles task addition,
+processing, and execution, ensuring that tasks are run in a controlled manner.
+***************************************************************************************************/
+class QueueManager {
+  constructor(objectPool) {
+    this.objectPool = objectPool; // Use ObjectPool instance
+    this.queue = [];
+    this.isProcessing = false;
+  }
+  addTask(task) {
+    const pooledTask = this.objectPool.acquire(); // Acquire a task from the pool
+    Object.assign(pooledTask, task); // Set task properties
+    this.queue.push(pooledTask); // Add to queue
+    this.processQueue();
+  }
+  processQueue() {
+    if (this.isProcessing || this.queue.length === 0) return; // Check if already processing or queue is empty
+    this.isProcessing = true;
+    const processNextTask = async () => {
+      while (this.queue.length > 0) {
+        const task = this.queue.shift();
+        try {
+          await task.run(); // Ensure task.run() is awaited
+        } catch (error) {
+          console.error(`ERROR processing task: ${error.message}`);
+          console.error(error.stack); // Log stack trace
+        }
+      }
+      this.isProcessing = false; // Reset processing state after all tasks are done
+      this.cleanup();
+    };
+    processNextTask(); // Start processing tasks
+  }
+  addDataLoadTask(filePath, key) {
+    const task = new Task('Data Load Task'); // Use Task class
+    task.execute = async () => {
+      const data = await this.databaseManager.loadData(filePath, key);
+      this.handleLoadedData(key, data); // Use the loaded data
+      this.objectPool.release(task);
+    };
+    this.addTask(task);
+  }
+  handleLoadedData(key, data) { // New method to handle loaded data
+    // Implement logic to process the loaded data based on the key
+    switch (key) {
+      case 'location':
+        this.server.gameManager.addLocations(data); // Example usage
+        break;
+      case 'npc':
+        this.server.gameManager.addNpcs(data); // Example usage
+        break;
+      case 'item':
+        this.server.gameManager.addItems(data); // Example usage
+        break;
+      default:
+        this.logger.warn(`No handler for data type: ${key}`);
+    }
+  }
+  addDataSaveTask(filePath, key, data) {
+    const task = new Task('Data Save Task'); // Use Task class
+    task.execute = async () => {
+      await this.databaseManager.saveData(filePath, key, data);
+      this.objectPool.release(task);
+    };
+    this.addTask(task);
+  }
+  addCombatActionTask(player, target) {
+    const task = this.objectPool.acquire();
+    task.name = 'Combat Action Task';
+    task.execute = () => {
+      player.attackNpc(target);
+      this.objectPool.release(task);
+    };
+    this.addTask(task);
+  }
+  addEventProcessingTask(event) {
+    const task = this.objectPool.acquire();
+    task.name = 'Event Processing Task';
+    task.execute = async () => {
+      try {
+        // Integrate with event handling
+        this.server.eventEmitter.emit(event.type, event.data); // Emit the event
+        // Example of processing game logic based on the event
+        if (event.type === 'playerAction') {
+          const player = this.server.gameManager.getPlayerById(event.data.playerId);
+          if (player) {
+            await player.handleAction(event.data.action); // Call player action handling
+          }
+        }
+      } catch (error) {
+        this.server.logger.error(`ERROR: Processing event: ${error.message}`, { error });
+        this.server.logger.error(error.stack); // Log stack trace
+      } finally {
+        this.objectPool.release(task); // Ensure task is released
+      }
+    };
+    this.addTask(task); // Add task to the queue
+  }
+  addHealthRegenerationTask(player) {
+    const task = this.objectPool.acquire();
+    task.name = 'Health Regeneration Task';
+    task.execute = () => {
+      player.startHealthRegeneration();
+      this.objectPool.release(task);
+    };
+    this.addTask(task);
+  }
+  addInventoryManagementTask(player, action, item) {
+    const task = this.objectPool.acquire();
+    task.name = 'Inventory Management Task';
+    task.execute = () => {
+      action === 'pickup' ? player.addToInventory(item) : player.removeFromInventory(item);
+      this.objectPool.release(task);
+    };
+    this.addTask(task);
+  }
+  addNotificationTask(player, message) {
+    const task = this.objectPool.acquire();
+    task.name = 'Notification Task';
+    task.execute = () => {
+      MessageManager.notify(player, message);
+      this.objectPool.release(task);
+    };
+    this.addTask(task);
+  }
+  cleanup() {
+    this.queue.forEach(task => this.objectPool.release(task)); // Release tasks back to the pool
+    this.queue = [];
+    this.isProcessing = false;
+  }
+}
+/**************************************************************************************************
+Object Pool Class
+The Object Pool class manages a pool of reusable objects to optimize memory usage and performance
+by reducing the overhead of object creation and garbage collection.
+***************************************************************************************************/
+class ObjectPool {
+  constructor(createFunc, size) {
+    this.createFunc = createFunc;
+    this.pool = Array.from({ length: size }, this.createFunc);
+    this.available = [];
+  }
+  acquire() {
+    return this.available.length > 0 ? this.available.pop() : this.pool.pop();
+  }
+  release(object) {
+    this.available.push(object);
+  }
+}
+/**************************************************************************************************
+Task Class
+The Task class represents a unit of work that can be executed. It encapsulates the task's name
+and execution logic, allowing for flexible task management.
+***************************************************************************************************/
+class Task {
+  constructor(name) {
+    this.name = name;
+    this.execute = null;
+  }
+  run() {
+    if (this.execute) this.execute();
+  }
+}
+/**************************************************************************************************
+Game Component Initializer Class
+The Game Component Initializer class is responsible for initializing the game components.
+***************************************************************************************************/
+class GameComponentInitializer extends BaseManager {
+  constructor({ server }) {
+    super({ server, logger });
+  }
+  async setupGameComponents() {
+    try {
+      // Initialize DatabaseManager first
+      this.server.databaseManager = new DatabaseManager({
+        server: this.server,
+        logger: this.server.logger
+      });
+      await this.server.databaseManager.initialize();
+      // Initialize GameManager
+      this.server.gameManager = new GameManager(this.server);
+      // Load locations data
+      await this.loadLocationsData();
+      // Now initialize other components
+      this.server.gameDataLoader = new GameDataLoader(this.server);
+      // ... other component initializations ...
+      // Load remaining game data
+      await this.server.gameDataLoader.fetchGameData();
+    } catch (error) {
+      this.server.logger.error('ERROR: Loading game data:', error);
+      this.server.logger.error(error.stack);
+    }
+  }
+  async loadLocationsData() {
+    try {
+      const locationsData = await this.server.databaseManager.loadLocationData();
+      this.server.gameManager.initializeLocations(locationsData);
+    } catch (error) {
+      this.server.logger.error('ERROR: Loading locations data:', error);
+      this.server.logger.error(error.stack);
+    }
+  }
+}
+/**************************************************************************************************
+Database Manager Interface Class
+The IDatabaseManager interface defines the methods that a database manager must implement.
+***************************************************************************************************/
+class IDatabaseManager {
+  constructor({ server, logger }) {
+    this.server = server; // Store server reference
+    this.logger = logger; // Store logger reference
+  }
+  async loadLocationData() { } // Method to load location data
+  async loadNpcData() { } // Method to load NPC data
+  async loadItemData() { } // Method to load item data
+  async saveData() { } // Method to save data
+  async initialize() { } // New method for initialization
+}
+/**************************************************************************************************
+Database Manager Class
+The Database Manager class implements the IDatabaseManager interface and provides methods
+for loading and saving game data from the database.
+***************************************************************************************************/
 class DatabaseManager extends IDatabaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
     this.DATA_PATHS = {
-      LOCATIONS: this.server.configManager.get('LOCATION_DATA_PATH'), // Use config
-      NPCS: this.server.configManager.get('NPC_DATA_PATH'), // Use config
-      ITEMS: this.server.configManager.get('ITEM_DATA_PATH'), // Use config
+      LOCATIONS: this.server.configManager.get('LOCATION_DATA_PATH'),
+      NPCS: this.server.configManager.get('NPC_DATA_PATH'),
+      ITEMS: this.server.configManager.get('ITEM_DATA_PATH'),
     };
   }
-
-  async initialize() {
-    // No need to import fs here, as we've imported it at the top of the file
-  }
-
   async loadLocationData() {
     try {
+      const { promises: fs } = await import('fs');
+      const path = await import('path');
       const files = await fs.readdir(this.DATA_PATHS.LOCATIONS);
       const locationData = {};
-
       for (const file of files) {
         if (path.extname(file) === '.json') {
           const filePath = path.join(this.DATA_PATHS.LOCATIONS, file);
@@ -472,57 +720,40 @@ class DatabaseManager extends IDatabaseManager {
           locationData[location.id] = location;
         }
       }
-
       return locationData;
     } catch (error) {
       this.logger.error('ERROR: Loading location data:', error);
-      throw error; // Re-throw the error to be caught by the caller
+      throw error;
     }
   }
-
-  async loadNpcData() {
-    try {
-      return await this.loadData(this.DATA_PATHS.NPCS, 'npc');
-    } catch (error) {
-      this.logger.error(`ERROR: Loading NPC data: ${error.message}`, { error });
-      this.logger.error(error.stack); // Log stack trace
-    }
-  }
-
-  async loadItemData() {
-    try {
-      return await this.loadData(this.DATA_PATHS.ITEMS, 'item');
-    } catch (error) {
-      this.logger.error(`ERROR: Loading item data: ${error.message}`, { error });
-      this.logger.error(error.stack); // Log stack trace
-    }
-  }
-
-  async loadData(dataPath, type) { // New utility method
+  // ... other methods ...
+  async loadData(dataPath, type) {
     try {
       const files = await this.getFilesInDirectory(dataPath);
+      const { promises: fs } = await import('fs');
       const data = await Promise.all(files.map(file => fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
       return data;
     } catch (error) {
       this.logger.error(`ERROR: Loading ${type} data: ${error.message}`, { error });
-      this.logger.error(error.stack); // Log stack trace
+      this.logger.error(error.stack);
       throw error;
     }
   }
-
   async getFilesInDirectory(directory) {
     try {
+      const { promises: fs } = await import('fs');
+      const path = await import('path');
       const files = await fs.readdir(directory);
       return files.filter(file => path.extname(file) === '.json').map(file => path.join(directory, file));
     } catch (error) {
       this.logger.error(`ERROR: Reading directory ${directory}: ${error.message}`, { error });
-      this.logger.error(error.stack); // Log stack trace
+      this.logger.error(error.stack);
       throw error;
     }
   }
-
   async saveData(filePath, key, data) {
     try {
+      const { promises: fs } = await import('fs');
       const existingData = await fs.readFile(filePath, 'utf-8');
       const parsedData = JSON.parse(existingData);
       parsedData[key] = data;
@@ -530,19 +761,15 @@ class DatabaseManager extends IDatabaseManager {
       this.logger.info(`Data saved for ${key} to ${filePath}`, { filePath, key });
     } catch (error) {
       this.logger.error(`ERROR: Saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
-      this.logger.error(error.stack); // Log stack trace
+      this.logger.error(error.stack);
     }
   }
-
-  cleanup() {
-    // No need to clear fs reference as we're using the imported promises version
-  }
 }
-// GameManager Class ********************************************************************************
-/*
- * The GameManager class is responsible for managing the game state, including entities, locations,
- * and events. It handles game loop updates, entity movement, and event triggering.
-*/
+/**************************************************************************************************
+Game Manager Class
+The Game Manager class is responsible for managing the game state, including entities, locations,
+and events. It handles game loop updates, entity movement, and event triggering.
+***************************************************************************************************/
 class GameManager {
   gameLoopInterval = null; // Changed from #gameLoopInterval
   gameTime = 0; // Changed from #gameTime
@@ -558,11 +785,9 @@ class GameManager {
     this.eventEmitter.on("tick", this.gameTick.bind(this));
     this.eventEmitter.on("newDay", this.newDayHandler.bind(this));
   }
-
   initializeLocations(locationsData) {
     this.locations = new Map(Object.entries(locationsData));
   }
-
   addLocation(location) {
     this.locations.set(location.getName(), location); // Method to add a location
   }
@@ -698,11 +923,11 @@ class GameManager {
     return this.npcs.get(npcId); // Retrieve NPC by ID
   }
 }
-// GameDataLoader Class ******************************************************************************
-/*
- * The GameDataLoader class is responsible for loading game data from the database, ensuring that
- * all necessary data is loaded before the game starts.
-*/
+/**************************************************************************************************
+Game Data Loader Class
+The Game Data Loader class is responsible for loading game data from the database, ensuring that
+all necessary data is loaded before the game starts.
+***************************************************************************************************/
 class GameDataLoader {
   constructor(server) {
     this.server = server;
@@ -769,208 +994,126 @@ class GameDataLoader {
     }
   }
 }
-// Object Pool ************************************************************************************
-/*
- * The ObjectPool class manages a pool of reusable objects to optimize memory usage and performance
- * by reducing the overhead of object creation and garbage collection.
-*/
-class ObjectPool {
-  constructor(createFunc, size) {
-    this.createFunc = createFunc;
-    this.pool = Array.from({ length: size }, this.createFunc);
-    this.available = [];
+/**************************************************************************************************
+Location Coordinate Manager Class
+The Location Coordinate Manager class is responsible for assigning coordinates to locations in the
+game. It uses a recursive approach to assign coordinates to all connected locations immediately
+after location data is loaded.
+***************************************************************************************************/
+class LocationCoordinateManager {
+  constructor(server) {
+    this.server = server;
+    this.logger = server.logger;
+    this.locations = new Map();
   }
-  acquire() {
-    return this.available.length > 0 ? this.available.pop() : this.pool.pop();
-  }
-  release(object) {
-    this.available.push(object);
-  }
-}
-// Task Class ************************************************************************************
-/*
- * The Task class represents a unit of work that can be executed. It encapsulates the task's name
- * and execution logic, allowing for flexible task management.
-*/
-class Task {
-  constructor(name) {
-    this.name = name;
-    this.execute = null;
-  }
-  run() {
-    if (this.execute) this.execute();
-  }
-}
-// Queue Manager *********************************************************************************
-/*
- * The QueueManager class manages a queue of tasks to be executed. It handles task addition,
- * processing, and execution, ensuring that tasks are run in a controlled manner.
-*/
-class QueueManager {
-  constructor(objectPool) {
-    this.objectPool = objectPool; // Use ObjectPool instance
-    this.queue = [];
-    this.isProcessing = false;
-  }
-  addTask(task) {
-    const pooledTask = this.objectPool.acquire(); // Acquire a task from the pool
-    pooledTask.name = task.name; // Set task name
-    pooledTask.execute = task.execute; // Set task execution logic
-    this.queue.push(pooledTask); // Add to queue
-    this.processQueue();
-  }
-  processQueue() {
-    if (this.isProcessing || this.queue.length === 0) return; // Check if already processing or queue is empty
-    this.isProcessing = true;
-    const processNextTask = async () => {
-      while (this.queue.length > 0) {
-        const task = this.queue.shift();
-        try {
-          await task.run(); // Ensure task.run() is awaited
-        } catch (error) {
-          console.error(`ERROR processing task: ${error.message}`);
-          console.error(error.stack); // Log stack trace
-        }
+  async loadLocations() {
+    try {
+      this.logger.info('- Starting Load Locations');
+      const locationData = await this.server.databaseManager.loadData(this.server.configManager.get('LOCATION_DATA_PATH'), 'location');
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Loaded Raw Location Data:`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`${JSON.stringify(locationData)}`);
+      // Parse the JSON string if it's not already an object
+      const parsedData = typeof locationData === 'string' ? JSON.parse(locationData) : locationData;
+      // If parsedData is an array with a single object, use that object
+      const locationsObject = Array.isArray(parsedData) ? parsedData[0] : parsedData;
+      this.logger.debug(`\n`)
+      for (const [id, location] of Object.entries(locationsObject)) {
+        this.locations.set(id, location);
+        this.logger.debug(`- Added location ${id} to locations Map`);
       }
-      this.isProcessing = false; // Reset processing state after all tasks are done
-      this.cleanup();
-    };
-    processNextTask(); // Start processing tasks
-  }
-  addDataLoadTask(filePath, key) {
-    const task = new Task('Data Load Task'); // Use Task class
-    task.execute = async () => {
-      const data = await this.databaseManager.loadData(filePath, key);
-      this.handleLoadedData(key, data); // Use the loaded data
-      this.objectPool.release(task);
-    };
-    this.addTask(task);
-  }
-  handleLoadedData(key, data) { // New method to handle loaded data
-    // Implement logic to process the loaded data based on the key
-    switch (key) {
-      case 'location':
-        this.server.gameManager.addLocations(data); // Example usage
-        break;
-      case 'npc':
-        this.server.gameManager.addNpcs(data); // Example usage
-        break;
-      case 'item':
-        this.server.gameManager.addItems(data); // Example usage
-        break;
-      default:
-        this.logger.warn(`No handler for data type: ${key}`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Loaded ${this.locations.size} locations.`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Locations Map contents:`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
+    } catch (error) {
+      this.logger.error('ERROR: Loading locations:', error);
+      this.logger.error(error.stack);
     }
   }
-  addDataSaveTask(filePath, key, data) {
-    const task = new Task('Data Save Task'); // Use Task class
-    task.execute = async () => {
-      await this.databaseManager.saveData(filePath, key, data);
-      this.objectPool.release(task);
-    };
-    this.addTask(task);
-  }
-  addCombatActionTask(player, target) {
-    const task = this.objectPool.acquire();
-    task.name = 'Combat Action Task';
-    task.execute = () => {
-      player.attackNpc(target);
-      this.objectPool.release(task);
-    };
-    this.addTask(task);
-  }
-  addEventProcessingTask(event) {
-    const task = this.objectPool.acquire();
-    task.name = 'Event Processing Task';
-    task.execute = async () => {
-      try {
-        // Integrate with event handling
-        this.server.eventEmitter.emit(event.type, event.data); // Emit the event
-        // Example of processing game logic based on the event
-        if (event.type === 'playerAction') {
-          const player = this.server.gameManager.getPlayerById(event.data.playerId);
-          if (player) {
-            await player.handleAction(event.data.action); // Call player action handling
-          }
-        }
-      } catch (error) {
-        this.server.logger.error(`ERROR: Processing event: ${error.message}`, { error });
-        this.server.logger.error(error.stack); // Log stack trace
-      } finally {
-        this.objectPool.release(task); // Ensure task is released
-      }
-    };
-    this.addTask(task); // Add task to the queue
-  }
-  addHealthRegenerationTask(player) {
-    const task = this.objectPool.acquire();
-    task.name = 'Health Regeneration Task';
-    task.execute = () => {
-      player.startHealthRegeneration();
-      this.objectPool.release(task);
-    };
-    this.addTask(task);
-  }
-  addInventoryManagementTask(player, action, item) {
-    const task = this.objectPool.acquire();
-    task.name = 'Inventory Management Task';
-    task.execute = () => {
-      action === 'pickup' ? player.addToInventory(item) : player.removeFromInventory(item);
-      this.objectPool.release(task);
-    };
-    this.addTask(task);
-  }
-  addNotificationTask(player, message) {
-    const task = this.objectPool.acquire();
-    task.name = 'Notification Task';
-    task.execute = () => {
-      MessageManager.notify(player, message);
-      this.objectPool.release(task);
-    };
-    this.addTask(task);
-  }
-  cleanup() {
-    this.queue.forEach(task => this.objectPool.release(task)); // Release tasks back to the pool
-    this.queue = [];
-    this.isProcessing = false;
-  }
-}
-// ConfigManager Class ****************************************************************************
-/*
- * The ConfigManager class is responsible for loading and providing access to configuration settings.
- * It ensures that the configuration is loaded only once and provides a method to retrieve values by key.
-*/
-class ConfigManager {
-  static instance = null;
-  constructor() {
-    if (ConfigManager.instance) {
-      return ConfigManager.instance;
+  async assignCoordinates() {
+    try {
+      await this.loadLocations();
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Locations loaded, proceeding with coordinate assignment:`);
+      this.logger.debug(`\n`)
+      const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
+      this.logger.debug(`- Initial coordinates: ${JSON.stringify(Array.from(coordinates.entries()))}`);
+      this._assignCoordinatesRecursively("100", coordinates);
+      this.logger.debug(`\n`)
+      this.logger.debug(`- After recursive assignment:`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
+      this.logger.debug(`\n`)
+      this._updateLocationsWithCoordinates(coordinates);
+    } catch (error) {
+      this.logger.error('ERROR: Assigning coordinates:', error);
+      this.logger.error(error.stack);
     }
-    this.CONFIG = null;
-    ConfigManager.instance = this;
   }
-  async loadConfig() {
-    if (!this.CONFIG) {
-      console.log(`\nSTARTING LOAD CONFIGURATION SETTINGS:`);
-      try {
-        this.CONFIG = await import('./config.js').then(module => module.default);
-        console.log(`LOAD CONFIGURATION SETTINGS FINISHED.`);
-      } catch (error) {
-        console.error(`ERROR LOADING CONFIG: ${error.message}`);
-        console.error(error.stack); // Log stack trace
+  _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
+    this.logger.debug(`- Assigning coordinates for location ${locationId} at (${x}, ${y}, ${z})`);
+    const location = this.locations.get(locationId);
+    if (!location) {
+      this.logger.warn(`Location ${locationId} not found in locations Map`);
+      return;
+    }
+    location.coordinates = { x, y, z };
+    this.logger.debug(`- Exits for location ${locationId}: ${JSON.stringify(location.exits)}`);
+    for (const [direction, exitId] of Object.entries(location.exits)) {
+      let newX = x, newY = y, newZ = z;
+      switch (direction) {
+        case 'north': newY += 1; break;
+        case 'south': newY -= 1; break;
+        case 'east': newX += 1; break;
+        case 'west': newX -= 1; break;
+        case 'up': newZ += 1; break;
+        case 'down': newZ -= 1; break;
+      }
+      if (!coordinates.has(exitId)) {
+        this.logger.debug(`- Assigning new coordinates for exit ${exitId} in direction ${direction}`);
+        coordinates.set(exitId, { x: newX, y: newY, z: newZ });
+        this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ);
+      } else {
+        this.logger.debug(`- Coordinates already assigned for exit ${exitId}`);
       }
     }
   }
-  get(key) {
-    return this.CONFIG?.[key];
+  _updateLocationsWithCoordinates(coordinates) {
+    this.logger.debug('- Updating locations with coordinates:');
+    this.logger.debug(`\n`)
+    this.logger.debug(`- Coordinates Map:`);
+    this.logger.debug(`\n`)
+    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
+    this.logger.debug(`\n`)
+    this.logger.debug(`- Locations Map:`);
+    this.logger.debug(`\n`)
+    this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
+    this.logger.debug(`\n`)
+    for (const [id, coord] of coordinates) {
+      const location = this.locations.get(id);
+      if (location) {
+        location.coordinates = coord;
+        this.logger.debug(`- Location ${id} (${location.name}) coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
+      } else {
+        this.logger.warn(`Location ${id} not found in this.locations`);
+      }
+    }
+    this.logger.debug(`\n`)
+    this.logger.debug(`- Total locations updated: ${coordinates.size}`);
+    this.logger.debug(`\n`)
+    this.logger.debug('- Coordinate assignment finished');
+    this.logger.debug(`\n`)
   }
 }
-//*************************************************************************************************
-// Create New Player ******************************************************************************
-/*
- * The CreateNewPlayer class is responsible for creating new player instances from existing player
- * data, providing methods to initialize player attributes and state.
-*/
+/**************************************************************************************************
+Create New Player
+The Create New Player class is responsible for creating new player instances from existing player
+data, providing methods to initialize player attributes and state.
+***************************************************************************************************/
 class CreateNewPlayer {
   constructor(name, age) {
     this.name = name; this.age = age; // Player's name and age
@@ -984,11 +1127,11 @@ class CreateNewPlayer {
     if (updatedData.level !== undefined) await this.setLevel(updatedData.level); // Await level update if provided
   }
 }
-// Entity ***************************************************************************************
-/*
- * The Entity class is a base class for all entities in the game.
- * It contains shared properties and methods for characters and players.
-*/
+/**************************************************************************************************
+Entity Class
+The Entity class is a base class for all entities in the game.
+It contains shared properties and methods for characters and players.
+***************************************************************************************************/
 class Entity {
   constructor(name, health) {
     this.name = name; this.health = health; // Entity's name and health
@@ -997,19 +1140,19 @@ class Entity {
   getHealth() { return this.health; } // Return entity's health
   setHealth(newHealth) { this.health = newHealth; } // Set new health value
 }
-// Character ***************************************************************************************
-/*
- * The Character class represents a character in the game.
- * It extends the Entity class.
-*/
+/**************************************************************************************************
+Character Class
+The Character class represents a character in the game.
+It extends the Entity class.
+***************************************************************************************************/
 class Character extends Entity {
   constructor(name, health) { super(name, health); } // Call the parent constructor
 }
-// Player *****************************************************************************************
-/*
-* The Player class represents a player in the game.
-* It extends the Character class.
-*/
+/**************************************************************************************************
+Player Class
+The Player class represents a player in the game.
+It extends the Character class.
+***************************************************************************************************/
 class Player extends Character {
   constructor(uid, name, bcrypt) {
     super(name, 100); this.uid = uid; this.bcrypt = bcrypt; this.inventory = new Set(); this.healthRegenerator = new HealthRegenerator(this); // Initialize properties
@@ -1154,11 +1297,11 @@ class Player extends Character {
   removeWeapon(weapon) { this.weapons.delete(weapon); }
   static async createNewPlayer(name, age) { return new CreateNewPlayer(name, age); } // Use CreateNewPlayer to create a new instance
 }
-// Health Regenerator ****************************************************************************
-/*
- * The HealthRegenerator class is responsible for regenerating the player's health over time.
- * It uses a setInterval to call the regenerate method at regular intervals.
-*/
+/**************************************************************************************************
+Health Regenerator Class
+The Health Regenerator class is responsible for regenerating the player's health over time.
+It uses a setInterval to call the regenerate method at regular intervals.
+***************************************************************************************************/
 class HealthRegenerator {
   constructor(player) {
     this.player = player; this.config = null; this.regenInterval = null; // Initialize properties
@@ -1189,11 +1332,11 @@ class HealthRegenerator {
     if (this.regenInterval) { clearInterval(this.regenInterval); this.regenInterval = null; } // Clear regeneration interval
   }
 }
-// Look At ***************************************************************************************
-/*
- * The LookAt class is responsible for handling the player's "look" command.
- * It retrieves the target entity from the current location and formats the appropriate message.
-*/
+/**************************************************************************************************
+Look At Class
+The Look At class is responsible for handling the player's "look" command.
+It retrieves the target entity from the current location and formats the appropriate message.
+***************************************************************************************************/
 class LookAt {
   constructor(player) { this.player = player; } // Reference to the player instance
   look(target) {
@@ -1218,11 +1361,11 @@ class LookAt {
   }
   lookAtSelf() { MessageManager.notifyLookAtSelf(this.player); } // Notify looking at self
 }
-// Uid Generator **********************************************************************************
-/*
- * The UidGenerator class is responsible for generating unique IDs for entities in the game.
- * It uses bcrypt to generate a unique value and return the hashed UID.
-*/
+/**************************************************************************************************
+Uid Generator Class
+The Uid Generator class is responsible for generating unique IDs for entities in the game.
+It uses bcrypt to generate a unique value and return the hashed UID.
+***************************************************************************************************/
 class UidGenerator {
   static async generateUid() {
     const { hash } = await import('bcrypt'); // Correctly import bcrypt
@@ -1230,12 +1373,12 @@ class UidGenerator {
     return hash(uniqueValue.toString(), 5); // Hash the unique value
   }
 }
-// Direction Manager ******************************************************************************
-/*
- * The DirectionManager class is responsible for partially generating Player and NPC movement
- * message content based on directions. It provides methods to get the direction to a new location
- * and the direction from an old location.
-*/
+/**************************************************************************************************
+Direction Manager Class
+The Direction Manager class is responsible for partially generating Player and NPC movement
+message content based on directions. It provides methods to get the direction to a new location
+and the direction from an old location.
+***************************************************************************************************/
 class DirectionManager {
   static getDirectionTo(newLocationId) {
     const directionMap = { 'north': 'northward', 'east': 'eastward', 'west': 'westward', 'south': 'southward', 'up': 'upward', 'down': 'downward' }; // Map direction to string
@@ -1246,10 +1389,10 @@ class DirectionManager {
     return directionMap[oldLocationId] || 'from an unknown direction'; // Return direction string or default
   }
 }
-// Location ***************************************************************************************
-/*
- * The Location class intended to be used with OLC (online creation system).
-*/
+/**************************************************************************************************
+Location Class
+The Location class is intended to be used with OLC (online creation system).
+***************************************************************************************************/
 class Location {
   constructor(name, description) {
     this.name = name; this.description = description; this.exits = new Map(); this.items = new Set(); this.npcs = new Set(); this.playersInLocation = new Set(); this.zone = []; // Initialize properties
@@ -1263,11 +1406,11 @@ class Location {
   getName() { return this.name; } // Return location name
   getNpcs() { return Array.from(this.npcs).map(npcId => this.gameManager.getNpc(npcId)); } // Retrieve all NPCs in the location
 }
-// NPC ********************************************************************************************
-/*
- * The Npc class is responsible for representing non-player characters in the game.
- * It extends the Character class.
-*/
+/**************************************************************************************************
+Npc Class
+The Npc class is responsible for representing non-player characters in the game.
+It extends the Character class.
+***************************************************************************************************/
 class Npc extends Character {
   constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile = false, zones = [], aliases) {
     super(name, currHealth); this.sex = sex; this.maxHealth = maxHealth; this.attackPower = attackPower; this.csml = csml; this.aggro = aggro; this.assist = assist; this.status = status; this.currentLocation = currentLocation; this.mobile = mobile; this.zones = zones; this.aliases = aliases; this.id = UidGenerator.generateUid(); this.currHealth; this.previousState = { currHealth, status }; // Initialize properties
@@ -1294,50 +1437,50 @@ class Npc extends Character {
     return hasChanged; // Return if state has changed
   }
 }
-// Base Item ***************************************************************************************
-/*
- * The BaseItem class is responsible for representing items in the game.
- * It stores the item's UID, name, description, and aliases.
-*/
+/**************************************************************************************************
+Base Item Class
+The Base Item class is responsible for representing items in the game.
+It stores the item's UID, name, description, and aliases.
+***************************************************************************************************/
 class BaseItem {
   constructor(name, description, aliases) {
     this.name = name; this.description = description; this.aliases = aliases; this.uid = UidGenerator.generateUid(); // Initialize properties
   }
 }
-// Item *******************************************************************************************
-/*
- * The Item class is responsible for representing items in the game.
- * It stores the item's UID, name, description, and aliases.
-*/
+/**************************************************************************************************
+Item Class
+The Item class is responsible for representing items in the game.
+It stores the item's UID, name, description, and aliases.
+***************************************************************************************************/
 class Item extends BaseItem {
   constructor(name, description, aliases) { super(name, description, aliases); } // Call parent constructor
 }
-// Container Item *********************************************************************************
-/*
- * The ContainerItem class extends the Item class and is used to represent items that can hold other items.
- * It adds an inventory property to store the items contained within the container.
-*/
+/**************************************************************************************************
+Container Item Class
+The Container Item class extends the Item class and is used to represent items that can hold other items.
+It adds an inventory property to store the items contained within the container.
+***************************************************************************************************/
 class ContainerItem extends BaseItem {
   constructor(name, description, aliases) {
     super(name, description, aliases); this.inventory = []; // Initialize inventory array
   }
 }
-// Weapon Item ************************************************************************************
-/*
- * The WeaponItem class is responsible for representing items that can be used in combat.
- * It adds a damage property to store the weapon's damage value.
-*/
+/**************************************************************************************************
+Weapon Item Class
+The Weapon Item class is responsible for representing items that can be used in combat.
+It adds a damage property to store the weapon's damage value.
+***************************************************************************************************/
 class WeaponItem extends BaseItem {
   constructor(name, description, aliases) {
     super(name, description, aliases); this.damage = 0; // Initialize damage value
   }
 }
-// Inventory Manager ******************************************************************************
-/*
- * The InventoryManager class is responsible for managing the player's inventory.
- * It provides methods to add, remove, and transfer items between the player's inventory and other
- * sources.
-*/
+/****************************************************************************** ********************
+Inventory Manager Class
+The Inventory Manager class is responsible for managing the player's inventory.
+It provides methods to add, remove, and transfer items between the player's inventory and other
+sources.
+***************************************************************************************************/
 class InventoryManager {
   constructor(player) {
     this.player = player; // Reference to the player instance
@@ -1620,11 +1763,11 @@ class InventoryManager {
     }
   }
 }
-// Combat Action **********************************************************************************
-/*
- * The CombatAction class is responsible for performing combat actions between two entities.
- * It calculates the damage inflicted, updates the defender's health, and handles the defeat of the defender.
-*/
+/**************************************************************************************************
+Combat Action Class
+The Combat Action class is responsible for performing combat actions between two entities.
+It calculates the damage inflicted, updates the combatant's health, and handles the defeat.
+***************************************************************************************************/
 class CombatAction {
   constructor(logger) {
     this.logger = logger;
@@ -1657,11 +1800,12 @@ class CombatAction {
     // Additional logic for handling defeat (e.g., removing from game, notifying players)
   }
 }
-// Combat Manager *********************************************************************************
-/*
- * The CombatManager class is responsible for managing combat between players and NPCs.
- * It handles the initiation, execution, and end of combat, as well as the selection of combat techniques.
-*/
+/**************************************************************************************************
+Combat Manager Class
+The Combat Manager class is responsible for managing combat between players and NPCs.
+It handles the initiation, execution, and end of combat, as well as the selection of combat
+techniques.
+***************************************************************************************************/
 class CombatManager {
   constructor(server) {
     this.server = server;
@@ -1963,137 +2107,12 @@ class CombatManager {
     return array[Math.floor(Math.random() * array.length)]; // Random selection utility
   }
 }
-// Location Manager *******************************************************************************
-/*
- * The LocationCoordinateManager class is responsible for assigning coordinates to locations in the game.
- * It uses a recursive approach to assign coordinates to all connected locations immediately after
- * location data is loaded.
-*/
-class LocationCoordinateManager {
-  constructor(server) {
-    this.server = server;
-    this.logger = server.logger;
-    this.locations = new Map();
-  }
-
-  async loadLocations() {
-    try {
-      this.logger.info('- Starting Load Locations');
-      const locationData = await this.server.databaseManager.loadData(this.server.configManager.get('LOCATION_DATA_PATH'), 'location');
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Loaded Raw Location Data:`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`${JSON.stringify(locationData)}`);
-
-      // Parse the JSON string if it's not already an object
-      const parsedData = typeof locationData === 'string' ? JSON.parse(locationData) : locationData;
-
-      // If parsedData is an array with a single object, use that object
-      const locationsObject = Array.isArray(parsedData) ? parsedData[0] : parsedData;
-      this.logger.debug(`\n`)
-      for (const [id, location] of Object.entries(locationsObject)) {
-        this.locations.set(id, location);
-        this.logger.debug(`- Added location ${id} to locations Map`);
-      }
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Loaded ${this.locations.size} locations.`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Locations Map contents:`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
-    } catch (error) {
-      this.logger.error('ERROR: Loading locations:', error);
-      this.logger.error(error.stack);
-    }
-  }
-
-  async assignCoordinates() {
-    try {
-      await this.loadLocations();
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Locations loaded, proceeding with coordinate assignment:`);
-      this.logger.debug(`\n`)
-      const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
-      this.logger.debug(`- Initial coordinates: ${JSON.stringify(Array.from(coordinates.entries()))}`);
-
-      this._assignCoordinatesRecursively("100", coordinates);
-      this.logger.debug(`\n`)
-      this.logger.debug(`- After recursive assignment:`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
-      this.logger.debug(`\n`)
-
-      this._updateLocationsWithCoordinates(coordinates);
-    } catch (error) {
-      this.logger.error('ERROR: Assigning coordinates:', error);
-      this.logger.error(error.stack);
-    }
-  }
-
-  _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
-    this.logger.debug(`- Assigning coordinates for location ${locationId} at (${x}, ${y}, ${z})`);
-    const location = this.locations.get(locationId);
-    if (!location) {
-      this.logger.warn(`Location ${locationId} not found in locations Map`);
-      return;
-    }
-    location.coordinates = { x, y, z };
-    this.logger.debug(`- Exits for location ${locationId}: ${JSON.stringify(location.exits)}`);
-    for (const [direction, exitId] of Object.entries(location.exits)) {
-      let newX = x, newY = y, newZ = z;
-      switch (direction) {
-        case 'north': newY += 1; break;
-        case 'south': newY -= 1; break;
-        case 'east': newX += 1; break;
-        case 'west': newX -= 1; break;
-        case 'up': newZ += 1; break;
-        case 'down': newZ -= 1; break;
-      }
-      if (!coordinates.has(exitId)) {
-        this.logger.debug(`- Assigning new coordinates for exit ${exitId} in direction ${direction}`);
-        coordinates.set(exitId, { x: newX, y: newY, z: newZ });
-        this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ);
-      } else {
-        this.logger.debug(`- Coordinates already assigned for exit ${exitId}`);
-      }
-    }
-  }
-
-  _updateLocationsWithCoordinates(coordinates) {
-    this.logger.debug('- Updating locations with coordinates:');
-    this.logger.debug(`\n`)
-    this.logger.debug(`- Coordinates Map:`);
-    this.logger.debug(`\n`)
-    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
-    this.logger.debug(`\n`)
-    this.logger.debug(`- Locations Map:`);
-    this.logger.debug(`\n`)
-    this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
-    this.logger.debug(`\n`)
-
-    for (const [id, coord] of coordinates) {
-      const location = this.locations.get(id);
-      if (location) {
-        location.coordinates = coord;
-        this.logger.debug(`- Location ${id} (${location.name}) coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
-      } else {
-        this.logger.warn(`Location ${id} not found in this.locations`);
-      }
-    }
-    this.logger.debug(`\n`)
-    this.logger.debug(`- Total locations updated: ${coordinates.size}`);
-    this.logger.debug(`\n`)
-    this.logger.debug('- Coordinate assignment finished');
-    this.logger.debug(`\n`)
-  }
-}
-
-// Describe Location Manager***********************************************************************
-/*
- * The DescribeLocationManager class is responsible for describing the current location of the player.
- * It retrieves the location object from the game manager and formats the description based on the
- * location's details. The formatted description is then sent to the player.
-*/
+/**************************************************************************************************
+Describe Location Manager Class
+The Describe Location Manager class is responsible for describing the current location of the player.
+It retrieves the location object from the game manager and formats the description based on the
+location's details.The formatted description is then sent to the player.
+***************************************************************************************************/
 class DescribeLocationManager {
   constructor(player, server) {
     this.player = player; // Reference to the player instance
@@ -2101,7 +2120,6 @@ class DescribeLocationManager {
     this.logger = server.logger;
     this.description = {}; // Reusable description object
   }
-
   describe() {
     try {
       const location = this.server.gameManager.getLocation(this.player.currentLocation); // Get current location
@@ -2116,7 +2134,6 @@ class DescribeLocationManager {
       this.logger.error(error.stack); // Log stack trace
     }
   }
-
   formatDescription(location) {
     const title = { cssid: `location-title`, text: location.getName() }; // Title of the location
     const desc = { cssid: `location-description`, text: location.getDescription() }; // Description of the location
@@ -2135,28 +2152,24 @@ class DescribeLocationManager {
       players,
     };
   }
-
   getExitsDescription(location) {
     return Object.entries(location.exits).map(([direction, linkedLocation]) => ({
       cssid: `exit-${direction}`, // CSS ID for exit
       text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`, // Exit description
     }));
   }
-
   getItemsDescription(location) {
     return location.items.map(item => ({
       cssid: `item-${item.uid}`, // CSS ID for item
       text: `A ${item.name} is lying here.`, // Item description
     }));
   }
-
   getNpcsDescription(location) {
     return location.npcs.map(npcId => {
       const npc = this.server.gameManager.getNpc(npcId); // Get NPC instance
       return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null; // NPC description
     }).filter(npc => npc); // Filter out null values
   }
-
   getPlayersDescription(location) {
     return location.playersInLocation.map(otherPlayer => ({
       cssid: `player`, // CSS ID for player
@@ -2164,22 +2177,17 @@ class DescribeLocationManager {
     }));
   }
 }
-
-// Format Message Manager *************************************************************************
-/*
- * The FormatMessageManager class is responsible for creating and managing message data that is
- * sent to players within the game. It centralizes the formatting of messages, ensuring consistency
- * in how messages are constructed and sent. This class provides methods to create message data with
- * associated CSS IDs for styling and to retrieve predefined message IDs based on specific types of
- * messages (e.g., login success, combat notifications). By centralizing message handling, it
- * simplifies the process of modifying or updating message formats and ensures that all messages
- * adhere to a consistent structure throughout the game.
-*/
+/**************************************************************************************************
+Format Message Manager Class
+The Format Message Manager class centralizes the formatting of messages, ensuring consistency in
+how messages are constructed and sent. This class provides methods to create message data with
+associated CSS IDs for styling predefined message IDs based on specific types of messages (e.g.,
+login success, combat notifications).
+***************************************************************************************************/
 class FormatMessageManager {
   static createMessageData(cssid = '', message) {
     return { cssid, content: message }; // Create message data with CSS ID
   }
-
   static getIdForMessage(type) {
     const messageIds = {
       loginSuccess: 'player-name', // ID for login success message
@@ -2218,13 +2226,12 @@ class FormatMessageManager {
     return messageIds[type] || ''; // Return message ID or empty string
   }
 }
-// Message Manager ********************************************************************************
-/*
- * The MessageManager class is responsible for sending messages to players.
- * It provides methods to notify players of various events, such as combat, location changes,
- * and actions performed by other players. It also handles the formatting and transmission
- * of these messages to the client.
-*/
+/**************************************************************************************************
+Message Manager Class
+The MessageManager class is responsible for sending messages to players. It provides methods to
+notify players of various events, such as combat, location changes, and actions performed by other
+players. It also handles the formatting and transmission of these messages to the client.
+***************************************************************************************************/
 class MessageManager {
   static socket;
   static setSocket(socketInstance) {
@@ -2266,31 +2273,8 @@ class MessageManager {
     return this.notifyAction(player, 'drops', itemName, FormatMessageManager.getIdForMessage('dropItem'));
   }
 }
-//*************************************************************************************************
-// Start the server *******************************************************************************
-/*
- * The server is initialized and configured here. It sets up the server, logger, and other components.
- * The server is then initialized and starts listening for incoming connections.
-*/
-const configManager = new ConfigManager();
-await configManager.loadConfig(); // Ensure config is loaded
-const logger = new Logger(configManager.CONFIG); // Pass the loaded CONFIG to logger
-const server = new Server({ logger }); // Initialize server with null moduleImporter
-const moduleImporter = new ModuleImporter({ server }); // Pass server instance
-server.moduleImporter = moduleImporter; // Assign moduleImporter to server
-// Ensure modules are imported before initializing the server
-try {
-  await server.init(); // Now initialize the server
-  const gameComponentInitializer = new GameComponentInitializer({ server });
-  await gameComponentInitializer.setupGameComponents();
-
-  // Start listening for incoming connections
-  server.server.listen(server.configManager.get('PORT'), server.configManager.get('HOST'), () => {
-    const isHttps = server.configManager.get('HTTPS_ENABLED'); // Define isHttps based on your configuration
-    server.logger.info(`\n`);
-    server.logger.info(`SERVER IS RUNNING AT: ${isHttps ? 'https' : 'http'}://${server.configManager.get('HOST')}:${server.configManager.get('PORT')}`);
-  });
-} catch (error) {
-  logger.error('ERROR: Starting the server:', error);
-  logger.error(error.stack); // Log stack trace
-}
+/**************************************************************************************************
+Start Server
+***************************************************************************************************/
+const serverInitializer = new ServerInitializer();
+serverInitializer.initialize();
