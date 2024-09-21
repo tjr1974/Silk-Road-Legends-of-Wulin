@@ -31,7 +31,7 @@
 - Choose appropriate data structures (e.g., Set, Map) to optimize performance based on use cases.
 
 ## 11. Optimize Loops
-- Utilize array methods like `map`, `filter`, and `reduce` instead of traditional loops where applicable.
+- Utilize methods like `map`, `filter`, and `reduce` instead of traditional loops where applicable.
 - In loops, only perform necessary updates for entities that have changed state.
 
 ## 12. Reduce Object Creation
