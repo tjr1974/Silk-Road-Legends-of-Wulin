@@ -1,3 +1,12 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+import express from 'express';
+import { Server as SocketIOServer } from 'socket.io';
+import Queue from 'queue';
+import http from 'http';
+import https from 'https';
+import process from 'process';
+import CONFIG from './config.js';
 // Interfaces
 class ILogger {
   log() { }
@@ -69,21 +78,17 @@ class Server {
     this.databaseManager = null;
     this.socketEventManager = null;
     this.serverConfigurator = null;
-    this.fs = null;
+    this.fs = fs;
     this.activeSessions = new Map();
-    this.moduleImporter = new ModuleImporter({ server: this, logger: this.logger });
     this.gameManager = null;
     this.isHttps = false;
     this.app = null;
-    this.express = null;
     this.queueManager = null;
   }
 
   async init() {
     try {
       await this.configManager.loadConfig();
-      await this.moduleImporter.loadModules();
-      this.fs = await import('fs').then(module => module.promises);
       this.databaseManager = new DatabaseManager({ server: this, logger: this.logger });
       this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger });
       this.serverConfigurator = new ServerConfigurator({
@@ -108,8 +113,8 @@ class Server {
   async setupHttpServer() {
     const sslOptions = await this.loadSslOptions();
     this.isHttps = sslOptions.key && sslOptions.cert;
-    const http = await import(this.isHttps ? 'https' : 'http');
-    this.server = http.createServer(this.isHttps ? sslOptions : this.app);
+    const httpModule = this.isHttps ? https : http;
+    this.server = httpModule.createServer(this.isHttps ? sslOptions : this.app);
     this.logger.info(`- Configuring Server using ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
     return this.server;
   }
@@ -170,60 +175,12 @@ class Server {
   }
 }
 
-class ModuleImporter extends BaseManager {
-  constructor({ server, logger }) {
-    super({ server, logger });
-  }
-  async loadModules() {
-    try {
-      this.logger.info(`\n`);
-      this.logger.info(`STARTING MODULE IMPORTS:`);
-      this.logger.info(`- Importing Process Module`);
-      try {
-        await import('process');
-        this.logger.info(`- Importing File System Module`);
-        const fsModule = await import('fs');
-        this.fs = fsModule.promises;
-      } catch (error) {
-        this.logger.error(`ERROR: Importing File System Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack);
-      }
-      this.logger.info(`- Importing Express Module`);
-      try {
-        this.express = (await import('express')).default;
-      } catch (error) {
-        this.logger.error(`ERROR: Importing Express Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack);
-      }
-      this.logger.info(`- Importing Socket.IO Module`);
-      try {
-        this.SocketIOServer = (await import('socket.io')).Server;
-      } catch (error) {
-        this.logger.error(`ERROR: Importing Socket.IO Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack);
-      }
-      this.logger.info(`- Importing Queue Module`);
-      try {
-        this.queue = new (await import('queue')).default();
-      } catch (error) {
-        this.logger.error(`ERROR: Importing Queue Module failed: ${error.message}`, { error });
-        this.logger.error(error.stack);
-      }
-      this.logger.info(`MODULE IMPORTS FINISHED.`);
-    } catch (error) {
-      this.logger.error(`ERROR: During module imports: ${error.message}`, { error });
-      this.logger.error(error.stack);
-    }
-  }
-}
-
 class ServerConfigurator extends BaseManager {
   constructor({ config, logger, server, socketEventManager }) {
     super({ server, logger });
     this.config = config;
     this.socketEventManager = socketEventManager;
     this.server.app = null;
-    this.server.express = null;
   }
   async configureServer() {
     const { logger, server } = this;
@@ -260,11 +217,10 @@ class ServerConfigurator extends BaseManager {
     logger.info(`SERVER CONFIGURATION FINISHED.`);
   }
   async setupExpress() {
-    this.server.express = (await import('express')).default;
-    this.server.app = this.server.express();
+    this.server.app = express();
   }
   configureMiddleware() {
-    this.server.app.use(this.server.express.static('public'));
+    this.server.app.use(express.static('public'));
     this.server.app.use((err, res ) => {
       this.logger.error(err.message, { error: err });
       this.logger.error(err.stack);
@@ -405,14 +361,10 @@ class DatabaseManager extends IDatabaseManager {
       NPCS: server.configManager.get('NPC_DATA_PATH'),
       ITEMS: server.configManager.get('ITEM_DATA_PATH'),
     };
-    this.fs = null;
-    this.path = null;
+    this.fs = fs;
+    this.path = path;
   }
   async initialize() {
-    const fsPromises = await import('fs/promises');
-    const pathModule = await import('path');
-    this.fs = fsPromises;
-    this.path = pathModule;
     for (const [key, path] of Object.entries(this.DATA_PATHS)) {
       if (!path) {
         this.logger.error(`ERROR: ${key}_DATA_PATH is not defined in the configuration`);
@@ -487,6 +439,7 @@ class GameManager {
     this.tickRate = server.configManager.get('TICK_RATE');
     this.lastTickTime = Date.now();
     this.tickCount = 0;
+    this.fs = fs;
 
     this.setupEventListeners();
   }
@@ -1050,7 +1003,6 @@ class ServerInitializer {
       RESET: config.RESET
     });
     this.server = new Server({ logger: this.logger });
-    this.moduleImporter = new ModuleImporter({ server: this.server, logger: this.logger });
     this.serverConfigurator = new ServerConfigurator({
       server: this.server,
       logger: this.logger,
@@ -1070,12 +1022,11 @@ class ServerInitializer {
       }
     } catch (error) {
       this.logger.error(`ERROR: Server initialization: ${error.message}`, { error });
-      this.logger.error(error.stack); // Log stack trace
+      this.logger.error(error.stack);
     }
   }
 }
 
 // Usage
-import CONFIG from './config.js';
 const serverInitializer = new ServerInitializer(CONFIG);
 serverInitializer.initialize();
