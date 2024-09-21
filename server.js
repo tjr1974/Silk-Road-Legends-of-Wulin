@@ -27,6 +27,7 @@ class Server {
       this.eventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this)); // Listen for player connection
     } catch (error) {
       this.logger.error(`ERROR during server initialization: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
     }
   }
   handlePlayerConnected(player) {
@@ -39,12 +40,18 @@ class Server {
     try {
       sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH); // Keep await here
     } catch (error) {
-      this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL cert: ${error.message}${this.logger.CONFIG.RESET}`, { error });
+      this.logger.warn(`- - WARNING: Read SSL cert: ${error.message}${this.logger.CONFIG.RESET}`, { error });
+      this.logger.debug(`\n`);
+      this.logger.debug(error.stack); // Log stack trace
+      this.logger.debug(`\n`);
     }
     try {
       sslOptions.key = await this.fs.readFile(SSL_KEY_PATH); // Keep await here
     } catch (error) {
-      this.logger.warn(`${this.logger.CONFIG.MAGENTA}- - WARNING: Read SSL  key: ${error.message}${this.logger.CONFIG.RESET}`, { error });
+      this.logger.warn(`- - WARNING: Read SSL  key: ${error.message}${this.logger.CONFIG.RESET}`, { error });
+      this.logger.debug(`\n`);
+      this.logger.debug(error.stack); // Log stack trace
+      this.logger.debug(`\n`);
     }
     const isHttps = sslOptions.key && sslOptions.cert;
     const http = isHttps ? await import('https') : await import('http'); // Keep await here
@@ -199,28 +206,33 @@ class ModuleImporter extends BaseManager {
         this.fs = fsModule.promises; // Access promises property correctly
       } catch (error) {
         this.logger.error(`ERROR: Importing File System Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
       }
       this.logger.info(`- Importing Express Module`);
       try {
         this.express = (await import('express')).default;
       } catch (error) {
         this.logger.error(`ERROR: Importing Express Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
       }
       this.logger.info(`- Importing Socket.IO Module`);
       try {
         this.SocketIOServer = (await import('socket.io')).Server;
       } catch (error) {
         this.logger.error(`ERROR: Importing Socket.IO Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
       }
       this.logger.info(`- Importing Queue Module`);
       try {
         this.queue = new (await import('queue')).default();
       } catch (error) {
         this.logger.error(`ERROR: Importing Queue Module failed: ${error.message}`, { error });
+        this.logger.error(error.stack); // Log stack trace
       }
       this.logger.info(`MODULE IMPORTS FINISHED.`);
     } catch (error) {
       this.logger.error(`ERROR: During module imports: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
     }
   }
 }
@@ -245,24 +257,28 @@ class ServerConfigurator extends BaseManager {
       await this.setupExpress(); // Ensure this method is defined
     } catch (error) {
       logger.error(`ERROR: During Express configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
     }
     logger.info(`- Configuring Server`);
     try {
       await server.setupHttpServer();
     } catch (error) {
       logger.error(`ERROR: During Http Server configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
     }
     logger.info(`- Configuring Middleware`);
     try {
       this.configureMiddleware(); // Call the middleware configuration
     } catch (error) {
       logger.error(`ERROR: During Middleware configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
     }
     logger.log('INFO', '- Configuring Queue Manager');
     try {
       server.queueManager = new QueueManager();
     } catch (error) {
       logger.error(`ERROR during Queue Manager configuration: ${error.message}`, { error });
+      logger.error(error.stack); // Log stack trace
     }
     logger.info(`SERVER CONFIGURATION FINISHED.`);
   }
@@ -274,6 +290,7 @@ class ServerConfigurator extends BaseManager {
     this.server.app.use(this.server.express.static('public'));
     this.server.app.use((err, res ) => {
       this.logger.error(err.message, { error: err });
+      this.logger.error(err.stack); // Log stack trace
       res.status(500).send('An unexpected error occurred. Please try again later.');
     });
   }
@@ -283,42 +300,42 @@ class GameComponentInitializer extends BaseManager {
   constructor({ server }) {
     super({ server, logger });
   }
-  async setupGameComponents() { // Renamed from 'initializeGameComponents' to 'setupGameComponents'
-    this.logger.info(`\n`);
-    this.logger.info(`STARTING GAME COMPONENTS INITIALIZATION:`);
-    this.logger.log('INFO', '- Starting Game Components');
+
+  async setupGameComponents() {
     try {
-      this.gameComponentInitializer = new GameComponentInitializer(this);
-    } catch (error) {
-      this.logger.error(`ERROR: Starting Game Components unsuccessful: ${error.message}`, { error });
-    }
-    this.logger.log('INFO', '- Starting Database Manager');
-    try {
-      this.server.databaseManager = new DatabaseManager({ server: this.server, logger: this.logger });
+      // Initialize DatabaseManager first
+      this.server.databaseManager = new DatabaseManager({
+        server: this.server,
+        logger: this.server.logger
+      });
       await this.server.databaseManager.initialize();
-    } catch (error) {
-      this.logger.error(`ERROR: Starting Database Manager unsuccessful: ${error.message}`, { error });
-    }
-    this.logger.log('INFO', '- Starting Load Game Data');
-    try {
+
+      // Initialize GameManager
+      this.server.gameManager = new GameManager(this.server);
+
+      // Load locations data
+      await this.loadLocationsData();
+
+      // Now initialize other components
       this.server.gameDataLoader = new GameDataLoader(this.server);
+      // ... other component initializations ...
+
+      // Load remaining game data
+      await this.server.gameDataLoader.fetchGameData();
     } catch (error) {
-      this.logger.error(`ERROR: Starting Load Game Data unsuccessful: ${error.message}`, { error });
+      this.server.logger.error('Error setting up game components:', error);
+      this.server.logger.error(error.stack);
     }
-    if (this.logger.logLevel === 'DEBUG') { // Check if log level is DEBUG
-      this.logger.log('DEBUG', '\n');
-      this.logger.log('DEBUG', 'VERIFYING GAME DATA:');
-      const gameDataVerifier = new GameDataVerifier(this.server.databaseManager);
-      await gameDataVerifier.validateGameData();
-      this.logger.log('DEBUG', '\n');
-    }
-    this.logger.log('INFO', '- Starting Game Manager');
+  }
+
+  async loadLocationsData() {
     try {
-      this.server.gameManager = new GameManager({ eventEmitter: this.server.eventEmitter });
+      const locationsData = await this.server.databaseManager.loadLocationData();
+      this.server.gameManager.initializeLocations(locationsData);
     } catch (error) {
-      this.logger.error(`ERROR: Starting Game Manager unsuccessful: ${error.message}`, { error });
+      this.server.logger.error('Error loading locations data:', error);
+      this.server.logger.error(error.stack);
     }
-    this.logger.info(`GAME COMPONENTS INITIALIZATION FINISHED.`);
   }
 }
 // Logger Interface *******************************************************************************
@@ -366,10 +383,14 @@ class Logger extends ILogger {
   }
   log(level, message) {
     if (this.shouldLog(level)) {
-      const logString = level === 'ERROR' ? `${this.CONFIG.RED}${message}${this.CONFIG.RESET}` : `${message}`;
-      if (level === 'WARN') {
+      if (level === 'DEBUG') {
+        message = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
+      } else if (level === 'WARN') {
         message = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
+      } else if (level === 'ERROR') {
+        message = `${this.CONFIG.RED}${message}${this.CONFIG.RESET}`;
       }
+      const logString = `${message}`;
       this.writeToConsole(logString);
     }
   }
@@ -421,6 +442,9 @@ class EventEmitter extends IEventEmitter {
  * The DatabaseManager class implements the IDatabaseManager interface and provides methods
  * for loading and saving game data from the database.
 */
+import { promises as fs } from 'fs';
+import path from 'path';
+
 class DatabaseManager extends IDatabaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
@@ -430,70 +454,88 @@ class DatabaseManager extends IDatabaseManager {
       ITEMS: this.server.configManager.get('ITEM_DATA_PATH'), // Use config
     };
   }
+
   async initialize() {
-    this.fs = await import('fs').then(module => module.promises);
+    // No need to import fs here, as we've imported it at the top of the file
   }
-  async getFilesInDirectory(directoryPath) {
-    const files = await this.fs.readdir(directoryPath);
-    return files.filter(file => file.endsWith('.json')).map(file => `${directoryPath}/${file}`);
-  }
+
   async loadLocationData() {
-    const filePath = this.DATA_PATHS.LOCATIONS; // Use the path from config
-    const locationData = new Map(); // Initialize a Map to hold location data
-    const filenames = []; // Array to hold filenames
     try {
-      const files = await this.fs.readdir(filePath); // Read all files in the directory
+      const files = await fs.readdir(this.DATA_PATHS.LOCATIONS);
+      const locationData = {};
+
       for (const file of files) {
-        if (file.endsWith('.json')) {
-          const data = await this.fs.readFile(`${filePath}/${file}`, 'utf-8'); // Read JSON file
-          const parsedData = JSON.parse(data); // Parse JSON data
-          const locationId = parsedData.id; // Assuming each location has a unique ID
-          locationData.set(locationId, parsedData); // Store in Map
-          filenames.push(file); // Collect filenames
+        if (path.extname(file) === '.json') {
+          const filePath = path.join(this.DATA_PATHS.LOCATIONS, file);
+          const data = await fs.readFile(filePath, 'utf8');
+          const location = JSON.parse(data);
+          locationData[location.id] = location;
         }
       }
+
+      return locationData;
     } catch (error) {
-      this.logger.error(`ERROR loading location data: ${error.message}`, { error });
+      this.logger.error('Error loading location data:', error);
+      throw error; // Re-throw the error to be caught by the caller
     }
-    return { locationData, filenames }; // Return loaded data and filenames
   }
+
   async loadNpcData() {
     try {
       return await this.loadData(this.DATA_PATHS.NPCS, 'npc');
     } catch (error) {
       this.logger.error(`ERROR loading NPC data: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
     }
   }
+
   async loadItemData() {
     try {
       return await this.loadData(this.DATA_PATHS.ITEMS, 'item');
     } catch (error) {
       this.logger.error(`ERROR loading item data: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
     }
   }
+
   async loadData(dataPath, type) { // New utility method
     try {
       const files = await this.getFilesInDirectory(dataPath);
-      const data = await Promise.all(files.map(file => this.fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
+      const data = await Promise.all(files.map(file => fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
       return data;
     } catch (error) {
       this.logger.error(`ERROR loading ${type} data: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
       throw error;
     }
   }
+
+  async getFilesInDirectory(directory) {
+    try {
+      const files = await fs.readdir(directory);
+      return files.filter(file => path.extname(file) === '.json').map(file => path.join(directory, file));
+    } catch (error) {
+      this.logger.error(`ERROR reading directory ${directory}: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
+      throw error;
+    }
+  }
+
   async saveData(filePath, key, data) {
     try {
-      const existingData = await this.fs.readFile(filePath, 'utf-8');
+      const existingData = await fs.readFile(filePath, 'utf-8');
       const parsedData = JSON.parse(existingData);
       parsedData[key] = data;
-      await this.fs.writeFile(filePath, JSON.stringify(parsedData, null, 2));
+      await fs.writeFile(filePath, JSON.stringify(parsedData, null, 2));
       this.logger.info(`Data saved for ${key} to ${filePath}`, { filePath, key });
     } catch (error) {
       this.logger.error(`ERROR saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
+      this.logger.error(error.stack); // Log stack trace
     }
   }
+
   cleanup() {
-    this.fs = null; // Clear fs reference
+    // No need to clear fs reference as we're using the imported promises version
   }
 }
 // GameManager Class ********************************************************************************
@@ -516,6 +558,11 @@ class GameManager {
     this.eventEmitter.on("tick", this.gameTick.bind(this));
     this.eventEmitter.on("newDay", this.newDayHandler.bind(this));
   }
+
+  initializeLocations(locationsData) {
+    this.locations = new Map(Object.entries(locationsData));
+  }
+
   addLocation(location) {
     this.locations.set(location.getName(), location); // Method to add a location
   }
@@ -527,9 +574,10 @@ class GameManager {
     try {
       this.startGameLoop();
       this.isRunning = true;
-      this.logger.info('Game started successfully.'); // Use logger
+      this.logger.info('Game started successfully.');
     } catch (error) {
-      this.logger.error(`ERROR Start game: ${error}`); // Use logger
+      this.logger.error(`ERROR Start game: ${error}`);
+      this.logger.error(error.stack); // Log stack trace
     }
   }
   isGameRunning() { // New method to check if the game is running
@@ -545,12 +593,13 @@ class GameManager {
       this.server.databaseManager.cleanup(); // Call cleanup on DatabaseManager
       this.server.queueManager.cleanup(); // Call cleanup on QueueManager
       this.server.socketEventManager.server.io.close(() => {
-        this.logger.info('All socket connections closed.'); // Use logger
+        this.logger.info('All socket connections closed.');
         this.shutdownServer(); // Call a new method to handle server shutdown
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      this.logger.error(`ERROR shutting down game: ${error}`); // Use logger
+      this.logger.error(`ERROR shutting down game: ${error}`);
+      this.logger.error(error.stack); // Log stack trace
       MessageManager.notifyError(this, `ERROR shutting down game: ${error}`);
       throw error;
     }
@@ -623,7 +672,7 @@ class GameManager {
     return this.gameTime % WORLD_EVENT_INTERVAL === 0; // Use config for WORLD_EVENT_INTERVAL
   }
   triggerWorldEvent() {
-    this.logger.info(`A world event has occurred!`); // Use logger
+    this.logger.info(`A world event has occurred!`);
   }
   newDayHandler() {
     this.logger.info("A new day has started!");
@@ -661,35 +710,38 @@ class GameDataLoader {
   }
   async fetchGameData() { // Renamed from 'loadGameData' to 'fetchGameData'
     const { logger, databaseManager } = this.server; // Destructure server
-    logger.info(`\nStarting game data loading.`); // Use logger
+    logger.info(`\n`)
+    logger.info(`STARTING LOAD GAME DATA:`);
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' };
     const loadData = async (loadFunction, type) => {
         try {
+          logger.info(`- Starting Load ${type}s`, { type });
             const data = await loadFunction();
-            logger.info(`${type} data loaded.`, { type }); // Use logger
             return { type, data };
         } catch (error) {
-            logger.error(`ERROR loading ${type} data: ${error.message}`, { error, type }); // Use logger instead of console.error
+            logger.error(`ERROR loading ${type} data: ${error.message}`, { error, type });
+            logger.error(error.stack); // Log stack trace
             return { type, error };
         }
     };
     try {
         const { locationData, filenames } = await databaseManager.loadLocationData(); // Load location data and filenames
         await this.locationManager.assignCoordinates(locationData); // Call assignCoordinates after loading location data
-        await this.saveLocationData(filenames); // Pass the filenames to saveLocationData
         const results = await Promise.allSettled([
             loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC),
             loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM),
         ]);
         results.forEach((result, index) => {
             if (result.status === 'rejected') {
-                logger.error(`Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index }); // Use logger instead of console.error
+                logger.error(`Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index });
+                logger.error(result.reason.stack); // Log stack trace
             }
         });
-        logger.info(`Finished loading game data.`); // Use logger
+        logger.info(`LOADING GAME DATA FINISHED.`);
         return results.map(result => result.value).filter(value => value && !value.error);
     } catch (error) {
-        logger.error(`ERROR during game data fetching: ${error.message}`, { error }); // Use logger instead of console.error
+        logger.error(`ERROR during game data fetching: ${error.message}`, { error });
+        logger.error(error.stack); // Log stack trace
     }
   }
   async saveLocationData(filenames) { // Accept filenames as a parameter
@@ -713,6 +765,7 @@ class GameDataLoader {
         }
     } catch (error) {
         this.server.logger.error(`ERROR saving location data: ${error.message}`, { error }); // Log error
+        this.server.logger.error(error.stack); // Log stack trace
     }
   }
 }
@@ -806,6 +859,7 @@ class QueueManager {
           await task.run(); // Ensure task.run() is awaited
         } catch (error) {
           console.error(`ERROR processing task: ${error.message}`);
+          console.error(error.stack); // Log stack trace
         }
       }
       this.isProcessing = false; // Reset processing state after all tasks are done
@@ -871,6 +925,7 @@ class QueueManager {
         }
       } catch (error) {
         this.server.logger.error(`ERROR processing event: ${error.message}`, { error });
+        this.server.logger.error(error.stack); // Log stack trace
       } finally {
         this.objectPool.release(task); // Ensure task is released
       }
@@ -932,6 +987,7 @@ class ConfigManager {
         console.log(`LOAD CONFIGURATION SETTINGS FINISHED.`);
       } catch (error) {
         console.error(`ERROR LOADING CONFIG: ${error.message}`);
+        console.error(error.stack); // Log stack trace
       }
     }
   }
@@ -1034,6 +1090,7 @@ class Player extends Character {
       }
     } catch (error) {
       this.server.logger.error(`ERROR moving to location: ${error.message}`, { error });
+      this.server.logger.error(error.stack); // Log stack trace
     }
   }
   notifyPlayer(message) { MessageManager.notify(this, message); } // Centralized notification method
@@ -1064,7 +1121,7 @@ class Player extends Character {
     if (updatedData.level !== undefined) this.setLevel(updatedData.level); // Update level if provided
   }
   async hashUid() {
-    try { this.hashedUid = await this.bcrypt.hash(this.uid, 5); } catch (error) { console.error('Failed to hash UID:', error); } // Handle hashing error
+    try { this.hashedUid = await this.bcrypt.hash(this.uid, 5); } catch (error) { console.error('Failed to hash UID:', error); console.error(error.stack); } // Handle hashing error
   }
   async login(inputPassword) {
     const isAuthenticated = await this.authenticate(inputPassword); // Await authentication
@@ -1324,6 +1381,7 @@ class InventoryManager {
       }
     } catch (error) {
       this.messageManager.notifyError(this.player, `ERROR adding item to inventory: ${error.message}`);
+      this.player.server.logger.error(error.stack); // Log stack trace
     }
   }
   removeFromInventory(item) {
@@ -1611,6 +1669,7 @@ class CombatAction {
       }
     } catch (error) {
       this.logger.error(`ERROR during combat action: ${error.message}`, { error });
+      this.logger.error(error.stack); // Log stack trace
     }
   }
   calculateDamage(attacker, defender) {
@@ -1640,6 +1699,9 @@ class CombatManager {
     this.objectPool = new ObjectPool(() => new CombatAction(this.logger), 10);
     this.gameManager = server.gameManager;
     this.techniques = this.initializeTechniques();
+    this.combatOrder = new Map();
+    this.defeatedNpcs = new Set();
+    this.combatInitiatedNpcs = new Set();
   }
   initializeTechniques() {
     return [
@@ -1937,21 +1999,76 @@ class CombatManager {
  * It uses a recursive approach to assign coordinates to all connected locations immediately after
  * location data is loaded.
 */
-class LocationCoordinateManager { // Renamed class for clarity
+class LocationCoordinateManager {
   constructor(server) {
     this.server = server;
     this.logger = server.logger;
-    this.locations = new Map(Object.entries(server.gameManager.locations));
+    this.locations = new Map();
   }
-  assignCoordinates() {
-    const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]); // Starting point for location '100'
-    this._assignCoordinatesRecursively("100", coordinates);
-    this._updateLocationsWithCoordinates(coordinates);
+
+  async loadLocations() {
+    try {
+      this.logger.info('- Starting Load Locations');
+      const locationData = await this.server.databaseManager.loadData(this.server.configManager.get('LOCATION_DATA_PATH'), 'location');
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Loaded Raw Location Data:`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`${JSON.stringify(locationData)}`);
+
+      // Parse the JSON string if it's not already an object
+      const parsedData = typeof locationData === 'string' ? JSON.parse(locationData) : locationData;
+
+      // If parsedData is an array with a single object, use that object
+      const locationsObject = Array.isArray(parsedData) ? parsedData[0] : parsedData;
+      this.logger.debug(`\n`)
+      for (const [id, location] of Object.entries(locationsObject)) {
+        this.locations.set(id, location);
+        this.logger.debug(`- Added location ${id} to locations Map`);
+      }
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Loaded ${this.locations.size} locations.`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Locations Map contents:`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
+    } catch (error) {
+      this.logger.error('Error loading locations:', error);
+      this.logger.error(error.stack);
+    }
   }
+
+  async assignCoordinates() {
+    try {
+      await this.loadLocations();
+      this.logger.debug(`\n`)
+      this.logger.debug(`- Locations loaded, proceeding with coordinate assignment:`);
+      this.logger.debug(`\n`)
+      const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
+      this.logger.debug(`- Initial coordinates: ${JSON.stringify(Array.from(coordinates.entries()))}`);
+
+      this._assignCoordinatesRecursively("100", coordinates);
+      this.logger.debug(`\n`)
+      this.logger.debug(`- After recursive assignment:`);
+      this.logger.debug(`\n`)
+      this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
+      this.logger.debug(`\n`)
+
+      this._updateLocationsWithCoordinates(coordinates);
+    } catch (error) {
+      this.logger.error('Error assigning coordinates:', error);
+      this.logger.error(error.stack);
+    }
+  }
+
   _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
-    const location = this.locations.get(locationId); // Use Map's get method
-    if (!location) return;
-    location.coordinates = { x, y, z }; // Always assign coordinates to the current location
+    this.logger.debug(`- Assigning coordinates for location ${locationId} at (${x}, ${y}, ${z})`);
+    const location = this.locations.get(locationId);
+    if (!location) {
+      this.logger.warn(`Location ${locationId} not found in locations Map`);
+      return;
+    }
+    location.coordinates = { x, y, z };
+    this.logger.debug(`- Exits for location ${locationId}: ${JSON.stringify(location.exits)}`);
     for (const [direction, exitId] of Object.entries(location.exits)) {
       let newX = x, newY = y, newZ = z;
       switch (direction) {
@@ -1962,21 +2079,45 @@ class LocationCoordinateManager { // Renamed class for clarity
         case 'up': newZ += 1; break;
         case 'down': newZ -= 1; break;
       }
-      coordinates.set(exitId, { x: newX, y: newY, z: newZ }); // Store new coordinates using Map's set method
-      this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ); // Recur for connected locations
-    }
-  }
-  _updateLocationsWithCoordinates(coordinates) {
-    this.logger.info('Updating locations with coordinates:', coordinates); // Use logger
-    for (const [id, coord] of coordinates) { // Iterate over Map entries
-      const location = this.locations.get(id); // Use Map's get method
-      if (location) {
-        location.coordinates = coord; // Update location with assigned coordinates
-        this.logger.info(`Location ${id} coordinates: ${JSON.stringify(location.coordinates)}`); // Use logger
+      if (!coordinates.has(exitId)) {
+        this.logger.debug(`- Assigning new coordinates for exit ${exitId} in direction ${direction}`);
+        coordinates.set(exitId, { x: newX, y: newY, z: newZ });
+        this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ);
+      } else {
+        this.logger.debug(`- Coordinates already assigned for exit ${exitId}`);
       }
     }
   }
+
+  _updateLocationsWithCoordinates(coordinates) {
+    this.logger.debug('- Updating locations with coordinates:');
+    this.logger.debug(`\n`)
+    this.logger.debug(`- Coordinates Map:`);
+    this.logger.debug(`\n`)
+    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
+    this.logger.debug(`\n`)
+    this.logger.debug(`- Locations Map:`);
+    this.logger.debug(`\n`)
+    this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
+    this.logger.debug(`\n`)
+
+    for (const [id, coord] of coordinates) {
+      const location = this.locations.get(id);
+      if (location) {
+        location.coordinates = coord;
+        this.logger.debug(`- Location ${id} (${location.name}) coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
+      } else {
+        this.logger.warn(`Location ${id} not found in this.locations`);
+      }
+    }
+    this.logger.debug(`\n`)
+    this.logger.debug(`- Total locations updated: ${coordinates.size}`);
+    this.logger.debug(`\n`)
+    this.logger.debug('- Coordinate assignment finished');
+    this.logger.debug(`\n`)
+  }
 }
+
 // Describe Location Manager***********************************************************************
 /*
  * The DescribeLocationManager class is responsible for describing the current location of the player.
@@ -1990,15 +2131,22 @@ class DescribeLocationManager {
     this.logger = server.logger;
     this.description = {}; // Reusable description object
   }
+
   describe() {
-    const location = this.server.gameManager.getLocation(this.player.currentLocation); // Get current location
-    if (!location) {
-      MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`); // Notify if location is unknown
-      return;
+    try {
+      const location = this.server.gameManager.getLocation(this.player.currentLocation); // Get current location
+      if (!location) {
+        MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`); // Notify if location is unknown
+        return;
+      }
+      this.description = this.formatDescription(location); // Format location description
+      MessageManager.notify(this.player, this.description); // Send description to player
+    } catch (error) {
+      this.logger.error(`Error describing location for player ${this.player.getName()}:`, error);
+      this.logger.error(error.stack); // Log stack trace
     }
-    this.description = this.formatDescription(location); // Format location description
-    MessageManager.notify(this.player, this.description); // Send description to player
   }
+
   formatDescription(location) {
     const title = { cssid: `location-title`, text: location.getName() }; // Title of the location
     const desc = { cssid: `location-description`, text: location.getDescription() }; // Description of the location
@@ -2017,24 +2165,28 @@ class DescribeLocationManager {
       players,
     };
   }
+
   getExitsDescription(location) {
     return Object.entries(location.exits).map(([direction, linkedLocation]) => ({
       cssid: `exit-${direction}`, // CSS ID for exit
       text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`, // Exit description
     }));
   }
+
   getItemsDescription(location) {
     return location.items.map(item => ({
       cssid: `item-${item.uid}`, // CSS ID for item
       text: `A ${item.name} is lying here.`, // Item description
     }));
   }
+
   getNpcsDescription(location) {
     return location.npcs.map(npcId => {
       const npc = this.server.gameManager.getNpc(npcId); // Get NPC instance
       return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null; // NPC description
     }).filter(npc => npc); // Filter out null values
   }
+
   getPlayersDescription(location) {
     return location.playersInLocation.map(otherPlayer => ({
       cssid: `player`, // CSS ID for player
@@ -2042,6 +2194,7 @@ class DescribeLocationManager {
     }));
   }
 }
+
 // Format Message Manager *************************************************************************
 /*
  * The FormatMessageManager class is responsible for creating and managing message data that is
@@ -2056,6 +2209,7 @@ class FormatMessageManager {
   static createMessageData(cssid = '', message) {
     return { cssid, content: message }; // Create message data with CSS ID
   }
+
   static getIdForMessage(type) {
     const messageIds = {
       loginSuccess: 'player-name', // ID for login success message
@@ -2107,12 +2261,17 @@ class MessageManager {
     this.socket = socketInstance; // Set socket instance
   }
   static notify(player, message, cssid = '') {
-    player.server.logger.info(`Message to ${player.getName()}: ${message}`); // Use logger
-    const messageData = FormatMessageManager.createMessageData(cssid, message); // Create message data
-    if (this.socket) {
-      this.socket.emit('message', { playerId: player.getId(), messageData }); // Emit message
+    try {
+      player.server.logger.info(`Message to ${player.getName()}: ${message}`);
+      const messageData = FormatMessageManager.createMessageData(cssid, message); // Create message data
+      if (this.socket) {
+        this.socket.emit('message', { playerId: player.getId(), messageData }); // Emit message
+      }
+      return messageData; // Return message data
+    } catch (error) {
+      player.server.logger.error(`Error notifying player ${player.getName()}:`, error);
+      player.server.logger.error(error.stack); // Log stack trace
     }
-    return messageData; // Return message data
   }
   static notifyPlayersInLocation(location, message) {
     if (!location || !location.playersInLocation) return;
@@ -2150,12 +2309,18 @@ const server = new Server({ logger }); // Initialize server with null moduleImpo
 const moduleImporter = new ModuleImporter({ server }); // Pass server instance
 server.moduleImporter = moduleImporter; // Assign moduleImporter to server
 // Ensure modules are imported before initializing the server
-await server.init(); // Now initialize the server
-const gameComponentInitializer = new GameComponentInitializer({ server });
-await gameComponentInitializer.setupGameComponents();
-// Start listening for incoming connections
-server.server.listen(server.configManager.get('PORT'), server.configManager.get('HOST'), () => {
-  const isHttps = server.configManager.get('HTTPS_ENABLED'); // Define isHttps based on your configuration
-  server.logger.info(`\n`);
-  server.logger.info(`SERVER IS RUNNING AT: ${isHttps ? 'https' : 'http'}://${server.configManager.get('HOST')}:${server.configManager.get('PORT')}`);
-});
+try {
+  await server.init(); // Now initialize the server
+  const gameComponentInitializer = new GameComponentInitializer({ server });
+  await gameComponentInitializer.setupGameComponents();
+
+  // Start listening for incoming connections
+  server.server.listen(server.configManager.get('PORT'), server.configManager.get('HOST'), () => {
+    const isHttps = server.configManager.get('HTTPS_ENABLED'); // Define isHttps based on your configuration
+    server.logger.info(`\n`);
+    server.logger.info(`SERVER IS RUNNING AT: ${isHttps ? 'https' : 'http'}://${server.configManager.get('HOST')}:${server.configManager.get('PORT')}`);
+  });
+} catch (error) {
+  logger.error('Error starting the server:', error);
+  logger.error(error.stack); // Log stack trace
+}
