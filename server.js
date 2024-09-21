@@ -322,6 +322,9 @@ class GameComponentInitializer extends BaseManager {
   }
 }
 // Logger Interface *******************************************************************************
+/*
+ * The ILogger interface defines the methods that a logger must implement.
+*/
 class ILogger {
   log() { }
   debug() { }
@@ -330,6 +333,9 @@ class ILogger {
   error() { }
 }
 // Database Manager Interface *********************************************************************
+/*
+ * The IDatabaseManager interface defines the methods that a database manager must implement.
+*/
 class IDatabaseManager {
   constructor({ server, logger }) {
     this.server = server; // Store server reference
@@ -348,6 +354,10 @@ class IEventEmitter {
   off() { }
 }
 // Logger Class ***********************************************************************************
+/*
+ * The Logger class implements the ILogger interface and provides methods for logging messages
+ * to the console with different levels of severity.
+*/
 class Logger extends ILogger {
   constructor(config) {
     super();
@@ -384,6 +394,10 @@ class Logger extends ILogger {
   }
 }
 // EventEmitter Class ******************************************************************************
+/*
+ * The EventEmitter class implements the IEventEmitter interface and provides methods for
+ * registering and emitting events.
+*/
 class EventEmitter extends IEventEmitter {
   constructor() {
     super(); // Call the parent constructor
@@ -403,6 +417,10 @@ class EventEmitter extends IEventEmitter {
   }
 }
 // DatabaseManager Class ****************************************************************************
+/*
+ * The DatabaseManager class implements the IDatabaseManager interface and provides methods
+ * for loading and saving game data from the database.
+*/
 class DatabaseManager extends IDatabaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
@@ -420,11 +438,24 @@ class DatabaseManager extends IDatabaseManager {
     return files.filter(file => file.endsWith('.json')).map(file => `${directoryPath}/${file}`);
   }
   async loadLocationData() {
+    const filePath = this.DATA_PATHS.LOCATIONS; // Use the path from config
+    const locationData = new Map(); // Initialize a Map to hold location data
+    const filenames = []; // Array to hold filenames
     try {
-      return await this.loadData(this.DATA_PATHS.LOCATIONS, 'location');
+      const files = await this.fs.readdir(filePath); // Read all files in the directory
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const data = await this.fs.readFile(`${filePath}/${file}`, 'utf-8'); // Read JSON file
+          const parsedData = JSON.parse(data); // Parse JSON data
+          const locationId = parsedData.id; // Assuming each location has a unique ID
+          locationData.set(locationId, parsedData); // Store in Map
+          filenames.push(file); // Collect filenames
+        }
+      }
     } catch (error) {
       this.logger.error(`ERROR loading location data: ${error.message}`, { error });
     }
+    return { locationData, filenames }; // Return loaded data and filenames
   }
   async loadNpcData() {
     try {
@@ -466,6 +497,10 @@ class DatabaseManager extends IDatabaseManager {
   }
 }
 // GameManager Class ********************************************************************************
+/*
+ * The GameManager class is responsible for managing the game state, including entities, locations,
+ * and events. It handles game loop updates, entity movement, and event triggering.
+*/
 class GameManager {
   gameLoopInterval = null; // Changed from #gameLoopInterval
   gameTime = 0; // Changed from #gameTime
@@ -492,8 +527,9 @@ class GameManager {
     try {
       this.startGameLoop();
       this.isRunning = true;
+      this.logger.info('Game started successfully.'); // Use logger
     } catch (error) {
-      console.log(`ERROR Start game: ${error}`);
+      this.logger.error(`ERROR Start game: ${error}`); // Use logger
     }
   }
   isGameRunning() { // New method to check if the game is running
@@ -509,12 +545,12 @@ class GameManager {
       this.server.databaseManager.cleanup(); // Call cleanup on DatabaseManager
       this.server.queueManager.cleanup(); // Call cleanup on QueueManager
       this.server.socketEventManager.server.io.close(() => {
-        this.server.logger.info('All socket connections closed.');
+        this.logger.info('All socket connections closed.'); // Use logger
         this.shutdownServer(); // Call a new method to handle server shutdown
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      console.log(`ERROR shutting down game: ${error}`);
+      this.logger.error(`ERROR shutting down game: ${error}`); // Use logger
       MessageManager.notifyError(this, `ERROR shutting down game: ${error}`);
       throw error;
     }
@@ -587,10 +623,10 @@ class GameManager {
     return this.gameTime % WORLD_EVENT_INTERVAL === 0; // Use config for WORLD_EVENT_INTERVAL
   }
   triggerWorldEvent() {
-    console.log(`A world event has occurred!`);
+    this.logger.info(`A world event has occurred!`); // Use logger
   }
   newDayHandler() {
-    console.log("A new day has started!");
+    this.logger.info("A new day has started!");
   }
   // Method to disconnect a player
   disconnectPlayer(uid) {
@@ -621,36 +657,62 @@ class GameManager {
 class GameDataLoader {
   constructor(server) {
     this.server = server;
+    this.locationManager = new LocationCoordinateManager(this.server); // Instantiate LocationCoordinateManager
   }
   async fetchGameData() { // Renamed from 'loadGameData' to 'fetchGameData'
     const { logger, databaseManager } = this.server; // Destructure server
-    logger.info(`\nStarting game data loading.`);
+    logger.info(`\nStarting game data loading.`); // Use logger
     const DATA_TYPES = { LOCATION: 'location', NPC: 'npc', ITEM: 'item' };
     const loadData = async (loadFunction, type) => {
-      try {
-        const data = await loadFunction();
-        logger.info(`${type} data loaded.`, { type });
-        return { type, data };
-      } catch (error) {
-        logger.error(`ERROR loading ${type} data: ${error.message}`, { error, type });
-        return { type, error };
-      }
+        try {
+            const data = await loadFunction();
+            logger.info(`${type} data loaded.`, { type }); // Use logger
+            return { type, data };
+        } catch (error) {
+            logger.error(`ERROR loading ${type} data: ${error.message}`, { error, type }); // Use logger instead of console.error
+            return { type, error };
+        }
     };
     try {
-      const results = await Promise.allSettled([
-        loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION),
-        loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC),
-        loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM),
-      ]);
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          logger.error(`Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index });
-        }
-      });
-      logger.info(`Finished loading game data.`);
-      return results.map(result => result.value).filter(value => value && !value.error);
+        const { locationData, filenames } = await databaseManager.loadLocationData(); // Load location data and filenames
+        await this.locationManager.assignCoordinates(locationData); // Call assignCoordinates after loading location data
+        await this.saveLocationData(filenames); // Pass the filenames to saveLocationData
+        const results = await Promise.allSettled([
+            loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC),
+            loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM),
+        ]);
+        results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+                logger.error(`Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index }); // Use logger instead of console.error
+            }
+        });
+        logger.info(`Finished loading game data.`); // Use logger
+        return results.map(result => result.value).filter(value => value && !value.error);
     } catch (error) {
-      logger.error(`ERROR during game data fetching: ${error.message}`, { error });
+        logger.error(`ERROR during game data fetching: ${error.message}`, { error }); // Use logger instead of console.error
+    }
+  }
+  async saveLocationData(filenames) { // Accept filenames as a parameter
+    try {
+        const { locationData } = await this.server.databaseManager.loadLocationData(); // Load location data
+        if (!locationData || locationData.size === 0) {
+            this.server.logger.warn(`No location data found to save.`); // Log warning if no data
+            return;
+        }
+        const filePath = this.server.configManager.get('LOCATION_DATA_PATH'); // Get base path from config
+        for (const filename of filenames) {
+            const fullPath = `${filePath}/${filename}`; // Construct the full path using the filename
+            const locationId = filename.replace('.json', ''); // Extract location ID from filename
+            const location = locationData.get(locationId); // Get location data
+            if (location) {
+                await this.server.databaseManager.saveData(fullPath, 'locations', location); // Save location data to file
+                this.server.logger.info(`Location data saved successfully to ${fullPath}.`); // Log success message
+            } else {
+                this.server.logger.warn(`Location data not found for ${filename}.`); // Log warning if location data not found
+            }
+        }
+    } catch (error) {
+        this.server.logger.error(`ERROR saving location data: ${error.message}`, { error }); // Log error
     }
   }
 }
@@ -663,12 +725,25 @@ class GameDataVerifier {
   constructor(databaseManager) {
     this.databaseManager = databaseManager;
   }
-  async validateGameData() { // Renamed from 'verifyData' to 'validateGameData'
-    const locationData = await this.databaseManager.loadLocationData();
-    const npcData = await this.databaseManager.loadNpcData();
-    const itemData = await this.databaseManager.loadItemData();
-    const verifiedData = { locationData, npcData, itemData };
-    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`); // Updated to stringify
+  async validateGameData() {
+    const { locationData, filenames } = await this.databaseManager.loadLocationData(); // Load location data
+    const npcData = await this.databaseManager.loadNpcData(); // Load NPC data
+    const itemData = await this.databaseManager.loadItemData(); // Load item data
+    const verifiedData = { locationData, npcData, itemData }; // Collect all verified data
+    this.databaseManager.logger.debug(`Game Data: ${JSON.stringify(verifiedData, null, 2)}`); // Log game data
+    // Display locations with coordinates
+    this.displayLocationsWithCoordinates(locationData); // Call method to display locations
+    this.databaseManager.logger.info(`Loaded Locations: ${filenames.join(', ')}`); // Log loaded filenames
+  }
+  displayLocationsWithCoordinates(locations) {
+    if (typeof locations !== 'object' || locations === null) {
+      this.databaseManager.logger.warn(`Expected locations to be an object, but got: ${typeof locations}`);
+      return; // Exit if not an object
+    }
+    const locationsArray = Array.from(locations.values()); // Convert Map to array
+    locationsArray.forEach(location => {
+      console.log(location); // Log the entire location object
+    });
   }
 }
 // Object Pool ************************************************************************************
@@ -747,7 +822,6 @@ class QueueManager {
     };
     this.addTask(task);
   }
-
   handleLoadedData(key, data) { // New method to handle loaded data
     // Implement logic to process the loaded data based on the key
     switch (key) {
@@ -764,7 +838,6 @@ class QueueManager {
         this.logger.warn(`No handler for data type: ${key}`);
     }
   }
-
   addDataSaveTask(filePath, key, data) {
     const task = new Task('Data Save Task'); // Use Task class
     task.execute = async () => {
@@ -1519,7 +1592,15 @@ class InventoryManager {
     }
   }
 }
+// Combat Action **********************************************************************************
+/*
+ * The CombatAction class is responsible for performing combat actions between two entities.
+ * It calculates the damage inflicted, updates the defender's health, and handles the defeat of the defender.
+*/
 class CombatAction {
+  constructor(logger) {
+    this.logger = logger;
+  }
   perform(attacker, defender) {
     try {
       const damage = this.calculateDamage(attacker, defender);
@@ -1529,35 +1610,36 @@ class CombatAction {
         this.handleDefeat(defender); // Handle defeat if health drops to 0
       }
     } catch (error) {
-      console.error(`ERROR during combat action: ${error.message}`, { error });
+      this.logger.error(`ERROR during combat action: ${error.message}`, { error });
     }
   }
-
   calculateDamage(attacker, defender) {
     const baseDamage = attacker.attackPower; // Base damage from attacker's power
     const defense = defender.defensePower; // Defense from defender
     const damage = Math.max(baseDamage - defense, 0); // Ensure damage is not negative
     return damage; // Return calculated damage
   }
-
   notifyCombatResult(attacker, defender, damage) {
-    // Notify players of the combat result
-    console.log(`${attacker.getName()} attacks ${defender.getName()} for ${damage} damage.`);
+    this.logger.info(`${attacker.getName()} attacks ${defender.getName()} for ${damage} damage.`);
   }
-
   handleDefeat(defender) {
-    // Logic for handling the defeat of the defender
-    console.log(`${defender.getName()} has been defeated!`);
+    this.logger.info(`${defender.getName()} has been defeated!`);
     defender.status = "lying unconscious"; // Update status
     // Additional logic for handling defeat (e.g., removing from game, notifying players)
   }
 }
 // Combat Manager *********************************************************************************
+/*
+ * The CombatManager class is responsible for managing combat between players and NPCs.
+ * It handles the initiation, execution, and end of combat, as well as the selection of combat techniques.
+*/
 class CombatManager {
-  constructor(gameManager) {
-    this.objectPool = new ObjectPool(() => new CombatAction(), 10); // Initialize ObjectPool for combat actions
-    this.gameManager = gameManager; // Reference to the game manager instance
-    this.techniques = this.initializeTechniques(); // Initialize combat techniques
+  constructor(server) {
+    this.server = server;
+    this.logger = server.logger;
+    this.objectPool = new ObjectPool(() => new CombatAction(this.logger), 10);
+    this.gameManager = server.gameManager;
+    this.techniques = this.initializeTechniques();
   }
   initializeTechniques() {
     return [
@@ -1596,19 +1678,34 @@ class CombatManager {
     ]; // List of combat techniques
   }
   initiateCombatWithNpc(npcId, player, playerInitiated = false) { // Public method to initiate combat
-    this.startCombat(npcId, player, playerInitiated); // Calls the private method to start combat
+    try {
+      this.logger.debug(`Initiating combat with NPC ${npcId} for player ${player.getName()}`);
+      this.startCombat(npcId, player, playerInitiated); // Calls the private method to start combat
+    } catch (error) {
+      this.logger.error(`Error initiating combat with NPC ${npcId} for player ${player.getName()}:`, error);
+      this.logger.error(error.stack); // Log stack trace
+    }
   }
   endCombatForPlayer(player) { // Public method to end combat for a player
     this.endCombat(player); // Calls the private method to end combat
   }
   startCombat(npcId, player, playerInitiated) {
-    const npc = this.gameManager.getNpc(npcId); // Get NPC instance
-    if (!npc || this.combatOrder.has(npcId)) return; // Return if NPC not found or already in combat
-    this.combatOrder.set(npcId, { state: 'engaged' }); // Add NPC to combat order
-    player.status !== "in combat"
-      ? this.initiateCombat(player, npc, playerInitiated) // Initiate combat if player is not in combat
-      : this.notifyCombatJoin(npc, player); // Notify if player joins combat
-    npc.status = "engaged in combat"; // Set NPC status to engaged
+    try {
+      this.logger.debug(`Starting combat between player ${player.getName()} and NPC ${npcId}`);
+      const npc = this.gameManager.getNpc(npcId); // Get NPC instance
+      if (!npc || this.combatOrder.has(npcId)) {
+        this.logger.warn(`NPC ${npcId} not found or already in combat`);
+        return;
+      }
+      this.combatOrder.set(npcId, { state: 'engaged' }); // Add NPC to combat order
+      player.status !== "in combat"
+        ? this.initiateCombat(player, npc, playerInitiated) // Initiate combat if player is not in combat
+        : this.notifyCombatJoin(npc, player); // Notify if player joins combat
+      npc.status = "engaged in combat"; // Set NPC status to engaged
+    } catch (error) {
+      this.logger.error(`Error starting combat between player ${player.getName()} and NPC ${npcId}:`, error);
+      this.logger.error(error.stack); // Log stack trace
+    }
   }
   initiateCombat(player, npc, playerInitiated) {
     player.status = "in combat"; // Set player status to in combat
@@ -1635,32 +1732,38 @@ class CombatManager {
     }
   }
   executeCombatRound(player) {
-    while (true) {
-      if (player.status !== "in combat") {
-        this.endCombat(player); // End combat if player is not in combat
-        return;
-      }
-      const npc = this.getNextNpcInCombatOrder(); // Get next NPC in combat order
-      if (npc) {
-        const action = this.objectPool.acquire(); // Acquire a combat action from the pool
-        action.perform(player, npc); // Perform combat action
-        this.objectPool.release(action); // Release action back to the pool
-        this.notifyHealthStatus(player, npc); // Notify health status
-        const result = this.performCombatAction(player, npc, true); // Perform combat action
-        MessageManager.notifyCombatResult(player, result); // Notify players of the combat result
-        if (npc.health <= 0) {
-          this.handleNpcDefeat(npc, player); // Handle NPC defeat
+    try {
+      this.logger.debug(`Executing combat round for player ${player.getName()}`);
+      while (true) {
+        if (player.status !== "in combat") {
+          this.endCombat(player); // End combat if player is not in combat
+          return;
+        }
+        const npc = this.getNextNpcInCombatOrder(); // Get next NPC in combat order
+        if (npc) {
+          const action = this.objectPool.acquire(); // Acquire a combat action from the pool
+          action.perform(player, npc); // Perform combat action
+          this.objectPool.release(action); // Release action back to the pool
+          this.notifyHealthStatus(player, npc); // Notify health status
+          const result = this.performCombatAction(player, npc, true); // Perform combat action
+          MessageManager.notifyCombatResult(player, result); // Notify players of the combat result
+          if (npc.health <= 0) {
+            this.handleNpcDefeat(npc, player); // Handle NPC defeat
+          }
+        }
+        if (player.health <= 0) {
+          this.handlePlayerDefeat(npc, player); // Handle player defeat
         }
       }
-      if (player.health <= 0) {
-        this.handlePlayerDefeat(npc, player); // Handle player defeat
-      }
+    } catch (error) {
+      this.logger.error(`Error executing combat round for player ${player.getName()}:`, error);
+      this.logger.error(error.stack); // Log stack trace
     }
   }
   handlePlayerDefeat(defeatingNpc, player) {
     player.status = "lying unconscious"; // Set player status to lying unconscious
     this.endCombat(player); // End combat for player
-    this.gameManager.logger.info(`${player.getName()} has been defeated by ${defeatingNpc.getName()}.`, { playerId: player.getId(), npcId: defeatingNpc.id });
+    this.logger.info(`${player.getName()} has been defeated by ${defeatingNpc.getName()}.`, { playerId: player.getId(), npcId: defeatingNpc.id });
   }
   handleNpcDefeat(npc, player) {
     npc.status = player.killer ? "lying dead" : "lying unconscious"; // Set NPC status based on player
@@ -1672,10 +1775,23 @@ class CombatManager {
   generateDefeatMessages(player, npc) {
     const messages = [MessageManager.notifyVictory(player, npc.getName()).content]; // Create victory message
     const levelUpMessage = this.gameManager.checkLevelUp(player); // Check for level up
-    if (levelUpMessage) messages.push(levelUpMessage); // Add level up message if applicable
+    if (levelUpMessage) {
+      messages.push(levelUpMessage);
+      this.logger.info(`${player.getName()} leveled up after defeating ${npc.getName()}.`, {
+        playerId: player.getId(),
+        npcId: npc.id,
+        newLevel: player.level
+      });
+    }
     if (player.autoLoot) {
       const lootMessage = this.gameManager.autoLootNpc(npc, player); // Attempt to auto loot NPC
-      if (lootMessage) messages.push(lootMessage); // Add loot message if applicable
+      if (lootMessage) {
+        messages.push(lootMessage);
+        this.logger.info(`${player.getName()} auto-looted ${npc.getName()}.`, {
+          playerId: player.getId(),
+          npcId: npc.id
+        });
+      }
     }
     this.combatOrder.delete(npc.id); // Remove NPC from combat order
     this.defeatedNpcs.add(npc.id);
@@ -1815,6 +1931,52 @@ class CombatManager {
     return array[Math.floor(Math.random() * array.length)]; // Random selection utility
   }
 }
+// Location Manager *******************************************************************************
+/*
+ * The LocationCoordinateManager class is responsible for assigning coordinates to locations in the game.
+ * It uses a recursive approach to assign coordinates to all connected locations immediately after
+ * location data is loaded.
+*/
+class LocationCoordinateManager { // Renamed class for clarity
+  constructor(server) {
+    this.server = server;
+    this.logger = server.logger;
+    this.locations = new Map(Object.entries(server.gameManager.locations));
+  }
+  assignCoordinates() {
+    const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]); // Starting point for location '100'
+    this._assignCoordinatesRecursively("100", coordinates);
+    this._updateLocationsWithCoordinates(coordinates);
+  }
+  _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
+    const location = this.locations.get(locationId); // Use Map's get method
+    if (!location) return;
+    location.coordinates = { x, y, z }; // Always assign coordinates to the current location
+    for (const [direction, exitId] of Object.entries(location.exits)) {
+      let newX = x, newY = y, newZ = z;
+      switch (direction) {
+        case 'north': newY += 1; break;
+        case 'south': newY -= 1; break;
+        case 'east': newX += 1; break;
+        case 'west': newX -= 1; break;
+        case 'up': newZ += 1; break;
+        case 'down': newZ -= 1; break;
+      }
+      coordinates.set(exitId, { x: newX, y: newY, z: newZ }); // Store new coordinates using Map's set method
+      this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ); // Recur for connected locations
+    }
+  }
+  _updateLocationsWithCoordinates(coordinates) {
+    this.logger.info('Updating locations with coordinates:', coordinates); // Use logger
+    for (const [id, coord] of coordinates) { // Iterate over Map entries
+      const location = this.locations.get(id); // Use Map's get method
+      if (location) {
+        location.coordinates = coord; // Update location with assigned coordinates
+        this.logger.info(`Location ${id} coordinates: ${JSON.stringify(location.coordinates)}`); // Use logger
+      }
+    }
+  }
+}
 // Describe Location Manager***********************************************************************
 /*
  * The DescribeLocationManager class is responsible for describing the current location of the player.
@@ -1822,12 +1984,14 @@ class CombatManager {
  * location's details. The formatted description is then sent to the player.
 */
 class DescribeLocationManager {
-  constructor(player) {
+  constructor(player, server) {
     this.player = player; // Reference to the player instance
+    this.server = server;
+    this.logger = server.logger;
     this.description = {}; // Reusable description object
   }
   describe() {
-    const location = this.player.server.gameManager.getLocation(this.player.currentLocation); // Get current location
+    const location = this.server.gameManager.getLocation(this.player.currentLocation); // Get current location
     if (!location) {
       MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`); // Notify if location is unknown
       return;
@@ -1867,7 +2031,7 @@ class DescribeLocationManager {
   }
   getNpcsDescription(location) {
     return location.npcs.map(npcId => {
-      const npc = this.player.server.gameManager.getNpc(npcId); // Get NPC instance
+      const npc = this.server.gameManager.getNpc(npcId); // Get NPC instance
       return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null; // NPC description
     }).filter(npc => npc); // Filter out null values
   }
@@ -1931,13 +2095,19 @@ class FormatMessageManager {
   }
 }
 // Message Manager ********************************************************************************
+/*
+ * The MessageManager class is responsible for sending messages to players.
+ * It provides methods to notify players of various events, such as combat, location changes,
+ * and actions performed by other players. It also handles the formatting and transmission
+ * of these messages to the client.
+*/
 class MessageManager {
   static socket;
   static setSocket(socketInstance) {
     this.socket = socketInstance; // Set socket instance
   }
   static notify(player, message, cssid = '') {
-    console.log(`Message to ${player.getName()}: ${message}`); // Log message
+    player.server.logger.info(`Message to ${player.getName()}: ${message}`); // Use logger
     const messageData = FormatMessageManager.createMessageData(cssid, message); // Create message data
     if (this.socket) {
       this.socket.emit('message', { playerId: player.getId(), messageData }); // Emit message
@@ -1969,6 +2139,10 @@ class MessageManager {
 }
 //*************************************************************************************************
 // Start the server *******************************************************************************
+/*
+ * The server is initialized and configured here. It sets up the server, logger, and other components.
+ * The server is then initialized and starts listening for incoming connections.
+*/
 const configManager = new ConfigManager();
 await configManager.loadConfig(); // Ensure config is loaded
 const logger = new Logger(configManager.CONFIG); // Pass the loaded CONFIG to logger
