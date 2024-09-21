@@ -1,8 +1,8 @@
 // Color Codes for Console Output
 const RESET = "\x1b[0m";
 const ORANGE = "\x1b[38;5;208m";
-const RED = "\x1b[31m";
-const MAGENTA = "\x1b[35m";
+const RED = "\x1b[91m";
+const MAGENTA = "\x1b[95m";
 // Server Configuration
 const HOST = 'localhost';           // or '0.0.0.0' for external access
 const PORT = 6400;                  // Port number for the server
