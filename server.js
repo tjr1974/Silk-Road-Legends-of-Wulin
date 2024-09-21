@@ -5,33 +5,32 @@ import { Server as SocketIOServer } from 'socket.io';
 import Queue from 'queue';
 import http from 'http';
 import https from 'https';
-import process from 'process';
+import { exit } from 'process';
 import CONFIG from './config.js';
-// Interfaces
+// Interfaces and Base Classes
 class ILogger {
-  log() { }
-  debug() { }
-  info() { }
-  warn() { }
-  error() { }
+  log() {}
+  debug() {}
+  info() {}
+  warn() {}
+  error() {}
 }
 class IDatabaseManager {
   constructor({ server, logger }) {
     this.server = server;
     this.logger = logger;
   }
-  async loadLocationData() { }
-  async loadNpcData() { }
-  async loadItemData() { }
-  async saveData() { }
-  async initialize() { }
+  async loadLocationData() {}
+  async loadNpcData() {}
+  async loadItemData() {}
+  async saveData() {}
+  async initialize() {}
 }
 class IEventEmitter {
-  on() { }
-  emit() { }
-  off() { }
+  on() {}
+  emit() {}
+  off() {}
 }
-// Base Classes
 class BaseManager {
   constructor({ server, logger }) {
     this.server = server;
@@ -45,7 +44,6 @@ class ConfigManager {
   }
   async loadConfig() {
     try {
-      const { default: CONFIG } = await import('./config.js');
       this.config = {
         HOST: CONFIG.HOST,
         PORT: CONFIG.PORT,
@@ -78,14 +76,12 @@ class Server {
     this.databaseManager = null;
     this.socketEventManager = null;
     this.serverConfigurator = null;
-    this.fs = fs;
     this.activeSessions = new Map();
     this.gameManager = null;
     this.isHttps = false;
     this.app = null;
     this.queueManager = null;
   }
-
   async init() {
     try {
       await this.configManager.loadConfig();
@@ -105,11 +101,9 @@ class Server {
       this.logger.error(error.stack);
     }
   }
-
   handlePlayerConnected(player) {
     this.logger.info(`Player connected: ${player.getName()}`);
   }
-
   async setupHttpServer() {
     const sslOptions = await this.loadSslOptions();
     this.isHttps = sslOptions.key && sslOptions.cert;
@@ -118,41 +112,29 @@ class Server {
     this.logger.info(`- Configuring Server using ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
     return this.server;
   }
-
   async loadSslOptions() {
     const sslOptions = { key: null, cert: null };
     const SSL_CERT_PATH = this.configManager.get('SSL_CERT_PATH');
     const SSL_KEY_PATH = this.configManager.get('SSL_KEY_PATH');
-
     try {
-      sslOptions.cert = await this.fs.readFile(SSL_CERT_PATH);
+      sslOptions.cert = await fs.readFile(SSL_CERT_PATH);
+      sslOptions.key = await fs.readFile(SSL_KEY_PATH);
     } catch (error) {
-      this.logger.warn(`- - WARNING: Read SSL cert: ${error.message}`, { error });
+      this.logger.warn(`- - WARNING: Read SSL files: ${error.message}`, { error });
     }
-
-    try {
-      sslOptions.key = await this.fs.readFile(SSL_KEY_PATH);
-    } catch (error) {
-      this.logger.warn(`- - WARNING: Read SSL key: ${error.message}`, { error });
-    }
-
     return sslOptions;
   }
-
   cleanup() {
     this.databaseManager = null;
     this.socketEventManager = null;
     this.serverConfigurator = null;
-    this.fs = null;
     this.activeSessions.clear();
   }
-
   startGame() {
     if (this.isGameRunning()) {
       this.logger.warn('Game is already running.');
       return;
     }
-
     try {
       this.gameManager.startGameLoop();
       this.isRunning = true;
@@ -162,19 +144,16 @@ class Server {
       this.logger.error(error.stack);
     }
   }
-
   logServerRunningMessage() {
     const protocol = this.isHttps ? 'https' : 'http';
     const host = this.configManager.get('HOST');
     const port = this.configManager.get('PORT');
     this.logger.info(`\nSERVER IS RUNNING AT: ${protocol}://${host}:${port}\n`);
   }
-
   isGameRunning() {
     return this.isRunning;
   }
 }
-
 class ServerConfigurator extends BaseManager {
   constructor({ config, logger, server, socketEventManager }) {
     super({ server, logger });
@@ -228,7 +207,6 @@ class ServerConfigurator extends BaseManager {
     });
   }
 }
-
 // Event and Communication
 class EventEmitter extends IEventEmitter {
   constructor() {
@@ -248,7 +226,6 @@ class EventEmitter extends IEventEmitter {
     }
   }
 }
-
 class SocketEventManager extends BaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
@@ -351,7 +328,6 @@ class SocketEventManager extends BaseManager {
     this.actionData = {};
   }
 }
-
 // Data Management
 class DatabaseManager extends IDatabaseManager {
   constructor({ server, logger }) {
@@ -361,7 +337,6 @@ class DatabaseManager extends IDatabaseManager {
       NPCS: server.configManager.get('NPC_DATA_PATH'),
       ITEMS: server.configManager.get('ITEM_DATA_PATH'),
     };
-    this.fs = fs;
     this.path = path;
   }
   async initialize() {
@@ -377,7 +352,7 @@ class DatabaseManager extends IDatabaseManager {
     }
     try {
       const files = await this.getFilesInDirectory(dataPath);
-      const data = await Promise.all(files.map(file => this.fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
+      const data = await Promise.all(files.map(file => fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
       return data;
     } catch (error) {
       this.logger.error(`ERROR: Loading ${type} data: ${error.message}`, { error, dataPath });
@@ -390,8 +365,8 @@ class DatabaseManager extends IDatabaseManager {
       throw new Error('Directory path is undefined');
     }
     try {
-      const files = await this.fs.readdir(directory);
-      return files.filter(file => this.path.extname(file) === '.json').map(file => this.path.join(directory, file));
+      const files = await fs.readdir(directory);
+      return files.filter(file => path.extname(file) === '.json').map(file => path.join(directory, file));
     } catch (error) {
       this.logger.error(`ERROR: Reading directory ${directory}: ${error.message}`, { error, directory });
       this.logger.error(error.stack);
@@ -400,10 +375,10 @@ class DatabaseManager extends IDatabaseManager {
   }
   async saveData(filePath, key, data) {
     try {
-      const existingData = await this.fs.readFile(filePath, 'utf-8');
+      const existingData = await fs.readFile(filePath, 'utf-8');
       const parsedData = JSON.parse(existingData);
       parsedData[key] = data;
-      await this.fs.writeFile(filePath, JSON.stringify(parsedData, null, 2));
+      await fs.writeFile(filePath, JSON.stringify(parsedData, null, 2));
       this.logger.info(`Data saved for ${key} to ${filePath}`, { filePath, key });
     } catch (error) {
       this.logger.error(`ERROR: Saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
@@ -423,7 +398,6 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
 }
-
 // Game Management
 class GameManager {
   constructor({ eventEmitter, logger, server }) {
@@ -439,23 +413,18 @@ class GameManager {
     this.tickRate = server.configManager.get('TICK_RATE');
     this.lastTickTime = Date.now();
     this.tickCount = 0;
-    this.fs = fs;
-
     this.setupEventListeners();
   }
-
   setupEventListeners() {
     this.eventEmitter.on("tick", this.gameTick.bind(this));
     this.eventEmitter.on("newDay", this.newDayHandler.bind(this));
     this.eventEmitter.on('tick', this.handleTick.bind(this));
   }
-
   startGame() {
     if (this.isGameRunning()) {
       this.logger.warn('Game is already running.');
       return;
     }
-
     try {
       this.startGameLoop();
       this.isRunning = true;
@@ -465,7 +434,6 @@ class GameManager {
       this.logger.error(error.stack);
     }
   }
-
   logServerRunningMessage() {
     const { isHttps, configManager } = this.server;
     const protocol = isHttps ? 'https' : 'http';
@@ -473,11 +441,9 @@ class GameManager {
     const port = configManager.get('PORT');
     this.logger.info(`\nSERVER IS RUNNING AT: ${protocol}://${host}:${port}\n`);
   }
-
   isGameRunning() {
     return this.isRunning;
   }
-
   shutdownGame() {
     try {
       this.stopGameLoop();
@@ -499,12 +465,9 @@ class GameManager {
       throw error;
     }
   }
-
   async shutdownServer() {
-    const { exit } = await import('process');
     exit(0);
   }
-
   startGameLoop() {
     const TICK_RATE = this.server.configManager.get('TICK_RATE');
     this.gameLoopInterval = setInterval(() => {
@@ -516,19 +479,16 @@ class GameManager {
       }
     }, TICK_RATE);
   }
-
   stopGameLoop() {
     if (this.gameLoopInterval) {
       clearInterval(this.gameLoopInterval);
       this.gameLoopInterval = null;
     }
   }
-
   handleTick() {
     this.gameTick();
     this.sendTickMessageToClients();
   }
-
   gameTick() {
     const currentTime = Date.now();
     this.tickCount++;
@@ -537,11 +497,9 @@ class GameManager {
       this.tickCount = 0;
     }
   }
-
   sendTickMessageToClients() {
  // @ todo: implement tick
   }
-
   updateGameTime() {
     const currentTime = Date.now();
     const elapsedSeconds = Math.floor((currentTime - this.gameTime) / 1000);
@@ -551,29 +509,23 @@ class GameManager {
       this.eventEmitter.emit("newDay");
     }
   }
-
   moveEntity(entity, newLocationId) {
     const oldLocationId = entity.currentLocation;
     const oldLocation = this.getLocation(oldLocationId);
     const newLocation = this.getLocation(newLocationId);
-
     if (oldLocation) {
       this.notifyLeavingLocation(entity, oldLocationId, newLocationId);
     }
-
     entity.currentLocation = newLocationId;
-
     if (newLocation) {
       this.notifyEnteringLocation(entity, oldLocationId, newLocationId);
     }
   }
-
   notifyLeavingLocation(entity, oldLocationId, newLocationId) {
     MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
     const direction = DirectionManager.getDirectionTo(newLocationId);
     MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
   }
-
   notifyEnteringLocation(entity, oldLocationId, newLocationId) {
     const newLocation = this.getLocation(newLocationId);
     newLocation.addEntity(entity, "players");
@@ -581,7 +533,6 @@ class GameManager {
     const direction = DirectionManager.getDirectionFrom(oldLocationId);
     MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
   }
-
   updateNpcs() {
     this.npcs.forEach(npc => {
       if (npc.hasChangedState()) {
@@ -589,7 +540,6 @@ class GameManager {
       }
     });
   }
-
   updatePlayerAffects() {
     this.players.forEach(player => {
       if (player.hasChangedState()) {
@@ -597,24 +547,20 @@ class GameManager {
       }
     });
   }
-
   updateWorldEvents() {
     const WORLD_EVENT_INTERVAL = this.server.configManager.get('WORLD_EVENT_INTERVAL');
     if (this.gameTime % WORLD_EVENT_INTERVAL === 0) {
       this.triggerWorldEvent();
     }
   }
-
   triggerWorldEvent() {
     const eventTypes = ['weather', 'economy', 'politics'];
     const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
     this.logger.info(`A ${eventType} world event has occurred!`);
   }
-
   newDayHandler() {
     this.logger.info("A new day has started!");
   }
-
   disconnectPlayer(uid) {
     const player = this.players.get(uid);
     if (player) {
@@ -625,17 +571,14 @@ class GameManager {
       this.logger.warn(`Player ${uid} not found for disconnection.`);
     }
   }
-
   createNpc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile = false, zones = [], aliases) {
     const npc = new Npc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, mobile, zones, aliases);
     this.npcs.set(npc.id, npc);
     return npc;
   }
-
   getNpc(npcId) {
     return this.npcs.get(npcId);
   }
-
   initializeLocations(locationData) {
     this.logger.debug('\n');
     this.logger.debug('- Initializing locations');
@@ -645,7 +588,6 @@ class GameManager {
     this.logger.debug(`- Initialized ${this.locations.size} locations`);
   }
 }
-
 class GameComponentInitializer extends BaseManager {
   constructor({ server, logger }) {
     super({ server, logger });
@@ -660,7 +602,6 @@ class GameComponentInitializer extends BaseManager {
       this.handleSetupError(error);
     }
   }
-
   async initializeDatabaseManager() {
     this.server.databaseManager = new DatabaseManager({
       server: this.server,
@@ -668,7 +609,6 @@ class GameComponentInitializer extends BaseManager {
     });
     await this.server.databaseManager.initialize();
   }
-
   async initializeGameManager() {
     this.server.gameManager = new GameManager({
       eventEmitter: this.server.eventEmitter,
@@ -676,17 +616,14 @@ class GameComponentInitializer extends BaseManager {
       server: this.server
     });
   }
-
   async initializeGameDataLoader() {
     this.server.gameDataLoader = new GameDataLoader(this.server);
     await this.server.gameDataLoader.fetchGameData();
   }
-
   handleSetupError(error) {
     this.server.logger.error('ERROR: Loading game data:', error);
     this.server.logger.error(error.stack);
   }
-
   async loadLocationsData() {
     try {
       const { locationData, filenames } = await this.server.databaseManager.loadLocationData();
@@ -698,7 +635,6 @@ class GameComponentInitializer extends BaseManager {
     }
   }
 }
-
 class GameDataLoader {
   constructor(server) {
     this.server = server;
@@ -779,7 +715,6 @@ class LocationCoordinateManager {
     this.logger = server.logger;
     this.locations = new Map();
   }
-
   async loadLocations() {
     try {
       const locationData = await this.server.databaseManager.loadData(this.server.configManager.get('LOCATION_DATA_PATH'), 'location');
@@ -807,7 +742,6 @@ class LocationCoordinateManager {
       this.logger.error(error.stack);
     }
   }
-
   async assignCoordinates() {
     try {
       await this.loadLocations();
@@ -821,22 +755,18 @@ class LocationCoordinateManager {
       this.logger.error(error.stack);
     }
   }
-
   logLocationLoadStatus() {
     this.logger.debug(`\n- Locations loaded, proceeding with coordinate assignment:\n`);
   }
-
   initializeCoordinates() {
     const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
     this.logger.debug(`- Initial coordinates: ${JSON.stringify(Array.from(coordinates.entries()))}`);
     return coordinates;
   }
-
   logCoordinateAssignmentStatus(coordinates) {
     this.logger.debug(`\n- After recursive assignment:\n`);
     this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}\n`);
   }
-
   _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
     this.logger.debug(`- Assigning coordinates for location ${locationId} at (${x}, ${y}, ${z})`);
     const location = this.locations.get(locationId);
@@ -865,7 +795,6 @@ class LocationCoordinateManager {
       }
     }
   }
-
   _updateLocationsWithCoordinates(coordinates) {
     this.logger.debug('- Updating locations with coordinates:');
     this.logger.debug(`\n`)
@@ -893,7 +822,6 @@ class LocationCoordinateManager {
     this.logger.debug(`\n`)
   }
 }
-
 // Task and Queue Management
 class ObjectPool {
   constructor(createFunc, size) {
@@ -908,7 +836,6 @@ class ObjectPool {
     this.available.push(object);
   }
 }
-
 class Task {
   constructor(name) {
     this.name = name;
@@ -918,7 +845,6 @@ class Task {
     if (this.execute) this.execute();
   }
 }
-
 class QueueManager {
   constructor() {
     this.queue = [];
@@ -939,7 +865,6 @@ class QueueManager {
     this.queue = [];
   }
 }
-
 // Logging
 class Logger extends ILogger {
   constructor(config) {
@@ -991,7 +916,6 @@ class Logger extends ILogger {
     this.log('ERROR', message);
   }
 }
-
 // Initialization
 class ServerInitializer {
   constructor(config) {
@@ -1026,7 +950,6 @@ class ServerInitializer {
     }
   }
 }
-
 // Usage
 const serverInitializer = new ServerInitializer(CONFIG);
 serverInitializer.initialize();
