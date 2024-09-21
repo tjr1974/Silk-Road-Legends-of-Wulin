@@ -26,7 +26,7 @@ class Server {
       await this.configManager.loadConfig(); // Load configuration
       this.eventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this)); // Listen for player connection
     } catch (error) {
-      this.logger.error(`ERROR during server initialization: ${error.message}`, { error });
+      this.logger.error(`ERROR: Server initialization: ${error.message}`, { error });
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -117,7 +117,7 @@ class SocketEventManager extends BaseManager {
         this.attackNpc(payload.playerId, targetId); // Handle player attacking an NPC
         break;
       default:
-        this.logger.error(`Unknown action type: ${type}`, { type }); // Log unknown action type
+        this.logger.error(`ERROR:Unknown action type: ${type}`, { type }); // Log unknown action type
     }
   }
   initializeSocketListeners(socket, sessionId) { // Renamed from 'setupSocketListeners' to 'initializeSocketListeners'
@@ -149,7 +149,7 @@ class SocketEventManager extends BaseManager {
           this.server.io.to(targetId).emit('receiveMessage', { senderId: socket.id, content });
           break;
         default:
-          this.logger.error(`Unknown message type: ${type}`, { type });
+          this.logger.error(`ERROR: Unknown message type: ${type}`, { type });
       }
     } else if (actionType) {
       this.actionData.type = actionType; // Reuse actionData object
@@ -161,7 +161,7 @@ class SocketEventManager extends BaseManager {
           this.attackNpc(socket, payload);
           break;
         default:
-          this.logger.error(`Unknown action type: ${actionType}`, { actionType });
+          this.logger.error(`ERROR: Unknown action type: ${actionType}`, { actionType });
       }
     }
   }
@@ -277,7 +277,7 @@ class ServerConfigurator extends BaseManager {
     try {
       server.queueManager = new QueueManager();
     } catch (error) {
-      logger.error(`ERROR during Queue Manager configuration: ${error.message}`, { error });
+      logger.error(`ERROR: During Queue Manager configuration: ${error.message}`, { error });
       logger.error(error.stack); // Log stack trace
     }
     logger.info(`SERVER CONFIGURATION FINISHED.`);
@@ -323,7 +323,7 @@ class GameComponentInitializer extends BaseManager {
       // Load remaining game data
       await this.server.gameDataLoader.fetchGameData();
     } catch (error) {
-      this.server.logger.error('Error setting up game components:', error);
+      this.server.logger.error('ERROR: Loading game data:', error);
       this.server.logger.error(error.stack);
     }
   }
@@ -333,7 +333,7 @@ class GameComponentInitializer extends BaseManager {
       const locationsData = await this.server.databaseManager.loadLocationData();
       this.server.gameManager.initializeLocations(locationsData);
     } catch (error) {
-      this.server.logger.error('Error loading locations data:', error);
+      this.server.logger.error('ERROR: Loading locations data:', error);
       this.server.logger.error(error.stack);
     }
   }
@@ -475,7 +475,7 @@ class DatabaseManager extends IDatabaseManager {
 
       return locationData;
     } catch (error) {
-      this.logger.error('Error loading location data:', error);
+      this.logger.error('ERROR: Loading location data:', error);
       throw error; // Re-throw the error to be caught by the caller
     }
   }
@@ -484,7 +484,7 @@ class DatabaseManager extends IDatabaseManager {
     try {
       return await this.loadData(this.DATA_PATHS.NPCS, 'npc');
     } catch (error) {
-      this.logger.error(`ERROR loading NPC data: ${error.message}`, { error });
+      this.logger.error(`ERROR: Loading NPC data: ${error.message}`, { error });
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -493,7 +493,7 @@ class DatabaseManager extends IDatabaseManager {
     try {
       return await this.loadData(this.DATA_PATHS.ITEMS, 'item');
     } catch (error) {
-      this.logger.error(`ERROR loading item data: ${error.message}`, { error });
+      this.logger.error(`ERROR: Loading item data: ${error.message}`, { error });
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -504,7 +504,7 @@ class DatabaseManager extends IDatabaseManager {
       const data = await Promise.all(files.map(file => fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
       return data;
     } catch (error) {
-      this.logger.error(`ERROR loading ${type} data: ${error.message}`, { error });
+      this.logger.error(`ERROR: Loading ${type} data: ${error.message}`, { error });
       this.logger.error(error.stack); // Log stack trace
       throw error;
     }
@@ -515,7 +515,7 @@ class DatabaseManager extends IDatabaseManager {
       const files = await fs.readdir(directory);
       return files.filter(file => path.extname(file) === '.json').map(file => path.join(directory, file));
     } catch (error) {
-      this.logger.error(`ERROR reading directory ${directory}: ${error.message}`, { error });
+      this.logger.error(`ERROR: Reading directory ${directory}: ${error.message}`, { error });
       this.logger.error(error.stack); // Log stack trace
       throw error;
     }
@@ -529,7 +529,7 @@ class DatabaseManager extends IDatabaseManager {
       await fs.writeFile(filePath, JSON.stringify(parsedData, null, 2));
       this.logger.info(`Data saved for ${key} to ${filePath}`, { filePath, key });
     } catch (error) {
-      this.logger.error(`ERROR saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
+      this.logger.error(`ERROR: Saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -576,7 +576,7 @@ class GameManager {
       this.isRunning = true;
       this.logger.info('Game started successfully.');
     } catch (error) {
-      this.logger.error(`ERROR Start game: ${error}`);
+      this.logger.error(`ERROR: Starting game: ${error}`);
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -598,7 +598,7 @@ class GameManager {
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      this.logger.error(`ERROR shutting down game: ${error}`);
+      this.logger.error(`ERROR: Shutting down game: ${error}`);
       this.logger.error(error.stack); // Log stack trace
       MessageManager.notifyError(this, `ERROR shutting down game: ${error}`);
       throw error;
@@ -719,7 +719,7 @@ class GameDataLoader {
             const data = await loadFunction();
             return { type, data };
         } catch (error) {
-            logger.error(`ERROR loading ${type} data: ${error.message}`, { error, type });
+            logger.error(`ERROR: Loading ${type} data: ${error.message}`, { error, type });
             logger.error(error.stack); // Log stack trace
             return { type, error };
         }
@@ -733,14 +733,14 @@ class GameDataLoader {
         ]);
         results.forEach((result, index) => {
             if (result.status === 'rejected') {
-                logger.error(`Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index });
+                logger.error(`Error: Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index });
                 logger.error(result.reason.stack); // Log stack trace
             }
         });
         logger.info(`LOADING GAME DATA FINISHED.`);
         return results.map(result => result.value).filter(value => value && !value.error);
     } catch (error) {
-        logger.error(`ERROR during game data fetching: ${error.message}`, { error });
+        logger.error(`ERROR: During game data fetching: ${error.message}`, { error });
         logger.error(error.stack); // Log stack trace
     }
   }
@@ -764,7 +764,7 @@ class GameDataLoader {
             }
         }
     } catch (error) {
-        this.server.logger.error(`ERROR saving location data: ${error.message}`, { error }); // Log error
+        this.server.logger.error(`Error: Saving location data: ${error.message}`, { error }); // Log error
         this.server.logger.error(error.stack); // Log stack trace
     }
   }
@@ -924,7 +924,7 @@ class QueueManager {
           }
         }
       } catch (error) {
-        this.server.logger.error(`ERROR processing event: ${error.message}`, { error });
+        this.server.logger.error(`ERROR: Processing event: ${error.message}`, { error });
         this.server.logger.error(error.stack); // Log stack trace
       } finally {
         this.objectPool.release(task); // Ensure task is released
@@ -1089,7 +1089,7 @@ class Player extends Character {
         MessageManager.notify(this, `You moved to ${newLocation.getName()}.`); // Notify player
       }
     } catch (error) {
-      this.server.logger.error(`ERROR moving to location: ${error.message}`, { error });
+      this.server.logger.error(`ERROR: Moving to location: ${error.message}`, { error });
       this.server.logger.error(error.stack); // Log stack trace
     }
   }
@@ -1380,7 +1380,7 @@ class InventoryManager {
         MessageManager.notifyPickupItem(this.player, item.name); // Notify item pickup
       }
     } catch (error) {
-      this.messageManager.notifyError(this.player, `ERROR adding item to inventory: ${error.message}`);
+      this.messageManager.notifyError(this.player, `ERROR: Adding item to inventory: ${error.message}`);
       this.player.server.logger.error(error.stack); // Log stack trace
     }
   }
@@ -1668,7 +1668,7 @@ class CombatAction {
         this.handleDefeat(defender); // Handle defeat if health drops to 0
       }
     } catch (error) {
-      this.logger.error(`ERROR during combat action: ${error.message}`, { error });
+      this.logger.error(`ERROR: During combat action: ${error.message}`, { error });
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -1744,7 +1744,7 @@ class CombatManager {
       this.logger.debug(`Initiating combat with NPC ${npcId} for player ${player.getName()}`);
       this.startCombat(npcId, player, playerInitiated); // Calls the private method to start combat
     } catch (error) {
-      this.logger.error(`Error initiating combat with NPC ${npcId} for player ${player.getName()}:`, error);
+      this.logger.error(`ERROR: Initiating combat with NPC ${npcId} for player ${player.getName()}:`, error);
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -1765,7 +1765,7 @@ class CombatManager {
         : this.notifyCombatJoin(npc, player); // Notify if player joins combat
       npc.status = "engaged in combat"; // Set NPC status to engaged
     } catch (error) {
-      this.logger.error(`Error starting combat between player ${player.getName()} and NPC ${npcId}:`, error);
+      this.logger.error(`ERROR: Starting combat between player ${player.getName()} and NPC ${npcId}:`, error);
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -1818,7 +1818,7 @@ class CombatManager {
         }
       }
     } catch (error) {
-      this.logger.error(`Error executing combat round for player ${player.getName()}:`, error);
+      this.logger.error(`ERROR: Executing combat round for player ${player.getName()}:`, error);
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -2032,7 +2032,7 @@ class LocationCoordinateManager {
       this.logger.debug(`\n`)
       this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
     } catch (error) {
-      this.logger.error('Error loading locations:', error);
+      this.logger.error('ERROR: Loading locations:', error);
       this.logger.error(error.stack);
     }
   }
@@ -2055,7 +2055,7 @@ class LocationCoordinateManager {
 
       this._updateLocationsWithCoordinates(coordinates);
     } catch (error) {
-      this.logger.error('Error assigning coordinates:', error);
+      this.logger.error('ERROR: Assigning coordinates:', error);
       this.logger.error(error.stack);
     }
   }
@@ -2142,7 +2142,7 @@ class DescribeLocationManager {
       this.description = this.formatDescription(location); // Format location description
       MessageManager.notify(this.player, this.description); // Send description to player
     } catch (error) {
-      this.logger.error(`Error describing location for player ${this.player.getName()}:`, error);
+      this.logger.error(`ERROR: Describing location for player ${this.player.getName()}:`, error);
       this.logger.error(error.stack); // Log stack trace
     }
   }
@@ -2269,7 +2269,7 @@ class MessageManager {
       }
       return messageData; // Return message data
     } catch (error) {
-      player.server.logger.error(`Error notifying player ${player.getName()}:`, error);
+      player.server.logger.error(`ERROR: Notifying player ${player.getName()}:`, error);
       player.server.logger.error(error.stack); // Log stack trace
     }
   }
@@ -2321,6 +2321,6 @@ try {
     server.logger.info(`SERVER IS RUNNING AT: ${isHttps ? 'https' : 'http'}://${server.configManager.get('HOST')}:${server.configManager.get('PORT')}`);
   });
 } catch (error) {
-  logger.error('Error starting the server:', error);
+  logger.error('ERROR: Starting the server:', error);
   logger.error(error.stack); // Log stack trace
 }
