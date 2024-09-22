@@ -15,7 +15,7 @@ Instructions for AI coding assistant to optimize and standardize javascript code
 13. Utilize inheritance for shared properties/methods.
 14. Simplify conditionals with early returns.
 15. Use efficient data structures (e.g., Set, Map) where appropriate.
-16. Optimize loops using array methods methods like `map`, `filter`, or `reduce` with minimal updates.
+16. Optimize loops using array methods like `map`, `filter`, or `reduce` with minimal updates.
 17. Minimize temporary object creation in loops/frequent functions.
 18. Encapsulate related methods into classes.
 20. Use destructuring for cleaner object property access.
@@ -23,3 +23,4 @@ Instructions for AI coding assistant to optimize and standardize javascript code
 22. Avoid unnecessary async/await.
 23. Batch database operations when possible.
 24. Implement proper memory management to prevent leaks.
+25. Keep classes and methods organized in a logical order.
