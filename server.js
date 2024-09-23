@@ -18,21 +18,8 @@ attack, drop, get, show inventory, describe location, loot, meditate, sit, sleep
 It also handles the formatting and transmission of these messages to the client.
 ***************************************************************************************************/
 class GameCommandManager {
-  constructor(server, logger) {
-    this.server = server;
-    this.logger = logger;
-    this.commandHandlers = {
-      move: new MoveCommandHandler(logger),
-      attack: new AttackCommandHandler(logger),
-      drop: new DropCommandHandler(logger),
-      get: new GetCommandHandler(logger),
-      showInventory: new ShowInventoryCommandHandler(logger),
-      describeLocation: new DescribeLocationCommandHandler(logger),
-      loot: new LootCommandHandler(logger),
-      simpleAction: new SimpleActionCommandHandler(logger),
-      autoLootToggle: new AutoLootToggleCommandHandler(logger),
-      eat: new EatCommandHandler(logger),
-    };
+  constructor(server) {
+    this.server = server; // Injecting the server instance
   }
   handleCommand(socket, actionType, payload) {
     const handler = this.commandHandlers[actionType] || this.commandHandlers.simpleAction;
@@ -60,6 +47,7 @@ the ILogger interface and provide their own logging functionality.
 class ILogger {
   log() {}
   debug() {}
+  flow() {}
   info() {}
   warn() {}
   error() {}
@@ -101,12 +89,18 @@ configuration settings. It reads the configuration from a JSON file and stores t
 object. The configuration settings can then be accessed using the get method, passing the key as an argument.
 ***************************************************************************************************/
 class ConfigManager {
-  constructor() {
-    this.config = null;
+  static instance;
+  static config;
+  static getInstance() {
+    if (!this.instance) {
+      this.instance = new ConfigManager();
+      this.instance.loadConfig();
+    }
+    return this.instance;
   }
-  async loadConfig() {
+  loadConfig() {
     try {
-      this.config = {
+      ConfigManager.config = {
         HOST: CONFIG.HOST,
         PORT: CONFIG.PORT,
         SSL_CERT_PATH: CONFIG.SSL_CERT_PATH,
@@ -123,10 +117,7 @@ class ConfigManager {
     }
   }
   get(key) {
-    if (!this.config) {
-      throw new Error('Configuration Not Loaded. Call loadConfig() first.');
-    }
-    return this.config[key];
+    return ConfigManager.config[key];
   }
 }
 /************************************************************************************************
@@ -137,7 +128,7 @@ configures the necessary components. It also sets up the HTTP server and handles
 class Server {
   constructor({ logger }) {
     this.eventEmitter = new EventEmitter();
-    this.configManager = new ConfigManager();
+    this.configManager = ConfigManager.getInstance();
     this.logger = logger;
     this.databaseManager = null;
     this.socketEventManager = null;
@@ -151,7 +142,6 @@ class Server {
   }
   async init() {
     try {
-      await this.configManager.loadConfig();
       this.databaseManager = new DatabaseManager({ server: this, logger: this.logger });
       this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger });
       this.serverConfigurator = new ServerConfigurator({
@@ -204,8 +194,6 @@ class Server {
     }
     try {
       this.gameManager.startGameLoop();
-      this.logger.debug('Initializing NPC movement');
-      this.gameManager.npcMovementManager.startMovement();
       this.isRunning = true;
       this.logServerRunningMessage();
     } catch (error) {
@@ -594,6 +582,9 @@ disconnects a player from the game.
 ***************************************************************************************************/
 class GameManager {
   constructor({ eventEmitter, logger, server }) {
+    if (GameManager.instance) {
+      return GameManager.instance;
+    }
     this.players = new Map();
     this.locations = new Map(); // Ensure this is a Map
     this.npcs = new Map();
@@ -607,8 +598,9 @@ class GameManager {
     this.lastTickTime = Date.now();
     this.tickCount = 0;
     this.items = new Set(); // Initialize items as a Set
-    this.npcMovementManager = new NpcMovementManager(server);
+    this.npcMovementManager = NpcMovementManager.getInstance(this, logger, server.configManager);
     this.setupEventListeners();
+    GameManager.instance = this;
   }
   setupEventListeners() {
     this.eventEmitter.on("tick", this.gameTick.bind(this));
@@ -622,7 +614,8 @@ class GameManager {
     }
     try {
       this.startGameLoop();
-      this.logger.debug('Initializing NPC movement');
+      this.logger.debug('');
+      this.logger.debug('Initializing NPC Movement');
       this.npcMovementManager.startMovement();
       this.isRunning = true;
       this.logServerRunningMessage();
@@ -1015,16 +1008,16 @@ class GameDataLoader {
       let item;
       switch (itemInfo.type) {
         case 'consumable':
-          item = new ConsumableItem(id, itemInfo.name, itemInfo.description, itemInfo.aliases);
+          item = new ConsumableItem(id, itemInfo.name, itemInfo.description, itemInfo.aliases, this.server);
           break;
         case 'container':
-          item = new ContainerItem(id, itemInfo.name, itemInfo.description, itemInfo.aliases);
+          item = new ContainerItem(id, itemInfo.name, itemInfo.description, itemInfo.aliases, this.server);
           break;
         case 'weapon':
-          item = new WeaponItem(id, itemInfo.name, itemInfo.description, itemInfo.aliases, itemInfo.damage);
+          item = new WeaponItem(id, itemInfo.name, itemInfo.description, itemInfo.aliases, itemInfo.damage, this.server);
           break;
         default:
-          item = new Item(id, itemInfo.name, itemInfo.description, itemInfo.aliases, itemInfo.type);
+          item = new Item(id, itemInfo.name, itemInfo.description, itemInfo.aliases, itemInfo.type, this.server);
       }
       itemPromises.push(item.initialize().then(() => items.set(item.id, item)));
     }
@@ -1196,7 +1189,7 @@ class QueueManager {
   }
 }
 /**************************************************************************************************
-Logger Class
+Logger Class as Singleton
 The Logger class is responsible for logging the messages. The log method logs the messages. The
 shouldLog method checks if the message should be logged. The writeToConsole method writes the
 message to the console. The debug method logs the debug messages. The info method logs the info
@@ -1204,15 +1197,20 @@ messages. The warn method logs the warn messages. The error method logs the erro
 ***************************************************************************************************/
 class Logger extends ILogger {
   constructor(config) {
+    if (Logger.instance) {
+      return Logger.instance;
+    }
     super();
     this.CONFIG = config;
     this.logLevel = config.LOG_LEVEL;
     this.logLevels = {
       'DEBUG': 0,
+      'FLOW': 1,
       'INFO': 1,
       'WARN': 2,
-      'ERROR': 3
+      'ERROR': 4
     };
+    Logger.instance = this;
   }
   log(level, message) {
     if (this.shouldLog(level)) {
@@ -1220,6 +1218,9 @@ class Logger extends ILogger {
       switch (level) {
         case 'DEBUG':
           coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
+          break;
+        case 'FLOW':
+          coloredMessage = `${this.CONFIG.BLUE}${message}${this.CONFIG.RESET}`;
           break;
         case 'WARN':
           coloredMessage = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
@@ -1256,6 +1257,9 @@ The ServerInitializer class is responsible for initializing the server.
 ***************************************************************************************************/
 class ServerInitializer {
   constructor(config) {
+    if (ServerInitializer.instance) {
+      return ServerInitializer.instance;
+    }
     this.logger = new Logger({
       LOG_LEVEL: config.LOG_LEVEL,
       ORANGE: config.ORANGE,
@@ -1271,6 +1275,7 @@ class ServerInitializer {
       config: this.server.configManager
     });
     this.gameComponentInitializer = new GameComponentInitializer({ server: this.server, logger: this.logger });
+    ServerInitializer.instance = this;
   }
   async initialize() {
     try {
@@ -1278,8 +1283,6 @@ class ServerInitializer {
       await this.gameComponentInitializer.setupGameComponents();
       if (this.server.gameManager) {
         this.server.gameManager.startGame();
-        this.logger.debug('Initializing NPC movement');
-        this.server.gameManager.npcMovementManager.startMovement();
       } else {
         this.logger.error('GameManager not initialized');
       }
@@ -1346,10 +1349,11 @@ The Item class is a base class for all items in the game.
 It contains shared properties and methods for all items.
 ***************************************************************************************************/
 class Item extends BaseItem {
-  constructor(id, name, description, aliases, type) {
+  constructor(id, name, description, aliases, type, server) {
     super(name, description, aliases);
     this.id = id;
     this.type = type;
+    this.server = server; // Injecting the server instance
   }
   async initialize() {
     // Any additional initialization logic can go here
@@ -1361,8 +1365,8 @@ The ConsumableItem class is a base class for all consumable items in the game.
 It contains shared properties and methods for all consumable items.
 ***************************************************************************************************/
 class ConsumableItem extends Item {
-  constructor(id, name, description, aliases) {
-    super(id, name, description, aliases, 'consumable');
+  constructor(id, name, description, aliases, server) {
+    super(id, name, description, aliases, 'consumable', server);
   }
   use(player) {
     // Implement consumable item usage logic here
@@ -1374,15 +1378,9 @@ The ContainerItem class is a base class for all container items in the game.
 It contains shared properties and methods for all container items.
 ***************************************************************************************************/
 class ContainerItem extends Item {
-  constructor(id, name, description, aliases) {
-    super(id, name, description, aliases, 'container');
+  constructor(id, name, description, aliases, server) {
+    super(id, name, description, aliases, 'container', server);
     this.inventory = new Set();
-  }
-  addItem(item) {
-    this.inventory.add(item.id);
-  }
-  removeItem(item) {
-    this.inventory.delete(item.id);
   }
 }
 /**************************************************************************************************
@@ -1391,8 +1389,8 @@ The WeaponItem class is a base class for all weapon items in the game.
 It contains shared properties and methods for all weapon items.
 ***************************************************************************************************/
 class WeaponItem extends Item {
-  constructor(id, name, description, aliases, damage) {
-    super(id, name, description, aliases, 'weapon');
+  constructor(id, name, description, aliases, damage, server) {
+    super(id, name, description, aliases, 'weapon', server);
     this.damage = damage;
   }
 }
@@ -1410,14 +1408,16 @@ The Player class represents a player in the game.
 It extends the Character class.
 ***************************************************************************************************/
 class Player extends Character {
-  constructor(uid, name, bcrypt, gameCommandManager) {
+  constructor(uid, name, bcrypt, gameCommandManager, server) {
     super(name, 100);
     this.uid = uid;
     this.bcrypt = bcrypt;
     this.inventory = new Set();
     this.healthRegenerator = new HealthRegenerator(this);
     this.gameCommandManager = gameCommandManager;
+    this.server = server; // Injecting the server instance
     this.initializePlayerAttributes();
+    this.inventoryManager = new InventoryManager(this);
   }
   initializePlayerAttributes() {
     const INITIAL_HEALTH = 100;
@@ -1451,7 +1451,6 @@ class Player extends Character {
       totalPlayingTime: 0,
       colorPreferences: {},
       previousState: { health: INITIAL_HEALTH, status: "standing" },
-      inventoryManager: new InventoryManager(this),
       weapons: new Set()
     });
   }
@@ -1849,7 +1848,7 @@ The Npc class is responsible for representing non-player characters in the game.
 Character class.
 ***************************************************************************************************/
 class Npc extends Character {
-  constructor(id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type) {
+  constructor(id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server) {
     super(name, currHealth);
     this.id = id;
     this.sex = sex;
@@ -1864,6 +1863,7 @@ class Npc extends Character {
     this.type = type;
     this.currHealth = currHealth;
     this.previousState = { currHealth, status };
+    this.server = server; // Injecting the server instance
   }
   async initialize() {
     // Any additional initialization logic can go here
@@ -1883,26 +1883,21 @@ game world. It extends the Npc class and adds functionality for random movement.
 ***************************************************************************************************/
 class MobileNpc extends Npc {
   constructor(id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server) {
-    super(id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, 'mobile');
+    super(id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, 'mobile', server);
     this.zones = zones;
     this.config = config;
-    this.server = server;
     this.logger = server.logger;
   }
-
   canMove() {
     return !["engaged in combat", "lying dead", "lying unconscious"].includes(this.status);
   }
-
   moveRandomly() {
     if (!this.canMove()) return;
-
     const location = this.server.gameManager.getLocation(this.currentLocation);
     if (!location) {
       this.logger.warn(`Invalid location for NPC ${this.name} (ID: ${this.id}). Current location: ${this.currentLocation}`);
       return;
     }
-
     const validDirections = this.getValidDirections(location);
     if (validDirections.length > 0) {
       const randomDirection = this.getRandomDirection(validDirections);
@@ -1911,15 +1906,12 @@ class MobileNpc extends Npc {
       this.logger.debug(`No valid directions for NPC ${this.name} (ID: ${this.id}) at location ${this.currentLocation}`);
     }
   }
-
   getValidDirections(location) {
     return Object.keys(location.exits || {}).filter(direction => this.zones.includes(location.zone[0]));
   }
-
   getRandomDirection(validDirections) {
     return validDirections[Math.floor(Math.random() * validDirections.length)];
   }
-
   moveToNewLocation(location, direction) {
     const newLocationId = location.exits[direction];
     MessageManager.notifyNpcDeparture(this, DirectionManager.getDirectionTo(direction));
@@ -1962,7 +1954,7 @@ sources.
 class InventoryManager {
   constructor(player) {
     this.player = player;
-    this.messageManager = new MessageManager();
+    this.messageManager = MessageManager.getInstance();
     this.itemTypeMap = new Map();
   }
   // Create an item instance from the item data
@@ -2365,33 +2357,27 @@ class CombatManager {
   }
   startCombatLoop(player) {
     if (player.status === "in combat" && !player.combatInterval) {
-      player.combatInterval = setInterval(() => this.executeCombatRound(player), CombatManager.COMBAT_INTERVAL);
-    }
-  }
-  executeCombatRound(player) {
-    try {
-      this.logger.debug(`Executing combat round for player ${player.getName()}`);
-      if (player.status !== "in combat") {
-        this.endCombat(player);
-        return;
-      }
-      const npc = this.getNextNpcInCombatOrder();
-      if (npc) {
-        const action = this.objectPool.acquire();
-        action.perform(player, npc);
-        this.objectPool.release(action);
-        this.notifyHealthStatus(player, npc);
-        const result = this.performCombatAction(player, npc, true);
-        MessageManager.notifyCombatResult(player, result);
-        if (npc.health <= 0) {
-          this.handleNpcDefeat(npc, player);
+      player.combatInterval = setInterval(() => {
+        if (player.status !== "in combat") {
+          this.endCombat(player);
+          return;
         }
-      }
-      if (player.health <= 0) {
-        this.handlePlayerDefeat(npc, player);
-      }
-    } catch (error) {
-      this.logger.error(`ERROR: Executing combat round for player ${player.getName()}:`, error, error.stack);
+        const npc = this.getNextNpcInCombatOrder();
+        if (npc) {
+          const action = this.objectPool.acquire(); // Reuse combat action objects from a pool
+          action.perform(player, npc);
+          this.objectPool.release(action);
+          this.notifyHealthStatus(player, npc);
+          const result = this.performCombatAction(player, npc, true);
+          MessageManager.notifyCombatResult(player, result);
+          if (npc.health <= 0) {
+            this.handleNpcDefeat(npc, player);
+          }
+        }
+        if (player.health <= 0) {
+          this.handlePlayerDefeat(npc, player);
+        }
+      }, CombatManager.COMBAT_INTERVAL);
     }
   }
   handlePlayerDefeat(defeatingNpc, player) {
@@ -2673,6 +2659,13 @@ and actions performed by other players. It also handles the formatting and trans
 of these messages to the client.
 ***************************************************************************************************/
 class MessageManager {
+  static instance;
+  static getInstance() {
+    if (!this.instance) {
+      this.instance = new MessageManager();
+    }
+    return this.instance;
+  }
   static socket;
   static setSocket(socketInstance) {
     this.socket = socketInstance;
@@ -2726,14 +2719,26 @@ The NpcMovementManager class is responsible for managing the movement of NPCs in
 It handles the scheduling and execution of NPC movements.
 ***************************************************************************************************/
 class NpcMovementManager {
-  constructor(server) {
-    this.server = server;
-    this.logger = server.logger;
+  static instance;
+  constructor(gameManager, logger, configManager) {
+    if (NpcMovementManager.instance) {
+      return NpcMovementManager.instance;
+    }
+    this.gameManager = gameManager;
+    this.logger = logger;
+    this.configManager = configManager;
     this.movementInterval = null;
+    NpcMovementManager.instance = this;
+  }
+  static getInstance(gameManager, logger, configManager) {
+    if (!this.instance) {
+      this.instance = new NpcMovementManager(gameManager, logger, configManager);
+    }
+    return this.instance;
   }
   startMovement() {
     this.logger.debug('Starting NPC Movement');
-    const MOVEMENT_INTERVAL = this.server.configManager.get('NPC_MOVEMENT_INTERVAL') || 10000;
+    const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL') || 60000; // Ensure this matches the intended interval
     this.movementInterval = setInterval(() => this.moveAllNpcs(), MOVEMENT_INTERVAL);
   }
   moveAllNpcs() {
@@ -2741,10 +2746,10 @@ class NpcMovementManager {
     let movedNpcs = 0;
     let totalNpcs = 0;
     let mobileNpcs = 0;
-    this.server.gameManager.npcs.forEach((npc, id) => {
+    this.gameManager.npcs.forEach((npc, id) => {
       totalNpcs++;
       this.logger.debug(`Checking NPC ${npc.name} (ID: ${id}, Type: ${npc.type})`);
-      if (npc instanceof MobileNpc) {
+      if (npc instanceof MobileNpc && npc.canMove()) {
         mobileNpcs++;
         try {
           npc.moveRandomly();
@@ -2758,6 +2763,10 @@ class NpcMovementManager {
       }
     });
     this.logger.debug(`Moved ${movedNpcs} NPCs out of ${mobileNpcs} mobile NPCs and ${totalNpcs} total NPCs`);
+    const now = new Date();
+    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    this.logger.debug(`[${timestamp}]`);
+    this.logger.debug(``);
   }
   stopMovement() {
     if (this.movementInterval) {
