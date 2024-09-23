@@ -24,3 +24,4 @@ Instructions for AI coding assistant to optimize and standardize javascript code
 23. Batch database operations when possible.
 24. Implement proper memory management to prevent leaks.
 25. Keep classes and methods organized in a logical order.
+26. when applying generated code, avoid using blank lines.

@@ -30,7 +30,6 @@
     "zones": ["Chang'an City"],
     "aliases": ["mob", "npc", "merchant", "wei"],
     "type": "mobile",
-    "movementInterval": 300,
     "lastMovement": 0
   },
   "102": {
