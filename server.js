@@ -7,6 +7,7 @@ import http from 'http';
 import https from 'https';
 import { exit } from 'process';
 import CONFIG from './config.js';
+import bcrypt from 'bcrypt';
 /**************************************************************************************************
 Game Command Manager Class
 The GameCommandManager class is responsible for handling game commands from players.
@@ -31,28 +32,23 @@ class GameCommandManager {
       eat: new EatCommandHandler(logger),
     };
   }
-
   handleCommand(socket, actionType, payload) {
     const handler = this.commandHandlers[actionType] || this.commandHandlers.simpleAction;
     handler.execute(socket, payload);
   }
 }
-
 // Example command handler class
 class MoveCommandHandler {
   constructor(logger) {
     this.logger = logger;
   }
-
   execute(socket, payload) {
     const { direction } = payload;
     // Implement move logic
     this.logger.info(`Player ${socket.id} moved ${direction}`);
   }
 }
-
 // Similar classes for other commands (AttackCommandHandler, DropCommandHandler, etc.)
-
 /**************************************************************************************************
 Logger Interface Class
 The ILogger class is an interface that defines the structure for a logging system. It includes
@@ -127,7 +123,7 @@ class ConfigManager {
   }
   get(key) {
     if (!this.config) {
-      throw new Error('Configuration not loaded. Call loadConfig() first.');
+      throw new Error('Configuration Not Loaded. Call loadConfig() first.');
     }
     return this.config[key];
   }
@@ -150,6 +146,7 @@ class Server {
     this.isHttps = false;
     this.app = null;
     this.queueManager = new QueueManager();
+    this.locationCoordinateManager = new LocationCoordinateManager(this, []); // Pass an empty array or actual data
   }
   async init() {
     try {
@@ -217,7 +214,9 @@ class Server {
     const protocol = this.isHttps ? 'https' : 'http';
     const host = this.configManager.get('HOST');
     const port = this.configManager.get('PORT');
-    this.logger.info(`\nSERVER IS RUNNING AT: ${protocol}://${host}:${port}\n`);
+    this.logger.debug(``);
+    this.logger.info(`SERVER IS RUNNING AT: ${protocol}://${host}:${port}`);
+    this.logger.debug(``);
   }
   isGameRunning() {
     return this.isRunning;
@@ -238,7 +237,7 @@ class ServerConfigurator extends BaseManager {
   }
   async configureServer() {
     const { logger, server } = this;
-    logger.info(`\n`);
+    logger.info(``);
     logger.info(`STARTING SERVER CONFIGURATION:`);
     logger.info(`- Configuring Express`);
     try {
@@ -364,6 +363,7 @@ class DatabaseManager extends IDatabaseManager {
       ITEMS: server.configManager.get('ITEM_DATA_PATH'),
     };
     this.path = path;
+    this.locationCoordinateManager = new LocationCoordinateManager(server, []); // Ensure it's instantiated
   }
   async initialize() {
     for (const [key, path] of Object.entries(this.DATA_PATHS)) {
@@ -412,16 +412,35 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   async loadLocationData() {
+    const locationDataPath = this.DATA_PATHS.LOCATIONS;
+    if (!locationDataPath) {
+      throw new Error('LOCATION_DATA_PATH is not defined in the configuration');
+    }
     try {
-      const data = await this.loadData(this.DATA_PATHS.LOCATIONS, 'location');
-      const locationData = new Map(data.map(location => [location.id, location]));
-      const filenames = data.map(location => `${location.id}.json`);
-      return { locationData, filenames };
+      const data = await this.loadData(locationDataPath, 'location');
+      return this.validateAndParseLocationData(data[0]); // Parse the first item in the array
     } catch (error) {
       this.logger.error(`ERROR: Loading location data: ${error.message}`, { error });
-      this.logger.error(error.stack);
       throw error;
     }
+  }
+  validateAndParseLocationData(data) {
+    // Check if data is an object and not an array
+    if (typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('Location data must be an object');
+    }
+    const locationData = new Map();
+    for (const [id, location] of Object.entries(data)) {
+      if (!this.isValidLocation(location)) {
+        throw new Error(`Invalid location object: ${JSON.stringify(location)}`);
+      }
+      locationData.set(id, location);
+    }
+    return locationData; // Return the Map instead of an array
+  }
+  isValidLocation(location) {
+    return location && typeof location.name === 'string' && typeof location.description === 'string' &&
+           typeof location.exits === 'object' && Array.isArray(location.zone);
   }
 }
 /**************************************************************************************************
@@ -434,14 +453,12 @@ and notifyEnteringLocation methods send messages to the clients when a player le
 a location. The updateNpcs and updatePlayerAffects methods update the state of non-player characters
 and player affects, respectively. The updateWorldEvents method triggers world events based on the
 game time. The newDayHandler method handles the start of a new day. The disconnectPlayer method
-disconnects a player from the game. The createNpc method creates a new non-player character with
-the specified properties. The getNpc method retrieves a non-player character by ID. The
-initializeLocations method initializes the game's locations.
+disconnects a player from the game.
 ***************************************************************************************************/
 class GameManager {
   constructor({ eventEmitter, logger, server }) {
     this.players = new Map();
-    this.locations = new Map(); // This should hold Location instances
+    this.locations = new Map(); // Ensure this is a Map
     this.npcs = new Map();
     this.eventEmitter = eventEmitter;
     this.logger = logger;
@@ -452,6 +469,7 @@ class GameManager {
     this.tickRate = server.configManager.get('TICK_RATE');
     this.lastTickTime = Date.now();
     this.tickCount = 0;
+    this.items = new Set(); // Initialize items as a Set
     this.setupEventListeners();
   }
   setupEventListeners() {
@@ -478,7 +496,9 @@ class GameManager {
     const protocol = isHttps ? 'https' : 'http';
     const host = configManager.get('HOST');
     const port = configManager.get('PORT');
-    this.logger.info(`\nSERVER IS RUNNING AT: ${protocol}://${host}:${port}\n`);
+    this.logger.debug(``);
+    this.logger.info(`SERVER IS RUNNING AT: ${protocol}://${host}:${port}`);
+    this.logger.debug(``);
   }
   isGameRunning() {
     return this.isRunning;
@@ -505,7 +525,13 @@ class GameManager {
     }
   }
   async shutdownServer() {
-    exit(0);
+    try {
+      await this.server.socketEventManager.server.io.close();
+      this.logger.info('All socket connections closed.');
+      exit(0);
+    } catch (error) {
+      this.logger.error(`ERROR: Shutting down server: ${error.message}`, { error });
+    }
   }
   startGameLoop() {
     const TICK_RATE = this.server.configManager.get('TICK_RATE');
@@ -567,10 +593,14 @@ class GameManager {
   }
   notifyEnteringLocation(entity, oldLocationId, newLocationId) {
     const newLocation = this.getLocation(newLocationId);
-    newLocation.addEntity(entity, "players");
-    MessageManager.notifyEnteringLocation(entity, newLocationId);
-    const direction = DirectionManager.getDirectionFrom(oldLocationId);
-    MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
+    if (newLocation) {
+      newLocation.addEntity(entity, "players");
+      MessageManager.notifyEnteringLocation(entity, newLocationId);
+      const direction = DirectionManager.getDirectionFrom(oldLocationId);
+      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
+    } else {
+      this.logger.warn(`Cannot notify entering location: ${newLocationId} not found.`);
+    }
   }
   updateNpcs() {
     this.npcs.forEach(npc => {
@@ -628,17 +658,8 @@ class GameManager {
   getNpc(npcId) {
     return this.npcs.get(npcId);
   }
-  initializeLocations(locationData) {
-    this.logger.debug('\n');
-    this.logger.debug('- Initializing locations');
-    locationData.forEach((location, id) => {
-      const newLocation = new Location(location.name, location.description); // Create Location instance
-      this.locations.set(id, newLocation);
-    });
-    this.logger.debug(`- Initialized ${this.locations.size} locations`);
-  }
   getLocation(locationId) {
-    return this.locations.get(locationId); // Return Location instance
+    return this.locations.get(locationId) || null; // Updated to get from Map
   }
   handlePlayerAction(action) {
     const task = new TaskManager('PlayerAction', () => {
@@ -657,7 +678,7 @@ The GameComponentInitializer class extends the BaseManager class and provides a 
 for initializing the game components. It uses the server and logger instances to initialize the
 database manager, game manager, and game data loader. The setupGameComponents method initializes
 the game components in the correct order. The initializeDatabaseManager method initializes the
-database manager. The initializeGameManager method initializes the game manager. The initializeGameDataLoader method initializes the game data loader. The handleSetupError method handles any errors that occur during the setup process. The loadLocationsData method loads the locations data from the database.
+database manager. The initializeGameManager method initializes the game manager. The initializeGameDataLoader method initializes the game data loader. The handleSetupError method handles any errors that occur during the setup process.
 ***************************************************************************************************/
 class GameComponentInitializer extends BaseManager {
   constructor({ server, logger }) {
@@ -667,9 +688,8 @@ class GameComponentInitializer extends BaseManager {
     try {
       await this.initializeDatabaseManager();
       await this.initializeGameManager();
-      await this.loadLocationsData();
-      await this.loadNpcsData();
-      await this.loadItemsData();
+      await this.initializeLocationCoordinateManager(); // Add this line
+
       await this.initializeGameDataLoader();
     } catch (error) {
       this.handleSetupError(error);
@@ -689,6 +709,9 @@ class GameComponentInitializer extends BaseManager {
       server: this.server
     });
   }
+  async initializeLocationCoordinateManager() {
+    this.server.locationCoordinateManager = new LocationCoordinateManager(this.server, []); // Ensure it's initialized
+  }
   async initializeGameDataLoader() {
     this.server.gameDataLoader = new GameDataLoader(this.server);
     await this.server.gameDataLoader.fetchGameData();
@@ -696,16 +719,6 @@ class GameComponentInitializer extends BaseManager {
   handleSetupError(error) {
     this.server.logger.error('ERROR: Loading game data:', error);
     this.server.logger.error(error.stack);
-  }
-  async loadLocationsData() {
-    try {
-      const { locationData, filenames } = await this.server.databaseManager.loadLocationData();
-      this.server.gameManager.initializeLocations(locationData);
-      this.server.logger.debug('- Locations data loaded successfully');
-    } catch (error) {
-      this.server.logger.error('ERROR: Loading locations data:', error);
-      this.server.logger.error(error.stack);
-    }
   }
 }
 /**************************************************************************************************
@@ -718,16 +731,13 @@ The saveLocationData method saves the location data to the database.
 class GameDataLoader {
   constructor(server) {
     this.server = server;
-    this.locationManager = new LocationCoordinateManager(this.server);
+    this.locationManager = new LocationCoordinateManager(this.server, []); // Pass an empty array or actual data
   }
   async fetchGameData() {
     const { logger, databaseManager } = this.server;
-    logger.info(`\n`)
-    logger.info(`STARTING LOAD GAME DATA:`);
     const DATA_TYPES = { LOCATION: 'Location', NPC: 'Npc', ITEM: 'Item' };
     const loadData = async (loadFunction, type) => {
         try {
-          logger.info(`- Starting Load ${type}s`, { type });
             const data = await loadFunction();
             return { type, data };
         } catch (error) {
@@ -753,24 +763,22 @@ class GameDataLoader {
           .map(result => result.value);
         if (successfulResults.length > 0) {
           const locationData = successfulResults.find(result => result.type === DATA_TYPES.LOCATION)?.data;
-          if (locationData) {
-            await this.locationManager.assignCoordinates(locationData);
+          if (locationData instanceof Map) {
+            await this.locationManager.assignCoordinates(locationData); // Pass the Map directly
+          } else {
+            logger.error(`Invalid location data format: ${JSON.stringify(locationData)}`);
+            throw new Error(`Invalid location data format.`);
           }
         }
         logger.info(`LOADING GAME DATA FINISHED.`);
         return successfulResults;
     } catch (error) {
-        logger.error(`ERROR: During game data fetching: ${error.message}`, { error });
+        logger.error(`ERROR: Fetching Game Data: ${error.message}`, { error });
         logger.error(error.stack);
     }
   }
   async saveLocationData(filenames) {
     try {
-        const { locationData } = await this.server.databaseManager.loadLocationData();
-        if (!locationData || locationData.size === 0) {
-            this.server.logger.warn(`No location data found to save.`);
-            return;
-        }
         const filePath = this.server.configManager.get('LOCATION_DATA_PATH');
         for (const filename of filenames) {
             const fullPath = `${filePath}/${filename}`;
@@ -792,74 +800,53 @@ class GameDataLoader {
 /**************************************************************************************************
 Location Coordinate Manager
 The LocationCoordinateManager class is responsible for managing the coordinates of the locations.
-It uses the server and logger instances to manage the locations. The loadLocations method
-loads the locations from the database. The assignCoordinates method assigns coordinates to
-the locations. The logLocationLoadStatus method logs the status of the location load. The
-initializeCoordinates method initializes the coordinates. The logCoordinateAssignmentStatus
-method logs the status of the coordinate assignment. The _assignCoordinatesRecursively method
-assigns coordinates to the locations recursively. The _updateLocationsWithCoordinates method
-updates the locations with the coordinates.
+It uses the server and logger instances to manage the locations. The assignCoordinates method
+assigns coordinates to the locations. The logLocationLoadStatus method logs the status of the
+location load. The initializeCoordinates method initializes the coordinates. The
+logCoordinateAssignmentStatus method logs the status of the coordinate assignment. The
+_assignCoordinatesRecursively method assigns coordinates to the locations recursively. The
+_updateLocationsWithCoordinates method updates the locations with the coordinates.
 ***************************************************************************************************/
 class LocationCoordinateManager {
-  constructor(server) {
+  constructor(server, locationData) {
     this.server = server;
     this.logger = server.logger;
-    this.locations = new Map();
+    this.locations = new Map(); // Changed to Map for better performance
+    this.parsedData = locationData instanceof Map ? locationData : new Map(); // Ensure it's a Map
   }
-  async loadLocations() {
-    try {
-      const locationData = await this.server.databaseManager.loadData(this.server.configManager.get('LOCATION_DATA_PATH'), 'location');
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Loaded Raw Location Data:`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`${JSON.stringify(locationData)}`);
-      const parsedData = typeof locationData === 'string' ? JSON.parse(locationData) : locationData;
-      const locationsObject = Array.isArray(parsedData) ? parsedData[0] : parsedData;
-      const locationIds = new Set(); // To track unique IDs
-      for (const [id, location] of Object.entries(locationsObject)) {
-        if (locationIds.has(id)) {
-          this.logger.error(`Duplicate location ID found: ${id}`);
-          throw new Error(`Duplicate location ID found: ${id}`);
-        }
-        locationIds.add(id);
-        this.locations.set(id, location);
-        this.logger.debug(`- Added location ${id} to locations Map`);
-      }
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Loaded ${this.locations.size} locations.`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Locations Map contents:`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
-    } catch (error) {
-      this.logger.error('ERROR: Loading locations:', error);
-      this.logger.error(error.stack);
+  async assignCoordinates(locationData) {
+    // Ensure locationData is a Map
+    if (!(locationData instanceof Map)) {
+      this.logger.error(`Invalid location data format. Expected a Map.`);
+      throw new Error(`Invalid location data format.`);
     }
-  }
-  async assignCoordinates() {
-    try {
-      await this.loadLocations();
-      this.logLocationLoadStatus();
-      const coordinates = this.initializeCoordinates();
-      this._assignCoordinatesRecursively("100", coordinates);
-      this.logCoordinateAssignmentStatus(coordinates);
-      this._updateLocationsWithCoordinates(coordinates);
-    } catch (error) {
-      this.logger.error('ERROR: Assigning coordinates:', error);
-      this.logger.error(error.stack);
-    }
+    this.locations = locationData; // Directly assign the Map
+    this.logger.debug(``);
+    this.logger.debug(`- Loaded ${this.locations.size} Locations`);
+    this.logger.debug(``);
+    this.logger.debug(`- Locations Map Contents:`);
+    this.logger.debug(``);
+    this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
+    this.logLocationLoadStatus();
+    const coordinates = this.initializeCoordinates();
+    this._assignCoordinatesRecursively("100", coordinates);
+    this.logCoordinateAssignmentStatus(coordinates);
+    this._updateLocationsWithCoordinates(coordinates);
   }
   logLocationLoadStatus() {
-    this.logger.debug(`\n- Locations loaded, proceeding with coordinate assignment:\n`);
+    this.logger.debug(``);
+    this.logger.debug(`- Assign Coordinates:`);
+    this.logger.debug(``);
   }
   initializeCoordinates() {
     const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
-    this.logger.debug(`- Initial coordinates: ${JSON.stringify(Array.from(coordinates.entries()))}`);
     return coordinates;
   }
   logCoordinateAssignmentStatus(coordinates) {
-    this.logger.debug(`\n- After recursive assignment:\n`);
-    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}\n`);
+    this.logger.debug(``);
+    this.logger.debug(`- After recursive assignment:`);
+    this.logger.debug(``);
+    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
   }
   _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
     this.logger.debug(`- Assigning coordinates for location ${locationId} at (${x}, ${y}, ${z})`);
@@ -869,7 +856,11 @@ class LocationCoordinateManager {
       return;
     }
     location.coordinates = { x, y, z };
-    this.logger.debug(`- Exits for location ${locationId}: ${JSON.stringify(location.exits)}`);
+    // Check if exits exist before iterating
+    if (!location.exits) {
+      this.logger.warn(`No exits found for location ${locationId}`);
+      return;
+    }
     for (const [direction, exitId] of Object.entries(location.exits)) {
       let newX = x, newY = y, newZ = z;
       switch (direction) {
@@ -890,16 +881,8 @@ class LocationCoordinateManager {
     }
   }
   _updateLocationsWithCoordinates(coordinates) {
+    this.logger.debug(``);
     this.logger.debug('- Updating locations with coordinates:');
-    this.logger.debug(`\n`)
-    this.logger.debug(`- Coordinates Map:`);
-    this.logger.debug(`\n`)
-    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
-    this.logger.debug(`\n`)
-    this.logger.debug(`- Locations Map:`);
-    this.logger.debug(`\n`)
-    this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
-    this.logger.debug(`\n`)
     for (const [id, coord] of coordinates) {
       const location = this.locations.get(id);
       if (location) {
@@ -909,11 +892,11 @@ class LocationCoordinateManager {
         this.logger.warn(`Location ${id} not found in this.locations`);
       }
     }
-    this.logger.debug(`\n`)
+    this.logger.debug(``)
     this.logger.debug(`- Total locations updated: ${coordinates.size}`);
-    this.logger.debug(`\n`)
+    this.logger.debug(``)
     this.logger.debug('- Coordinate assignment finished');
-    this.logger.debug(`\n`)
+    this.logger.debug(``)
   }
 }
 /**************************************************************************************************
@@ -1134,7 +1117,11 @@ The Item class is a base class for all items in the game.
 It contains shared properties and methods for all items.
 ***************************************************************************************************/
 class Item extends BaseItem {
-  // Item-specific properties and methods can be added here
+  constructor(template, uniqueId) {
+    super(template.name, template.description, template.aliases);
+    this.id = uniqueId; // Unique ID for the item instance
+    this.type = template.type; // Set the type from the template
+  }
 }
 /**************************************************************************************************
 Container Item Class
@@ -1607,36 +1594,6 @@ class Location {
   getNpcs() {
     return Array.from(this.npcs).map(npcId => this.gameManager.getNpc(npcId));
   }
-  async loadNpcs() {
-    try {
-      const npcData = await this.server.databaseManager.loadData(this.server.configManager.get('NPC_DATA_PATH'), 'npc');
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Loaded Raw NPC Data:`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`${JSON.stringify(npcData)}`);
-      const parsedData = typeof npcData === 'string' ? JSON.parse(npcData) : npcData;
-      const npcsObject = Array.isArray(parsedData) ? parsedData[0] : parsedData;
-      const npcIds = new Set(); // To track unique IDs
-      for (const [id, npc] of Object.entries(npcsObject)) {
-        if (npcIds.has(id)) {
-          this.logger.error(`Duplicate NPC ID found: ${id}`);
-          throw new Error(`Duplicate NPC ID found: ${id}`);
-        }
-        npcIds.add(id);
-        this.npcs.set(id, npc);
-        this.logger.debug(`- Added NPC ${id} to NPCs Map`);
-      }
-      this.logger.debug(`\n`)
-      this.logger.debug(`- Loaded ${this.npcs.size} NPCs.`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`- NPCs Map contents:`);
-      this.logger.debug(`\n`)
-      this.logger.debug(`${JSON.stringify(Array.from(this.npcs.entries()))}`);
-    } catch (error) {
-      this.logger.error('ERROR: Loading NPCs:', error);
-      this.logger.error(error.stack);
-    }
-  }
 }
 /**************************************************************************************************
 NPC Class
@@ -1729,6 +1686,12 @@ class InventoryManager {
     this.player = player;
     this.messageManager = new MessageManager();
     this.itemTypeMap = new Map();
+  }
+  // Create an item instance from a template
+  async createItemFromTemplate(templateName) {
+    const template = itemTemplates[templateName]; // Assuming itemTemplates is accessible
+    const uniqueId = await UidGenerator.generateUid(); // Generate a unique ID
+    return new Item(template, uniqueId); // Create a new item instance
   }
   addToInventory(item) {
     try {
@@ -2307,6 +2270,11 @@ class CombatManager {
     return Array.from(array)[Math.floor(Math.random() * array.size)];
   }
 }
+/**************************************************************************************************
+Describe Location Manager Class
+The DescribeLocationManager class is responsible for describing the location of the player.
+It contains methods to format the description of the location, the exits, the items, the npcs,
+and the players in the location.
 ***************************************************************************************************/
 class DescribeLocationManager {
   constructor(player, server) {
@@ -2340,7 +2308,7 @@ class DescribeLocationManager {
     };
   }
   getExitsDescription(location) {
-    return Object.entries(location.exits).map(([direction, linkedLocation]) => ({
+    return Array.from(location.exits.entries()).map(([direction, linkedLocation]) => ({
       cssid: `exit-${direction}`,
       text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`,
     }));

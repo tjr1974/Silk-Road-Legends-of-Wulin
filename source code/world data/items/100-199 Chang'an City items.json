@@ -1,29 +1,29 @@
 
 {
-  "items": {
-    "100": {
+  "itemTemplates": {
+    "healthPotion": {
       "name": "Health Potion",
       "description": "A potion that restores health.",
-      "aliases": ["potion", "heal"]
-    }
-  },
-  "containerItems": {
-    "101": {
+      "aliases": ["potion", "heal"],
+      "type": "consumable"
+    },
+    "backpack": {
       "name": "Backpack",
       "description": "A sturdy backpack for carrying items.",
-      "aliases": ["pack", "bag"]
+      "aliases": ["pack", "bag"],
+      "type": "container"
     },
-    "102": {
+    "treasureChest": {
       "name": "Treasure Chest",
       "description": "A large chest filled with treasures.",
-      "aliases": ["chest", "treasure"]
-    }
-  },
-  "weaponItems": {
-    "103": {
+      "aliases": ["chest", "treasure"],
+      "type": "container"
+    },
+    "rustySword": {
       "name": "Rusty Sword",
       "description": "An old sword that has seen better days.",
-      "aliases": ["sword", "rusty"]
+      "aliases": ["sword", "rusty"],
+      "type": "weapon"
     }
   }
 }
