@@ -1886,33 +1886,46 @@ class MobileNpc extends Npc {
     super(id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, 'mobile');
     this.zones = zones;
     this.config = config;
-    this.server = server; // Store the server instance
-    this.logger = server.logger; // Add this line to store the logger
+    this.server = server;
+    this.logger = server.logger;
   }
+
   canMove() {
-    return this.status !== "engaged in combat" && this.status !== "lying dead" && this.status !== "lying unconscious";
+    return !["engaged in combat", "lying dead", "lying unconscious"].includes(this.status);
   }
+
   moveRandomly() {
     if (!this.canMove()) return;
-    const { gameManager } = this.server;
-    const location = gameManager.getLocation(this.currentLocation);
+
+    const location = this.server.gameManager.getLocation(this.currentLocation);
     if (!location) {
       this.logger.warn(`Invalid location for NPC ${this.name} (ID: ${this.id}). Current location: ${this.currentLocation}`);
       return;
     }
-    const validDirections = Object.keys(location.exits || {}).filter(direction =>
-      this.zones.includes(location.zone[0]) ? direction : null
-    );
+
+    const validDirections = this.getValidDirections(location);
     if (validDirections.length > 0) {
-      const randomDirection = validDirections[Math.floor(Math.random() * validDirections.length)];
-      const newLocationId = location.exits[randomDirection];
-      MessageManager.notifyNpcDeparture(this, DirectionManager.getDirectionTo(randomDirection));
-      this.currentLocation = newLocationId;
-      const newLocation = gameManager.getLocation(this.currentLocation);
-      MessageManager.notifyNpcArrival(this, DirectionManager.getDirectionFrom(randomDirection));
+      const randomDirection = this.getRandomDirection(validDirections);
+      this.moveToNewLocation(location, randomDirection);
     } else {
       this.logger.debug(`No valid directions for NPC ${this.name} (ID: ${this.id}) at location ${this.currentLocation}`);
     }
+  }
+
+  getValidDirections(location) {
+    return Object.keys(location.exits || {}).filter(direction => this.zones.includes(location.zone[0]));
+  }
+
+  getRandomDirection(validDirections) {
+    return validDirections[Math.floor(Math.random() * validDirections.length)];
+  }
+
+  moveToNewLocation(location, direction) {
+    const newLocationId = location.exits[direction];
+    MessageManager.notifyNpcDeparture(this, DirectionManager.getDirectionTo(direction));
+    this.currentLocation = newLocationId;
+    const newLocation = this.server.gameManager.getLocation(this.currentLocation);
+    MessageManager.notifyNpcArrival(this, DirectionManager.getDirectionFrom(direction));
   }
 }
 /**************************************************************************************************
