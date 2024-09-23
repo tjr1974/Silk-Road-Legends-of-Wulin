@@ -9,24 +9,58 @@
     "aggro": false,
     "assist": false,
     "status": "standing",
-    "currentLocation": "Chang'an City",
+    "currentLocation": "100",
     "mobile": false,
     "zones": [],
-    "aliases": ["mob", "npc", "city"]
+    "aliases": ["mob", "npc", "city"],
+    "type": "npc"
   },
   "101": {
-    "name": "Peacekeeper Chen",
+    "name": "Merchant Wei",
     "sex": "male",
-    "currHealth": 100,
-    "maxHealth": 100,
-    "attackPower": 10,
+    "currHealth": 80,
+    "maxHealth": 80,
+    "attackPower": 5,
     "csml": 0,
     "aggro": false,
     "assist": false,
     "status": "standing",
-    "currentLocation": "Chang'an City",
+    "currentLocation": "100",
+    "mobile": true,
+    "zones": ["Chang'an City"],
+    "aliases": ["mob", "npc", "merchant", "wei"],
+    "type": "mobile",
+    "movementInterval": 300,
+    "lastMovement": 0
+  },
+  "102": {
+    "name": "Scholar Zhang",
+    "sex": "female",
+    "currHealth": 70,
+    "maxHealth": 70,
+    "attackPower": 3,
+    "csml": 0,
+    "aggro": false,
+    "assist": false,
+    "status": "standing",
+    "currentLocation": "100",
     "mobile": false,
     "zones": [],
-    "aliases": ["mob", "npc", "peacekeeper", "peace", "keeper", "pea", "kee", "chen", "che"]
+    "aliases": ["mob", "npc", "scholar", "zhang"],
+    "type": "quest",
+    "questId": "QUEST_001",
+    "dialogueTree": {
+      "greeting": "Welcome, traveler. Are you interested in learning about the history of Chang'an?",
+      "options": [
+        {
+          "response": "Yes, I'd love to learn more.",
+          "next": "quest_start"
+        },
+        {
+          "response": "Not right now, thank you.",
+          "next": "farewell"
+        }
+      ]
+    }
   }
 }

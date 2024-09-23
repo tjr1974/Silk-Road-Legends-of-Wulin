@@ -1,29 +1,27 @@
-
 {
-  "itemTemplates": {
-    "healthPotion": {
-      "name": "Health Potion",
-      "description": "A potion that restores health.",
-      "aliases": ["potion", "heal"],
-      "type": "consumable"
-    },
-    "backpack": {
-      "name": "Backpack",
-      "description": "A sturdy backpack for carrying items.",
-      "aliases": ["pack", "bag"],
-      "type": "container"
-    },
-    "treasureChest": {
-      "name": "Treasure Chest",
-      "description": "A large chest filled with treasures.",
-      "aliases": ["chest", "treasure"],
-      "type": "container"
-    },
-    "rustySword": {
-      "name": "Rusty Sword",
-      "description": "An old sword that has seen better days.",
-      "aliases": ["sword", "rusty"],
-      "type": "weapon"
-    }
+  "100": {
+    "name": "Health Potion",
+    "description": "A potion that restores health.",
+    "aliases": ["potion", "heal"],
+    "type": "consumable"
+  },
+  "101": {
+    "name": "Backpack",
+    "description": "A sturdy backpack for carrying items.",
+    "aliases": ["pack", "bag"],
+    "type": "container"
+  },
+  "102": {
+    "name": "Treasure Chest",
+    "description": "A large chest filled with treasures.",
+    "aliases": ["chest", "treasure"],
+    "type": "container"
+  },
+  "103": {
+    "name": "Rusty Sword",
+    "description": "An old sword that has seen better days.",
+    "aliases": ["sword", "rusty"],
+    "type": "weapon",
+    "damage": 5
   }
 }

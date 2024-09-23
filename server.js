@@ -2,11 +2,13 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import express from 'express';
 import { Server as SocketIOServer } from 'socket.io';
+// @ todo: implement queue
 import Queue from 'queue';
 import http from 'http';
 import https from 'https';
 import { exit } from 'process';
 import CONFIG from './config.js';
+// @ todo: implement bcrypt
 import bcrypt from 'bcrypt';
 /**************************************************************************************************
 Game Command Manager Class
@@ -45,10 +47,9 @@ class MoveCommandHandler {
   execute(socket, payload) {
     const { direction } = payload;
     // Implement move logic
-    this.logger.info(`Player ${socket.id} moved ${direction}`);
+    this.logger.debug(`Player ${socket.id} moved ${direction}`);
   }
 }
-// Similar classes for other commands (AttackCommandHandler, DropCommandHandler, etc.)
 /**************************************************************************************************
 Logger Interface Class
 The ILogger class is an interface that defines the structure for a logging system. It includes
@@ -417,22 +418,34 @@ class DatabaseManager extends IDatabaseManager {
       throw new Error('LOCATION_DATA_PATH is not defined in the configuration');
     }
     try {
+      this.logger.info(``);
+      this.logger.info(`STARTING LOAD GAME DATA:`);
+      this.logger.info('- Starting Load Locations');
+      this.logger.debug(``);
+      this.logger.debug(`- Loading Locations Data From: ${locationDataPath}`);
       const data = await this.loadData(locationDataPath, 'location');
-      return this.validateAndParseLocationData(data[0]); // Parse the first item in the array
+      const locationData = this.validateAndParseLocationData(data[0]); // Parse the first item in the array
+      this.logger.debug(``);
+      this.logger.debug(`- Loaded ${locationData.size} Locations`);
+      this.logger.debug(``);
+      this.logger.debug(`- Locations Map Contents:`);
+      this.logger.debug(``);
+      this.logger.debug(`${JSON.stringify(Array.from(locationData.entries()))}`);
+      return locationData;
     } catch (error) {
-      this.logger.error(`ERROR: Loading location data: ${error.message}`, { error });
+      this.logger.error(`ERROR: Loading Locations Data: ${error.message}`, { error });
       throw error;
     }
   }
   validateAndParseLocationData(data) {
     // Check if data is an object and not an array
     if (typeof data !== 'object' || Array.isArray(data)) {
-      throw new Error('Location data must be an object');
+      throw new Error('Locations data must be an object');
     }
     const locationData = new Map();
     for (const [id, location] of Object.entries(data)) {
       if (!this.isValidLocation(location)) {
-        throw new Error(`Invalid location object: ${JSON.stringify(location)}`);
+        throw new Error(`Invalid Locations Object: ${JSON.stringify(location)}`);
       }
       locationData.set(id, location);
     }
@@ -441,6 +454,50 @@ class DatabaseManager extends IDatabaseManager {
   isValidLocation(location) {
     return location && typeof location.name === 'string' && typeof location.description === 'string' &&
            typeof location.exits === 'object' && Array.isArray(location.zone);
+  }
+  async loadNpcData() {
+    const npcDataPath = this.DATA_PATHS.NPCS;
+    if (!npcDataPath) {
+      throw new Error('NPC_DATA_PATH is not defined in the configuration');
+    }
+    try {
+      this.logger.info(`- Starting Load Npcs`);
+      this.logger.debug(``);
+      this.logger.debug(`- Loading Npcs Data From: ${npcDataPath}`);
+      const data = await this.loadData(npcDataPath, 'npc');
+      const npcData = this.validateAndParseNpcData(data[0]); // Parse the first item in the array
+      this.logger.debug(``);
+      this.logger.debug(`- Loaded ${npcData.size} Npcs`);
+      this.logger.debug(``);
+      this.logger.debug(`- Npcs Map Contents:`);
+      this.logger.debug(``);
+      this.logger.debug(`${JSON.stringify(Array.from(npcData.entries()))}`);
+      return npcData;
+    } catch (error) {
+      this.logger.error(`ERROR: Loading Npcs Data: ${error.message}`, { error });
+      throw error;
+    }
+  }
+  validateAndParseNpcData(data) {
+    if (typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('NPC data must be an object');
+    }
+    const npcData = new Map();
+    for (const [id, npc] of Object.entries(data)) {
+      if (!this.isValidNpc(npc)) {
+        throw new Error(`Invalid NPC object: ${JSON.stringify(npc)}`);
+      }
+      npcData.set(id, npc);
+    }
+    return npcData;
+  }
+  isValidNpc(npc) {
+    return npc && typeof npc.name === 'string' && typeof npc.sex === 'string' &&
+           typeof npc.currHealth === 'number' && typeof npc.maxHealth === 'number' &&
+           typeof npc.attackPower === 'number' && typeof npc.csml === 'number' &&
+           typeof npc.aggro === 'boolean' && typeof npc.assist === 'boolean' &&
+           typeof npc.status === 'string' && typeof npc.currentLocation === 'string' &&
+           Array.isArray(npc.aliases) && typeof npc.type === 'string';
   }
 }
 /**************************************************************************************************
@@ -644,13 +701,13 @@ class GameManager {
     let npc;
     switch (type) {
       case 'mobile':
-        npc = new MobileNpc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones, aliases);
+        npc = new MobileNpc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones, aliases, this.server.configManager.config, this.server);
         break;
       case 'quest':
         npc = new QuestNpc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, quest, zones, aliases);
         break;
       default:
-        npc = new Npc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases);
+        npc = new Npc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type);
     }
     this.npcs.set(npc.id, npc);
     return npc;
@@ -659,7 +716,12 @@ class GameManager {
     return this.npcs.get(npcId);
   }
   getLocation(locationId) {
-    return this.locations.get(locationId) || null; // Updated to get from Map
+    const location = this.locations.get(locationId);
+    if (!location) {
+      this.logger.warn(`Location not found: ${locationId}`);
+      return null;
+    }
+    return location;
   }
   handlePlayerAction(action) {
     const task = new TaskManager('PlayerAction', () => {
@@ -689,7 +751,6 @@ class GameComponentInitializer extends BaseManager {
       await this.initializeDatabaseManager();
       await this.initializeGameManager();
       await this.initializeLocationCoordinateManager(); // Add this line
-
       await this.initializeGameDataLoader();
     } catch (error) {
       this.handleSetupError(error);
@@ -731,70 +792,111 @@ The saveLocationData method saves the location data to the database.
 class GameDataLoader {
   constructor(server) {
     this.server = server;
-    this.locationManager = new LocationCoordinateManager(this.server, []); // Pass an empty array or actual data
+    this.config = server.configManager.config;
+    this.locationManager = new LocationCoordinateManager(this.server, []);
   }
   async fetchGameData() {
     const { logger, databaseManager } = this.server;
     const DATA_TYPES = { LOCATION: 'Location', NPC: 'Npc', ITEM: 'Item' };
-    const loadData = async (loadFunction, type) => {
-        try {
-            const data = await loadFunction();
-            return { type, data };
-        } catch (error) {
-            logger.error(`ERROR: Loading ${type} data: ${error.message}`, { error, type });
-            logger.error(error.stack);
-            return { type, error };
-        }
-    };
     try {
-        const results = await Promise.allSettled([
-            loadData(() => databaseManager.loadLocationData(), DATA_TYPES.LOCATION),
-            loadData(() => databaseManager.loadNpcData(), DATA_TYPES.NPC),
-            loadData(() => databaseManager.loadItemData(), DATA_TYPES.ITEM),
-        ]);
-        results.forEach((result, index) => {
-            if (result.status === 'rejected') {
-                logger.error(`Error: Failed to load data at index ${index}: ${result.reason.message}`, { error: result.reason, index });
-                logger.error(result.reason.stack);
-            }
-        });
-        const successfulResults = results
-          .filter(result => result.status === 'fulfilled' && result.value && !result.value.error)
-          .map(result => result.value);
-        if (successfulResults.length > 0) {
-          const locationData = successfulResults.find(result => result.type === DATA_TYPES.LOCATION)?.data;
-          if (locationData instanceof Map) {
-            await this.locationManager.assignCoordinates(locationData); // Pass the Map directly
-          } else {
-            logger.error(`Invalid location data format: ${JSON.stringify(locationData)}`);
-            throw new Error(`Invalid location data format.`);
-          }
-        }
-        logger.info(`LOADING GAME DATA FINISHED.`);
-        return successfulResults;
+      // Load location data
+      const locationData = await this.loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION);
+      // Assign coordinates to locations
+      if (locationData instanceof Map) {
+        await this.locationManager.assignCoordinates(locationData);
+        this.server.gameManager.locations = locationData;
+      } else {
+        logger.error(`Invalid location data format: ${JSON.stringify(locationData)}`);
+        throw new Error(`Invalid location data format.`);
+      }
+      // Load NPC data
+      const npcData = await this.loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC);
+      if (npcData instanceof Map) {
+        this.server.npcs = await this.createNpcs(npcData);
+      } else {
+        logger.error(`Invalid NPC data format: ${JSON.stringify(npcData)}`);
+        throw new Error(`Invalid NPC data format.`);
+      }
+      // Load item data (if needed)
+      // const itemData = await this.loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM);
+      logger.info(`LOADING GAME DATA FINISHED.`);
+      return [locationData, npcData];
     } catch (error) {
-        logger.error(`ERROR: Fetching Game Data: ${error.message}`, { error });
-        logger.error(error.stack);
+      logger.error(`ERROR: Fetching Game Data: ${error.message}`, { error });
+      logger.error(error.stack);
     }
   }
-  async saveLocationData(filenames) {
+  async loadData(loadFunction, type) {
+    const { logger } = this.server;
     try {
-        const filePath = this.server.configManager.get('LOCATION_DATA_PATH');
-        for (const filename of filenames) {
-            const fullPath = `${filePath}/${filename}`;
-            const locationId = filename.replace('.json', '');
-            const location = locationData.get(locationId);
-            if (location) {
-                await this.server.databaseManager.saveData(fullPath, 'locations', location);
-                this.server.logger.info(`Location data saved successfully to ${fullPath}.`);
-            } else {
-                this.server.logger.warn(`Location data not found for ${filename}.`);
-            }
-        }
+      const data = await loadFunction();
+      return data;
     } catch (error) {
-        this.server.logger.error(`Error: Saving location data: ${error.message}`, { error });
-        this.server.logger.error(error.stack);
+      logger.error(`ERROR: Loading ${type} data: ${error.message}`, { error, type });
+      logger.error(error.stack);
+      throw error;
     }
+  }
+  createNpcs(npcData) {
+    const npcs = new Map();
+    const npcPromises = [];
+    for (const [id, npcInfo] of npcData) {
+      let npc;
+      switch (npcInfo.type) {
+        case 'mobile':
+          npc = new MobileNpc(
+            npcInfo.name,
+            npcInfo.sex,
+            npcInfo.currHealth,
+            npcInfo.maxHealth,
+            npcInfo.attackPower,
+            npcInfo.csml,
+            npcInfo.aggro,
+            npcInfo.assist,
+            npcInfo.status,
+            npcInfo.currentLocation,
+            npcInfo.zones,
+            npcInfo.aliases,
+            this.config,
+            this.server
+          );
+          break;
+        case 'quest':
+          npc = new QuestNpc(
+            npcInfo.name,
+            npcInfo.sex,
+            npcInfo.currHealth,
+            npcInfo.maxHealth,
+            npcInfo.attackPower,
+            npcInfo.csml,
+            npcInfo.aggro,
+            npcInfo.assist,
+            npcInfo.status,
+            npcInfo.currentLocation,
+            npcInfo.quest,
+            npcInfo.zones,
+            npcInfo.aliases
+          );
+          break;
+        default:
+          npc = new Npc(
+            npcInfo.name,
+            npcInfo.sex,
+            npcInfo.currHealth,
+            npcInfo.maxHealth,
+            npcInfo.attackPower,
+            npcInfo.csml,
+            npcInfo.aggro,
+            npcInfo.assist,
+            npcInfo.status,
+            npcInfo.currentLocation,
+            npcInfo.aliases,
+            npcInfo.type
+          );
+      }
+      npcPromises.push(npc.initialize().then(() => npcs.set(npc.id, npc)));
+    }
+    return Promise.all(npcPromises).then(() => npcs);
   }
 }
 /**************************************************************************************************
@@ -811,22 +913,15 @@ class LocationCoordinateManager {
   constructor(server, locationData) {
     this.server = server;
     this.logger = server.logger;
-    this.locations = new Map(); // Changed to Map for better performance
-    this.parsedData = locationData instanceof Map ? locationData : new Map(); // Ensure it's a Map
+    this.locations = new Map();
+    this.parsedData = locationData instanceof Map ? locationData : new Map();
   }
   async assignCoordinates(locationData) {
-    // Ensure locationData is a Map
     if (!(locationData instanceof Map)) {
       this.logger.error(`Invalid location data format. Expected a Map.`);
       throw new Error(`Invalid location data format.`);
     }
-    this.locations = locationData; // Directly assign the Map
-    this.logger.debug(``);
-    this.logger.debug(`- Loaded ${this.locations.size} Locations`);
-    this.logger.debug(``);
-    this.logger.debug(`- Locations Map Contents:`);
-    this.logger.debug(``);
-    this.logger.debug(`${JSON.stringify(Array.from(this.locations.entries()))}`);
+    this.locations = locationData;
     this.logLocationLoadStatus();
     const coordinates = this.initializeCoordinates();
     this._assignCoordinatesRecursively("100", coordinates);
@@ -856,7 +951,6 @@ class LocationCoordinateManager {
       return;
     }
     location.coordinates = { x, y, z };
-    // Check if exits exist before iterating
     if (!location.exits) {
       this.logger.warn(`No exits found for location ${locationId}`);
       return;
@@ -883,6 +977,7 @@ class LocationCoordinateManager {
   _updateLocationsWithCoordinates(coordinates) {
     this.logger.debug(``);
     this.logger.debug('- Updating locations with coordinates:');
+    this.logger.debug(``);
     for (const [id, coord] of coordinates) {
       const location = this.locations.get(id);
       if (location) {
@@ -907,7 +1002,7 @@ class TaskManager {
   constructor(name, execute) {
     this.name = name;
     this.execute = execute;
-    this.status = 'pending'; // Track task status
+    this.status = 'pending';
   }
   async run() {
     this.status = 'running';
@@ -916,7 +1011,7 @@ class TaskManager {
       this.status = 'completed';
     } catch (error) {
       this.status = 'failed';
-      throw error; // Propagate error for handling in QueueManager
+      throw error;
     }
   }
   cancel() {
@@ -940,7 +1035,7 @@ class QueueManager {
   constructor() {
     this.queue = [];
     this.runningTasks = new Set();
-    this.maxConcurrentTasks = 5; // Set a limit for concurrent tasks
+    this.maxConcurrentTasks = 5;
   }
   enqueue(task) {
     this.queue.push(task);
@@ -955,9 +1050,9 @@ class QueueManager {
       this.runningTasks.add(task);
       try {
         await task.run();
-        task.onComplete(); // Call the completion callback
+        task.onComplete();
       } catch (error) {
-        task.onError(error); // Handle errors
+        task.onError(error);
       } finally {
         this.runningTasks.delete(task);
       }
@@ -1008,7 +1103,6 @@ class Logger extends ILogger {
     return this.logLevels[level] >= this.logLevels[this.logLevel];
   }
   writeToConsole(logString) {
-    // @todo: Implementing log rotation
     console.log(logString.trim());
   }
   debug(message) {
@@ -1068,15 +1162,15 @@ data, providing methods to initialize player attributes and state.
 ***************************************************************************************************/
 class CreateNewPlayer {
   constructor(name, age) {
-    this.name = name; this.age = age; // Player's name and age
+    this.name = name; this.age = age;
   }
   static fromPlayerData(uid, playerData, bcrypt) {
-    const player = new Player(uid, playerData.name, bcrypt); player.updateData(playerData); return player; // Create and return player
+    const player = new Player(uid, playerData.name, bcrypt); player.updateData(playerData); return player;
   }
   async updateData(updatedData) {
-    if (updatedData.health !== undefined) await this.setHealth(updatedData.health); // Await health update if provided
-    if (updatedData.experience !== undefined) await this.setExperience(updatedData.experience); // Await experience update if provided
-    if (updatedData.level !== undefined) await this.setLevel(updatedData.level); // Await level update if provided
+    if (updatedData.health !== undefined) await this.setHealth(updatedData.health);
+    if (updatedData.experience !== undefined) await this.setExperience(updatedData.experience);
+    if (updatedData.level !== undefined) await this.setLevel(updatedData.level);
   }
 }
 /**************************************************************************************************
@@ -1119,8 +1213,8 @@ It contains shared properties and methods for all items.
 class Item extends BaseItem {
   constructor(template, uniqueId) {
     super(template.name, template.description, template.aliases);
-    this.id = uniqueId; // Unique ID for the item instance
-    this.type = template.type; // Set the type from the template
+    this.id = uniqueId;
+    this.type = template.type;
   }
 }
 /**************************************************************************************************
@@ -1131,7 +1225,7 @@ It contains shared properties and methods for all container items.
 class ContainerItem extends BaseItem {
   constructor(name, description, aliases) {
     super(name, description, aliases);
-    this.inventory = []; // Only ContainerItem has an inventory
+    this.inventory = [];
   }
 }
 /**************************************************************************************************
@@ -1151,7 +1245,7 @@ The Character class represents a character in the game.
 It extends the Entity class.
 ***************************************************************************************************/
 class Character extends Entity {
-  constructor(name, health) { super(name, health); } // Call the parent constructor
+  constructor(name, health) { super(name, health); }
 }
 /**************************************************************************************************
 Player Class
@@ -1171,7 +1265,6 @@ class Player extends Character {
   initializePlayerAttributes() {
     const INITIAL_HEALTH = 100;
     const INITIAL_ATTACK_POWER = 10;
-    // Use object literal for initialization
     Object.assign(this, {
       CONFIG: null,
       password: "",
@@ -1282,7 +1375,6 @@ class Player extends Character {
     QueueManager.addDataSaveTask(DatabaseManager.PLAYER_DATA_PATH, this.getId(), playerData);
   }
   collectPlayerData() {
-    // Use object destructuring for cleaner property access
     const { name, age, health, experience, level } = this;
     return { name, age, health, experience, level };
   }
@@ -1295,7 +1387,6 @@ class Player extends Character {
     MessageManager.notifyStats(this, stats);
   }
   updateData(updatedData) {
-    // Use object destructuring and optional chaining for cleaner code
     const { health, experience, level } = updatedData;
     if (health != null) this.setHealth(health);
     if (experience != null) this.setExperience(experience);
@@ -1597,11 +1688,11 @@ class Location {
 }
 /**************************************************************************************************
 NPC Class
-The Npc class is responsible for representing non-player characters in the game.
-It extends the Character class.
+The Npc class is responsible for representing non-player characters in the game. It extends the
+Character class.
 ***************************************************************************************************/
 class Npc extends Character {
-  constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases) {
+  constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type) {
     super(name, currHealth);
     this.sex = sex;
     this.maxHealth = maxHealth;
@@ -1610,11 +1701,15 @@ class Npc extends Character {
     this.aggro = aggro;
     this.assist = assist;
     this.status = status;
-    this.currentLocation = currentLocation;
+    this.currentLocation = String(currentLocation); // Ensure currentLocation is a string
     this.aliases = aliases;
-    this.id = UidGenerator.generateUid();
+    this.type = type;
+    this.id = null; // We'll set this in an async method
     this.currHealth = currHealth;
     this.previousState = { currHealth, status };
+  }
+  async initialize() {
+    this.id = await UidGenerator.generateUid();
   }
   hasChangedState() {
     const hasChanged = this.currHealth !== this.previousState.currHealth || this.status !== this.previousState.status;
@@ -1624,10 +1719,17 @@ class Npc extends Character {
     return hasChanged;
   }
 }
+/**************************************************************************************************
+Mobile Npc Class
+The MobileNpc class is responsible for representing non-player characters that can move around the
+game world. It extends the Npc class and adds functionality for random movement.
+***************************************************************************************************/
 class MobileNpc extends Npc {
-  constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases) {
-    super(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones, aliases);
+  constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server) {
+    super(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, 'mobile');
     this.zones = zones;
+    this.config = config;
+    this.server = server; // Store the server instance
     this.startMovement();
   }
   startMovement() {
@@ -1635,7 +1737,7 @@ class MobileNpc extends Npc {
       if (this.canMove()) {
         this.moveRandomly();
       }
-    }, this.CONFIG.NPC_MOVEMENT_INTERVAL);
+    }, this.config.NPC_MOVEMENT_INTERVAL);
   }
   canMove() {
     return this.status !== "engaged in combat" && this.status !== "lying dead" && this.status !== "lying unconscious";
@@ -1643,23 +1745,35 @@ class MobileNpc extends Npc {
   moveRandomly() {
     const { gameManager } = this.server;
     const location = gameManager.getLocation(this.currentLocation);
-    const validDirections = Object.keys(location.exits).filter(direction =>
+    if (!location) {
+      this.server.logger.warn(`Invalid location for NPC ${this.name} (ID: ${this.id}). Current location: ${this.currentLocation}`);
+      return;
+    }
+    const validDirections = Object.keys(location.exits || {}).filter(direction =>
       this.zones.includes(location.zone[0]) ? direction : null
     );
     if (validDirections.length > 0) {
       const randomDirection = validDirections[Math.floor(Math.random() * validDirections.length)];
       const newLocationId = location.exits[randomDirection];
-      MessageManager.notifyNpcDeparture(this, DirectionManager.getDirectionTo(newLocationId));
+      MessageManager.notifyNpcDeparture(this, DirectionManager.getDirectionTo(randomDirection));
       this.currentLocation = newLocationId;
-      const direction = DirectionManager.getDirectionFrom(this.currentLocation);
-      MessageManager.notifyNpcArrival(this, direction);
+      const newLocation = gameManager.getLocation(this.currentLocation);
+      MessageManager.notifyNpcArrival(this, DirectionManager.getDirectionFrom(randomDirection));
+    } else {
+      this.server.logger.debug(`No valid directions for NPC ${this.name} (ID: ${this.id}) at location ${this.currentLocation}`);
     }
   }
 }
+/**************************************************************************************************
+Quest Npc Class
+The QuestNpc class is responsible for representing non-player characters that have quests. It
+extends the Npc class and adds functionality for handling quests.
+***************************************************************************************************/
 class QuestNpc extends Npc {
   constructor(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, quest, zones = [], aliases) {
-    super(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones, aliases);
-    this.quest = quest; // Store quest information
+    super(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, 'quest');
+    this.quest = quest;
+    this.zones = zones;
   }
   provideQuest() {
     // Logic to provide the quest to the player
@@ -2430,8 +2544,15 @@ class MessageManager {
   static notifyDropItem(player, itemName) {
     return this.notifyAction(player, 'drops', itemName, FormatMessageManager.getIdForMessage('dropItem'));
   }
+  static notifyNpcDeparture(npc, direction) {
+    const message = `${npc.name} leaves ${direction}.`;
+    this.notifyPlayersInLocation(npc.currentLocation, message);
+  }
+  static notifyNpcArrival(npc, direction) {
+    const message = `${npc.name} arrives ${direction}.`;
+    this.notifyPlayersInLocation(npc.currentLocation, message);
+  }
 }
-/**************************************************************************************************/
 /**************************************************************************************************
 Start Server
 The StartServer code is responsible for starting the server. It uses the ServerInitializer class
