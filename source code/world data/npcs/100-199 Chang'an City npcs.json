@@ -10,10 +10,10 @@
     "assist": false,
     "status": "standing",
     "currentLocation": "100",
-    "mobile": false,
     "zones": [],
     "aliases": ["mob", "npc", "city"],
-    "type": "npc"
+    "type": "mobile",
+    "lastMovement": 0
   },
   "101": {
     "name": "Merchant Wei",
@@ -26,7 +26,6 @@
     "assist": false,
     "status": "standing",
     "currentLocation": "100",
-    "mobile": true,
     "zones": ["Chang'an City"],
     "aliases": ["mob", "npc", "merchant", "wei"],
     "type": "mobile",
@@ -43,7 +42,6 @@
     "assist": false,
     "status": "standing",
     "currentLocation": "100",
-    "mobile": false,
     "zones": [],
     "aliases": ["mob", "npc", "scholar", "zhang"],
     "type": "quest",

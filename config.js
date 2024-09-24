@@ -22,7 +22,7 @@ const GAME_DATA_PATH = './source code/world data/gameData.json';
 // Game Configuration
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute
 const WORLD_EVENT_INTERVAL = 1440;  //
-const NPC_MOVEMENT_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
+const NPC_MOVEMENT_INTERVAL = 5000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_RATES = new Map([
   ['IN_COMBAT', 0.125], // 12.5% per minute

@@ -136,10 +136,10 @@ class ConfigManager {
 
   async loadConfig() {
     try {
-      const { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, WORLD_EVENT_INTERVAL } = CONFIG;
+  const { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL } = CONFIG;
 
       // Validate required configuration values
-      const requiredConfigs = { HOST, PORT, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, WORLD_EVENT_INTERVAL };
+      const requiredConfigs = { HOST, PORT, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
       for (const [key, value] of Object.entries(requiredConfigs)) {
         if (value === undefined || value === null) {
           throw new Error(`Missing required configuration: ${key}`);
@@ -2181,40 +2181,10 @@ class MobileNpc extends Npc {
   }
   moveToNewLocation(location, direction) {
     const newLocationId = location.exits[direction];
-    this.server.messageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
+    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
     this.currentLocation = newLocationId;
     const newLocation = this.server.gameManager.getLocation(this.currentLocation);
-    this.server.messageManager.notifyNpcMovement(this, DirectionManager.getDirectionFrom(direction), true);
-  }
-}
-/**************************************************************************************************
-Quest Npc Class
-The QuestNpc class is a concrete implementation of the Npc class, representing Npcs that
-offer quests to players. It includes logic for managing quest interactions and completions.
-Key features:
-1. Quest management for Npcs
-2. Interaction logic for providing and completing quests
-This class enriches the gameplay experience by providing players with quests and objectives
-through Npc interactions.
-***************************************************************************************************/
-class QuestNpc extends Npc {
-  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, questId, zones = [], aliases, server }) {
-    super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'quest', server });
-    this.questId = questId;
-    this.zones = zones;
-  }
-  provideQuest() {
-    // Logic to provide the quest to the player
-    this.server.messageManager.sendMessage(this, `${this.getName()} has received a quest: ${this.quest.title}`, 'questMessage');
-  }
-  completeQuest(player) {
-    // Logic to complete the quest
-    if (this.quest.isCompleted(player)) {
-      this.server.messageManager.sendMessage(player, `${player.getName()} has completed the quest: ${this.quest.title}`, 'questMessage');
-      // Additional logic for rewards
-    } else {
-      this.server.messageManager.sendMessage(player, `${player.getName()} has not completed the quest: ${this.quest.title}`, 'questMessage');
-    }
+    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionFrom(direction), true);
   }
 }
 /**************************************************************************************************
@@ -2248,7 +2218,7 @@ class NpcMovementManager {
   }
   startMovement() {
     this.logger.debug('Starting NPC Movement');
-    const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL') || 60000; // Ensure this matches the intended interval
+    const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
     this.movementInterval = setInterval(() => this.moveAllNpcs(), MOVEMENT_INTERVAL);
   }
   moveAllNpcs() {
@@ -2275,13 +2245,45 @@ class NpcMovementManager {
     this.logger.debug(`Moved ${movedNpcs} NPCs out of ${mobileNpcs} mobile NPCs and ${totalNpcs} total NPCs`);
     const now = new Date();
     const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-    this.logger.debug(`[${timestamp}] NPCs have moved.`);
+    this.logger.debug(`NPCs have moved.`);
+    this.logger.debug(`[${timestamp}]`);
+    this.logger.debug(``);
   }
   stopMovement() {
     if (this.movementInterval) {
       clearInterval(this.movementInterval);
       this.movementInterval = null;
       this.logger.debug('Stopped NPC movement');
+    }
+  }
+}
+/**************************************************************************************************
+Quest Npc Class
+The QuestNpc class is a concrete implementation of the Npc class, representing Npcs that
+offer quests to players. It includes logic for managing quest interactions and completions.
+Key features:
+1. Quest management for Npcs
+2. Interaction logic for providing and completing quests
+This class enriches the gameplay experience by providing players with quests and objectives
+through Npc interactions.
+***************************************************************************************************/
+class QuestNpc extends Npc {
+  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, questId, zones = [], aliases, server }) {
+    super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'quest', server });
+    this.questId = questId;
+    this.zones = zones;
+  }
+  provideQuest() {
+    // Logic to provide the quest to the player
+    this.server.messageManager.sendMessage(this, `${this.getName()} has received a quest: ${this.quest.title}`, 'questMessage');
+  }
+  completeQuest(player) {
+    // Logic to complete the quest
+    if (this.quest.isCompleted(player)) {
+      this.server.messageManager.sendMessage(player, `${player.getName()} has completed the quest: ${this.quest.title}`, 'questMessage');
+      // Additional logic for rewards
+    } else {
+      this.server.messageManager.sendMessage(player, `${player.getName()} has not completed the quest: ${this.quest.title}`, 'questMessage');
     }
   }
 }
@@ -3164,14 +3166,6 @@ class MessageManager {
     const action = isArrival ? 'arrives' : 'leaves';
     const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
     this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
-  }
-  // Notify players of an NPC's departure
-  static notifyNpcDeparture({ npc, direction }) {
-    this.notifyNpcMovement(npc, direction, false);
-  }
-  // Notify players of an NPC's arrival
-  static notifyNpcArrival({ npc, direction }) {
-    this.notifyNpcMovement(npc, direction, true);
   }
   // Get a template message for combat initiation
   static getCombatInitiationTemplate({ initiatorName, targetName }) {

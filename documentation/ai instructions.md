@@ -26,3 +26,4 @@ Instructions for AI coding assistant to optimize and standardize javascript code
 24. Batch database operations when possible.
 25. Implement proper memory management to prevent leaks.
 26. Use dependency injection to pass instances of classes that need to interact with each other.
+27. Use technically precise terminology to answer questions.
