@@ -151,7 +151,7 @@ class ConfigManager {
         throw new Error('Both SSL_CERT_PATH and SSL_KEY_PATH must be provided for SSL configuration');
       }
 
-      ConfigManager.config = { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, WORLD_EVENT_INTERVAL };
+      ConfigManager.config = { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
     } catch (error) {
       console.error('Error loading configuration:', error.message);
       throw error; // Rethrow to be caught in Server.init
@@ -792,7 +792,7 @@ class GameManager {
     try {
       this.startGameLoop();
       this.logger.debug('');
-      this.logger.debug('Initializing NPC Movement');
+      this.logger.debug('Initializing Mobile Movement');
       this.npcMovementManager.startMovement();
       this.isRunning = true;
       this.logServerRunningMessage();
@@ -2162,7 +2162,7 @@ class MobileNpc extends Npc {
     if (!this.canMove()) return;
     const location = this.server.gameManager.getLocation(this.currentLocation);
     if (!location) {
-      this.logger.warn(`Invalid location for NPC ${this.name} (ID: ${this.id}). Current location: ${this.currentLocation}`);
+      this.logger.debug(`Invalid Location: For Mobile: ${this.name} (ID: ${this.id}). Current Location: ${this.currentLocation}`);
       return;
     }
     const validDirections = this.getValidDirections(location);
@@ -2170,7 +2170,7 @@ class MobileNpc extends Npc {
       const randomDirection = this.getRandomDirection(validDirections);
       this.moveToNewLocation(location, randomDirection);
     } else {
-      this.logger.debug(`No valid directions for NPC ${this.name} (ID: ${this.id}) at location ${this.currentLocation}`);
+      this.logger.debug(`No Valid Directions: For Mobile: ${this.name} (ID: ${this.id}) At Location: ${this.currentLocation}`);
     }
   }
   getValidDirections(location) {
@@ -2217,35 +2217,34 @@ class NpcMovementManager {
     return this.instance;
   }
   startMovement() {
-    this.logger.debug('Starting NPC Movement');
+    this.logger.debug('Starting Mobile Movement');
     const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
     this.movementInterval = setInterval(() => this.moveAllNpcs(), MOVEMENT_INTERVAL);
   }
   moveAllNpcs() {
-    this.logger.debug('Attempting to move all NPCs');
     let movedNpcs = 0;
     let totalNpcs = 0;
     let mobileNpcs = 0;
     this.gameManager.npcs.forEach((npc, id) => {
       totalNpcs++;
-      this.logger.debug(`Checking NPC ${npc.name} (ID: ${id}, Type: ${npc.type})`);
+      this.logger.debug(`Checking Mobile: ${npc.name} (ID: ${id}, Type: ${npc.type})`);
       if (npc instanceof MobileNpc && npc.canMove()) {
         mobileNpcs++;
         try {
           npc.moveRandomly();
           movedNpcs++;
-          this.logger.debug(`NPC ${npc.name} (ID: ${id}) moved successfully`);
+          this.logger.debug(`Mobile: ${npc.name} (ID: ${id}) moved successfully`);
         } catch (error) {
-          this.logger.error(`Error moving NPC ${npc.name} (ID: ${id}): ${error.message}`, { error });
+          this.logger.error(`ERROR: Moving Mobile: ${npc.name} (ID: ${id}): ${error.message}`, { error });
         }
       } else {
-        this.logger.debug(`NPC ${npc.name} (ID: ${id}) is not a MobileNpc or cannot move`);
+        this.logger.debug(`Mobile: ${npc.name} (ID: ${id}) Cannot Move`);
       }
     });
-    this.logger.debug(`Moved ${movedNpcs} NPCs out of ${mobileNpcs} mobile NPCs and ${totalNpcs} total NPCs`);
+    this.logger.debug(`Moved: ${movedNpcs} Mobiles Out Of ${mobileNpcs} Total Mobiles`);
     const now = new Date();
     const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-    this.logger.debug(`NPCs have moved.`);
+    this.logger.debug(`Mobiles Moved.`);
     this.logger.debug(`[${timestamp}]`);
     this.logger.debug(``);
   }
