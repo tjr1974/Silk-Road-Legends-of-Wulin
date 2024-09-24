@@ -57,6 +57,7 @@ const CONFIG = {
   INVENTORY_CAPACITY,
   RESET, // Added color codes
   ORANGE, // Added color codes
+  BLUE,
   RED,   // Added color codes
   MAGENTA // Added color codes
 };

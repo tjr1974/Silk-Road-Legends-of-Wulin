@@ -120,6 +120,69 @@ class ConfigManager {
     return ConfigManager.config[key];
   }
 }
+/**************************************************************************************************
+Logger Class as Singleton
+The Logger class is responsible for logging the messages. The log method logs the messages. The
+shouldLog method checks if the message should be logged. The writeToConsole method writes the
+message to the console. The debug method logs the debug messages. The info method logs the info
+messages. The warn method logs the warn messages. The error method logs the error messages.
+***************************************************************************************************/
+class Logger extends ILogger {
+  constructor(config) {
+    if (Logger.instance) {
+      return Logger.instance;
+    }
+    super();
+    this.CONFIG = config;
+    this.logLevel = config.LOG_LEVEL;
+    this.logLevels = {
+      'DEBUG': 0,
+      'FLOW': 1,
+      'INFO': 1,
+      'WARN': 2,
+      'ERROR': 4
+    };
+    Logger.instance = this;
+  }
+  log(level, message) {
+    if (this.shouldLog(level)) {
+      let coloredMessage = message;
+      switch (level) {
+        case 'DEBUG':
+          coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
+          break;
+        case 'FLOW':
+          coloredMessage = `${this.CONFIG.BLUE}${message}${this.CONFIG.RESET}`;
+          break;
+        case 'WARN':
+          coloredMessage = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
+          break;
+        case 'ERROR':
+          coloredMessage = `${this.CONFIG.RED}${message}${this.CONFIG.RESET}`;
+          break;
+      }
+      this.writeToConsole(coloredMessage);
+    }
+  }
+  shouldLog(level) {
+    return this.logLevels[level] >= this.logLevels[this.logLevel];
+  }
+  writeToConsole(logString) {
+    console.log(logString.trim());
+  }
+  debug(message) {
+    this.log('DEBUG', message);
+  }
+  info(message) {
+    this.log('INFO', message);
+  }
+  warn(message) {
+    this.log('WARN', message);
+  }
+  error(message) {
+    this.log('ERROR', message);
+  }
+}
 /************************************************************************************************
 Server Class
 The Server class is the main entry point for the server application. It initializes the server and
@@ -139,6 +202,8 @@ class Server {
     this.app = null;
     this.queueManager = new QueueManager();
     this.locationCoordinateManager = new LocationCoordinateManager(this, []); // Pass an empty array or actual data
+    this.messageManager = new MessageManager();
+    this.messageQueueSystem = new MessageQueueSystem(this);
   }
   async init() {
     try {
@@ -913,6 +978,7 @@ class GameDataLoader {
         throw new Error(`Invalid item data format.`);
       }
       logger.info(`LOADING GAME DATA FINISHED.`);
+      logger.info(``);
       return [locationData, npcData, itemData];
     } catch (error) {
       logger.error(`ERROR: Fetching Game Data: ${error.message}`, { error });
@@ -1189,66 +1255,54 @@ class QueueManager {
   }
 }
 /**************************************************************************************************
-Logger Class as Singleton
-The Logger class is responsible for logging the messages. The log method logs the messages. The
-shouldLog method checks if the message should be logged. The writeToConsole method writes the
-message to the console. The debug method logs the debug messages. The info method logs the info
-messages. The warn method logs the warn messages. The error method logs the error messages.
+Message Queue System
+The MessageQueueSystem class is responsible for managing a queue of messages with different
+priorities. It processes messages asynchronously and ensures that high-priority messages are
+handled first.
 ***************************************************************************************************/
-class Logger extends ILogger {
-  constructor(config) {
-    if (Logger.instance) {
-      return Logger.instance;
-    }
-    super();
-    this.CONFIG = config;
-    this.logLevel = config.LOG_LEVEL;
-    this.logLevels = {
-      'DEBUG': 0,
-      'FLOW': 1,
-      'INFO': 1,
-      'WARN': 2,
-      'ERROR': 4
+class MessageQueueSystem {
+  constructor(server) {
+    this.server = server;
+    this.queues = {
+      high: [],
+      medium: [],
+      low: []
     };
-    Logger.instance = this;
+    this.isProcessing = false;
   }
-  log(level, message) {
-    if (this.shouldLog(level)) {
-      let coloredMessage = message;
-      switch (level) {
-        case 'DEBUG':
-          coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
-          break;
-        case 'FLOW':
-          coloredMessage = `${this.CONFIG.BLUE}${message}${this.CONFIG.RESET}`;
-          break;
-        case 'WARN':
-          coloredMessage = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
-          break;
-        case 'ERROR':
-          coloredMessage = `${this.CONFIG.RED}${message}${this.CONFIG.RESET}`;
-          break;
-      }
-      this.writeToConsole(coloredMessage);
+  addMessage(message, priority = 'medium') {
+    this.queues[priority].push(message);
+    if (!this.isProcessing) {
+      this.processQueue();
     }
   }
-  shouldLog(level) {
-    return this.logLevels[level] >= this.logLevels[this.logLevel];
+  async processQueue() {
+    this.isProcessing = true;
+    while (this.hasMessages()) {
+      const message = this.getNextMessage();
+      if (message) {
+        await this.processMessage(message);
+      }
+    }
+    this.isProcessing = false;
   }
-  writeToConsole(logString) {
-    console.log(logString.trim());
+  hasMessages() {
+    return Object.values(this.queues).some(queue => queue.length > 0);
   }
-  debug(message) {
-    this.log('DEBUG', message);
+  getNextMessage() {
+    for (const priority of ['high', 'medium', 'low']) {
+      if (this.queues[priority].length > 0) {
+        return this.queues[priority].shift();
+      }
+    }
+    return null;
   }
-  info(message) {
-    this.log('INFO', message);
-  }
-  warn(message) {
-    this.log('WARN', message);
-  }
-  error(message) {
-    this.log('ERROR', message);
+  async processMessage(message) {
+    try {
+      await this.server.messageManager.sendMessage(message.recipient, message.content, message.type);
+    } catch (error) {
+      this.server.logger.error(`Error processing message: ${error.message}`, { error });
+    }
   }
 }
 /**************************************************************************************************
@@ -1483,13 +1537,13 @@ class Player extends Character {
     this.failedLoginAttempts++;
     this.consecutiveFailedAttempts++;
     if (this.consecutiveFailedAttempts >= 3) {
-      MessageManager.notifyDisconnectionDueToFailedAttempts(this);
+      this.server.messageManager.notifyDisconnectionDueToFailedAttempts(this);
       this.server.gameManager.disconnectPlayer(this.uid);
     }
   }
   showInventory() {
     const inventoryList = this.getInventoryList();
-    this.notifyPlayer(inventoryList);
+    this.server.messageManager.sendMessage(this, inventoryList, 'inventoryList');
   }
   lootSpecifiedNpc(target) {
     const location = this.server.gameManager.getLocation(this.currentLocation);
@@ -1497,10 +1551,10 @@ class Player extends Character {
     const targetLower = target.toLowerCase();
     const targetEntity = location.entities.find(entity => entity.name.toLowerCase() === targetLower);
     if (targetEntity) {
-      this.notifyPlayer(`You loot ${targetEntity.name}.`);
+      this.server.messageManager.sendMessage(this, `You loot ${targetEntity.name}.`, 'lootMessage');
       return;
     }
-    this.notifyPlayer(`Target ${target} not found in location.`);
+    this.server.messageManager.sendMessage(this, `Target ${target} not found in location.`, 'errorMessage');
   }
   moveToLocation(newLocationId) {
     try {
@@ -1511,15 +1565,15 @@ class Player extends Character {
         if (oldLocation) oldLocation.removePlayer(this);
         this.currentLocation = newLocationId;
         newLocation.addPlayer(this);
-        MessageManager.notify(this, `You moved to ${newLocation.getName()}.`);
+        this.server.messageManager.sendMessage(this, `You moved to ${newLocation.getName()}.`, 'movementMessage');
       }
     } catch (error) {
       this.server.logger.error(`ERROR: Moving to location: ${error.message}`, { error });
       this.server.logger.error(error.stack);
     }
   }
-  notifyPlayer(message) {
-    MessageManager.notify(this, message);
+  notifyPlayer(message, type = '') {
+    this.server.messageManager.sendMessage(this, message, type);
   }
   resetFailedLoginAttempts() {
     this.failedLoginAttempts = 0;
@@ -1540,7 +1594,7 @@ class Player extends Character {
   }
   score() {
     const stats = `Level: ${this.level}, XP: ${this.experience}, Health: ${this.health}/${this.maxHealth}`;
-    MessageManager.notifyStats(this, stats);
+    this.server.messageManager.sendMessage(this, stats, 'statsMessage');
   }
   updateData(updatedData) {
     const { health, experience, level } = updatedData;
@@ -1559,10 +1613,10 @@ class Player extends Character {
   async login(inputPassword) {
     const isAuthenticated = await this.authenticate(inputPassword);
     if (isAuthenticated) {
-      MessageManager.notifyLoginSuccess(this);
+      this.server.messageManager.notifyLoginSuccess(this);
       return true;
     }
-    MessageManager.notifyIncorrectPassword(this);
+    this.server.messageManager.notifyIncorrectPassword(this);
     return false;
   }
   startHealthRegeneration() {
@@ -1581,54 +1635,54 @@ class Player extends Character {
   meditate() {
     if (this.status !== "sitting") {
       this.startHealthRegeneration();
-      MessageManager.notifyMeditationAction(this);
+      this.server.messageManager.sendMessage(this, "You start meditating.", 'meditationMessage');
       return;
     }
     this.status = "meditating";
-    MessageManager.notifyMeditationStart(this);
+    this.server.messageManager.sendMessage(this, "You continue meditating.", 'meditationMessage');
   }
   sleep() {
     this.startHealthRegeneration();
     this.status = "sleeping";
-    MessageManager.notifySleepAction(this);
+    this.server.messageManager.sendMessage(this, "You lie down and fall asleep.", 'sleepMessage');
   }
   sit() {
     if (this.status === "sitting") {
-      MessageManager.notifyAlreadySitting(this);
+      this.server.messageManager.sendMessage(this, "You are already sitting.", 'sittingMessage');
       return;
     }
     if (this.status === "standing") {
       this.startHealthRegeneration();
       this.status = "sitting";
-      MessageManager.notifySittingDown(this);
+      this.server.messageManager.sendMessage(this, "You sit down.", 'sittingMessage');
       return;
     }
-    MessageManager.notifyStoppingMeditation(this);
+    this.server.messageManager.sendMessage(this, "You stop meditating and stand up.", 'standingMessage');
   }
   stand() {
     if (this.status === "lying unconscious") {
       this.status = "standing";
-      MessageManager.notifyStandingUp(this);
+      this.server.messageManager.sendMessage(this, "You stand up.", 'standingMessage');
     } else {
-      MessageManager.notifyAlreadyStanding(this);
+      this.server.messageManager.sendMessage(this, "You are already standing.", 'standingMessage');
     }
   }
   wake() {
     if (this.status === "lying unconscious") {
       this.status = "standing";
-      MessageManager.notifyStandingUp(this);
+      this.server.messageManager.sendMessage(this, "You stand up.", 'standingMessage');
       return;
     }
     if (this.status === "sleeping") {
       this.status = "standing";
-      MessageManager.notifyWakingUp(this);
+      this.server.messageManager.sendMessage(this, "You wake up.", 'wakeMessage');
       return;
     }
-    MessageManager.notifyAlreadyAwake(this);
+    this.server.messageManager.sendMessage(this, "You are already awake.", 'wakeMessage');
   }
   autoLootToggle() {
     this.autoLoot = !this.autoLoot;
-    MessageManager.notifyAutoLootToggle(this, this.autoLoot);
+    this.server.messageManager.sendMessage(this, `Auto-loot is now ${this.autoLoot ? 'enabled' : 'disabled'}.`, 'autoLootMessage');
   }
   lookIn(containerName) {
     const { gameManager, items } = this.server;
@@ -1636,15 +1690,15 @@ class Player extends Character {
     if (!location) return;
     const containerId = this.getContainerId(containerName) || this.findEntity(containerName, location.items, 'item');
     if (!containerId) {
-      MessageManager.notifyNoContainerHere(this, containerName);
+      this.server.messageManager.sendMessage(this, `There is no ${containerName} here.`, 'errorMessage');
       return;
     }
     const container = items[containerId];
     if (container instanceof ContainerItem) {
       const itemsInContainer = container.inventory.map(itemId => items[itemId].name);
-      MessageManager.notifyLookInContainer(this, container.name, itemsInContainer);
+      this.server.messageManager.sendMessage(this, `Inside ${container.name}: ${itemsInContainer.join(', ')}.`, 'lookInContainerMessage');
     } else {
-      MessageManager.notifyNotAContainer(this, container.name);
+      this.server.messageManager.sendMessage(this, `${container.name} is not a container.`, 'errorMessage');
     }
   }
   hasChangedState() {
@@ -1666,7 +1720,7 @@ class Player extends Character {
   addWeapon(weapon) {
     if (weapon instanceof WeaponItem) {
       this.weapons.add(weapon);
-      MessageManager.notifyPickupItem(this, weapon.name);
+      this.server.messageManager.notifyPickupItem(this, weapon.name);
     }
   }
   removeWeapon(weapon) {
@@ -1747,10 +1801,10 @@ class LookAt {
       return;
     }
     const lookTargets = [
-      { check: () => player.inventory.find(item => item.aliases.includes(targetLower)), notify: MessageManager.notifyLookAtItemInInventory },
-      { check: () => location.items.find(item => item.aliases.includes(targetLower)), notify: MessageManager.notifyLookAtItemInLocation },
-      { check: () => this.findNpc(location, targetLower), notify: MessageManager.notifyLookAtNpc },
-      { check: () => location.playersInLocation.find(p => p.name.toLowerCase() === targetLower), notify: MessageManager.notifyLookAtOtherPlayer }
+      { check: () => player.inventory.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtItemInInventory },
+      { check: () => location.items.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtItemInLocation },
+      { check: () => this.findNpc(location, targetLower), notify: this.server.messageManager.notifyLookAtNpc },
+      { check: () => location.playersInLocation.find(p => p.name.toLowerCase() === targetLower), notify: this.server.messageManager.notifyLookAtOtherPlayer }
     ];
     for (const { check, notify } of lookTargets) {
       const result = check();
@@ -1759,7 +1813,7 @@ class LookAt {
         return;
       }
     }
-    MessageManager.notifyTargetNotFoundInLocation(player, target);
+    this.server.messageManager.notifyTargetNotFoundInLocation(player, target);
   }
   isSelfLook(targetLower, playerNameLower) {
     return targetLower === 'self' || targetLower === playerNameLower || playerNameLower.startsWith(targetLower);
@@ -1772,7 +1826,7 @@ class LookAt {
     return npcId ? this.server.gameManager.getNpc(npcId) : null;
   }
   lookAtSelf() {
-    MessageManager.notifyLookAtSelf(this.player);
+    this.server.messageManager.notifyLookAtSelf(this.player);
   }
 }
 /**************************************************************************************************
@@ -1914,10 +1968,10 @@ class MobileNpc extends Npc {
   }
   moveToNewLocation(location, direction) {
     const newLocationId = location.exits[direction];
-    MessageManager.notifyNpcDeparture(this, DirectionManager.getDirectionTo(direction));
+    this.server.messageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
     this.currentLocation = newLocationId;
     const newLocation = this.server.gameManager.getLocation(this.currentLocation);
-    MessageManager.notifyNpcArrival(this, DirectionManager.getDirectionFrom(direction));
+    this.server.messageManager.notifyNpcMovement(this, DirectionManager.getDirectionFrom(direction), true);
   }
 }
 /**************************************************************************************************
@@ -1933,15 +1987,78 @@ class QuestNpc extends Npc {
   }
   provideQuest() {
     // Logic to provide the quest to the player
-    MessageManager.notify(this, `You have received a quest: ${this.quest.title}`);
+    this.server.messageManager.sendMessage(this, `You have received a quest: ${this.quest.title}`, 'questMessage');
   }
   completeQuest(player) {
     // Logic to complete the quest
     if (this.quest.isCompleted(player)) {
-      MessageManager.notify(player, `You have completed the quest: ${this.quest.title}`);
+      this.server.messageManager.sendMessage(player, `You have completed the quest: ${this.quest.title}`, 'questMessage');
       // Additional logic for rewards
     } else {
-      MessageManager.notify(player, `You have not completed the quest: ${this.quest.title}`);
+      this.server.messageManager.sendMessage(player, `You have not completed the quest: ${this.quest.title}`, 'questMessage');
+    }
+  }
+}
+/**************************************************************************************************
+NPC Movement Manager Class
+The NpcMovementManager class is responsible for managing the movement of NPCs in the game.
+It handles the scheduling and execution of NPC movements.
+***************************************************************************************************/
+class NpcMovementManager {
+  static instance;
+  constructor(gameManager, logger, configManager) {
+    if (NpcMovementManager.instance) {
+      return NpcMovementManager.instance;
+    }
+    this.gameManager = gameManager;
+    this.logger = logger;
+    this.configManager = configManager;
+    this.movementInterval = null;
+    NpcMovementManager.instance = this;
+  }
+  static getInstance(gameManager, logger, configManager) {
+    if (!this.instance) {
+      this.instance = new NpcMovementManager(gameManager, logger, configManager);
+    }
+    return this.instance;
+  }
+  startMovement() {
+    this.logger.debug('Starting NPC Movement');
+    const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL') || 60000; // Ensure this matches the intended interval
+    this.movementInterval = setInterval(() => this.moveAllNpcs(), MOVEMENT_INTERVAL);
+  }
+  moveAllNpcs() {
+    this.logger.debug('Attempting to move all NPCs');
+    let movedNpcs = 0;
+    let totalNpcs = 0;
+    let mobileNpcs = 0;
+    this.gameManager.npcs.forEach((npc, id) => {
+      totalNpcs++;
+      this.logger.debug(`Checking NPC ${npc.name} (ID: ${id}, Type: ${npc.type})`);
+      if (npc instanceof MobileNpc && npc.canMove()) {
+        mobileNpcs++;
+        try {
+          npc.moveRandomly();
+          movedNpcs++;
+          this.logger.debug(`NPC ${npc.name} (ID: ${id}) moved successfully`);
+        } catch (error) {
+          this.logger.error(`Error moving NPC ${npc.name} (ID: ${id}):`, error);
+        }
+      } else {
+        this.logger.debug(`NPC ${npc.name} (ID: ${id}) is not a MobileNpc`);
+      }
+    });
+    this.logger.debug(`Moved ${movedNpcs} NPCs out of ${mobileNpcs} mobile NPCs and ${totalNpcs} total NPCs`);
+    const now = new Date();
+    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    this.gameManager.server.messageManager.sendToPlayersInLocation(null, `[${timestamp}] NPCs have moved.`, 'npcMovement');
+    this.logger.debug(``);
+  }
+  stopMovement() {
+    if (this.movementInterval) {
+      clearInterval(this.movementInterval);
+      this.movementInterval = null;
+      this.logger.debug('Stopped NPC movement');
     }
   }
 }
@@ -2506,8 +2623,9 @@ class CombatManager {
   notifyHealthStatus(player, npc) {
     const playerHealthPercentage = this.calculateHealthPercentage(player.health, player.maxHealth);
     const npcHealthPercentage = this.calculateHealthPercentage(npc.health, npc.maxHealth);
-    this.notifyPlayersInLocation(player.currentLocation,
-      MessageManager.createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage));
+    MessageManager.notifyPlayersInLocation(player.currentLocation,
+      MessageManager.createCombatHealthStatusMessage(player, playerHealthPercentage, npc, npcHealthPercentage),
+      'combatMessageHealth');
   }
   calculateHealthPercentage(currentHealth, maxHealth) {
     return (currentHealth / maxHealth) * 100;
@@ -2554,11 +2672,11 @@ class DescribeLocationManager {
     try {
       const location = this.server.gameManager.getLocation(this.player.currentLocation);
       if (!location) {
-        MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`);
+        MessageManager.notify(this.player, `${this.player.getName()} is in an unknown location.`, 'errorMessage');
         return;
       }
       this.description = this.formatDescription(location);
-      MessageManager.notify(this.player, this.description);
+      MessageManager.notify(this.player, this.description, 'locationDescription');
     } catch (error) {
       this.logger.error(`ERROR: Describing location for player ${this.player.getName()}:`, error, error.stack);
     }
@@ -2601,13 +2719,12 @@ class DescribeLocationManager {
 }
 /**************************************************************************************************
 Format Message Manager Class
-The FormatMessageManager class is responsible for creating and managing message data that is
-sent to players within the game. It centralizes the formatting of messages, ensuring consistency
-in how messages are constructed and sent. This class provides methods to create message data with
-associated CSS IDs for styling and to retrieve predefined message IDs based on specific types of
-messages (e.g., login success, combat notifications). By centralizing message handling, it
-simplifies the process of modifying or updating message formats and ensures that all messages
-adhere to a consistent structure throughout the game.
+The FormatMessageManager class is responsible for creating message data that is sent to players.
+It centralizes the formatting of messages, ensuring consistency in how messages are constructed.
+This class provides methods to create message data with associated CSS IDs for styling on the
+client side based on specific types of messages. By centralizing message formatting, it simplifies
+the process of modifying or updating message formats. Most messages sent to client do not require
+css formatting information, but these do.
 ***************************************************************************************************/
 class FormatMessageManager {
   static createMessageData(cssid = '', message) {
@@ -2615,48 +2732,79 @@ class FormatMessageManager {
   }
   static getIdForMessage(type) {
     const messageIds = {
-      loginSuccess: 'player-name',
-      incorrectPassword: 'error-message',
-      inventoryStatus: 'inventory-list',
-      lootAction: 'combat-message',
-      targetNotFound: 'error-message',
-      combatInitiation: 'combat-message-player',
-      combatJoin: 'combat-message-npc',
+      /* CSS for location title
+        any message sent to a client that contains
+        a location title must include this */
+      locationTitle: 'location-title',
+      /* CSS for location description
+        any message sent to a client that contains
+        a location description must include this */
+      locationDescription: 'location-description',
+      /* CSS for item names
+        any message sent to a client that contains
+        an item name must include this */
+      itemName: 'item-name',
+      /* CSS for exit to location
+        any message sent to a client that contains
+        an exit to location must include this */
+      exitToLocation: 'exit-to-location',
+      /* CSS for exits list
+        any message sent to a client that contains
+        an exits list must include this */
+      exitsList: 'exits-list',
+      /* CSS for inventory list
+        any message sent to a client that contains
+        an inventory list must include this */
+      inventoryList: 'inventory-list',
+      /* CSS for items list
+        any message sent to a client that contains
+        an items list must include this */
+      itemsList: 'items-list',
+      /* CSS for npc name
+        any message sent to a client that contains
+        an npc name must include this */
+      npcName: 'npc-name',
+      /* CSS for npc description
+        any message sent to a client that contains
+        an npc description must include this */
+      npcDescription: 'npc-description',
+      /* CSS for npc stats
+        any message sent to a client that contains
+        npc stats must include this */
+      npcStats: 'npc-stats',
+      /* CSS for player names
+        any message sent to a client that contains
+        a player name must include this */
+      playerName: 'player-name',
+      /* CSS for combat message player actions
+        any message sent to a client during combat
+        that contains a player action must include this */
+      combatMessagePlayer: 'combat-message-player',
+      /* CSS for combat message npc actions
+        any message sent to a client during combat
+        that contains an npc action must include this */
+      combatMessageNpc: 'combat-message-npc',
+      /* CSS for combat message health
+        any message sent to a client during combat
+        that contains health status must include this */
       combatMessageHealth: 'combat-message-health',
-      defeat: 'combat-message-npc',
-      victory: 'combat-message-player',
-      meditationAction: 'combat-message',
-      meditationStart: 'combat-message',
-      sleepAction: 'combat-message',
-      standingUp: 'combat-message',
-      wakingUp: 'combat-message',
-      alreadySitting: 'error-message',
-      alreadyStanding: 'error-message',
-      disconnectionFailedAttempts: 'error-message',
-      stats: 'combat-message',
-      invalidItemAddition: 'error-message',
-      inventoryFull: 'error-message',
-      itemNotFoundInInventory: 'error-message',
-      leavingLocation: 'combat-message',
-      enteringLocation: 'combat-message',
-      combatActionMessage: 'combat-message',
-      dataLoadError: 'error-message',
-      dataSaveError: 'error-message',
-      generalError: 'error-message',
-      lookAtSelf: 'combat-message',
-      lookAtItem: 'combat-message',
-      lookAtNpc: 'combat-message',
-      lookAtOtherPlayer: 'combat-message',
+      /* CSS for combat messages
+        any message sent to a client during combat
+        must include this */
+      combatMessage: 'combat-message',
+      /* CSS for error messages
+        any message sent to a client that contains
+        an error message must include this */
+      errorMessage: 'error-message'
     };
     return messageIds[type] || '';
   }
 }
 /**************************************************************************************************
 Message Manager Class
-The MessageManager class is responsible for sending messages to players.
-It provides methods to notify players of various events, such as combat, location changes,
-and actions performed by other players. It also handles the formatting and transmission
-of these messages to the client.
+The MessageManager class is responsible for sending messages to players. It provides methods to
+notify players of various events, such as combat, location changes, and actions performed by
+other players. It also handles the formatting and transmission of these messages to the client.
 ***************************************************************************************************/
 class MessageManager {
   static instance;
@@ -2670,9 +2818,10 @@ class MessageManager {
   static setSocket(socketInstance) {
     this.socket = socketInstance;
   }
-  static notify(player, message, cssid = '') {
+  static notify(player, message, type = '') {
     try {
       player.server.logger.info(`Message to ${player.getName()}: ${message}`);
+      const cssid = FormatMessageManager.getIdForMessage(type);
       const messageData = FormatMessageManager.createMessageData(cssid, message);
       if (this.socket) {
         this.socket.emit('message', { playerId: player.getId(), messageData });
@@ -2682,98 +2831,35 @@ class MessageManager {
       player.server.logger.error(`ERROR: Notifying player ${player.getName()}:`, error, error.stack);
     }
   }
-  static notifyPlayersInLocation(location, message) {
+  static notifyPlayersInLocation(location, message, type = '') {
     if (!location || !location.playersInLocation) return;
-    Array.from(location.playersInLocation).forEach(player => this.notify(player, message));
+    Array.from(location.playersInLocation).forEach(player => this.notify(player, message, type));
   }
-  static notifyAction(player, action, targetName, cssid) {
-    return this.notify(player, `${player.getName()} ${action} ${targetName}.`, cssid);
+  static notifyAction(player, action, targetName, type) {
+    return this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
   }
   static notifyLoginSuccess(player) {
-    return this.notifyAction(player, 'has logged in successfully!', '', FormatMessageManager.getIdForMessage('loginSuccess'));
+    return this.notifyAction(player, 'has logged in successfully!', '', 'loginSuccess');
   }
   static notifyIncorrectPassword(player) {
-    return this.notify(player, `Incorrect password. Please try again.`, FormatMessageManager.getIdForMessage('incorrectPassword'));
+    return this.notify(player, `Incorrect password. Please try again.`, 'incorrectPassword');
   }
   static notifyDisconnectionDueToFailedAttempts(player) {
-    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, FormatMessageManager.getIdForMessage('disconnectionFailedAttempts'));
+    return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, 'disconnectionFailedAttempts');
   }
   static notifyPickupItem(player, itemName) {
-    return this.notifyAction(player, 'grabs', itemName, FormatMessageManager.getIdForMessage('pickupItem'));
+    return this.notifyAction(player, 'grabs', itemName, 'pickupItem');
   }
   static notifyDropItem(player, itemName) {
-    return this.notifyAction(player, 'drops', itemName, FormatMessageManager.getIdForMessage('dropItem'));
+    return this.notifyAction(player, 'drops', itemName, 'dropItem');
   }
   static notifyNpcDeparture(npc, direction) {
     const message = `${npc.name} leaves ${direction}.`;
-    this.notifyPlayersInLocation(npc.currentLocation, message);
+    this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
   }
   static notifyNpcArrival(npc, direction) {
     const message = `${npc.name} arrives ${direction}.`;
-    this.notifyPlayersInLocation(npc.currentLocation, message);
-  }
-}
-/**************************************************************************************************
-NPC Movement Manager Class
-The NpcMovementManager class is responsible for managing the movement of NPCs in the game.
-It handles the scheduling and execution of NPC movements.
-***************************************************************************************************/
-class NpcMovementManager {
-  static instance;
-  constructor(gameManager, logger, configManager) {
-    if (NpcMovementManager.instance) {
-      return NpcMovementManager.instance;
-    }
-    this.gameManager = gameManager;
-    this.logger = logger;
-    this.configManager = configManager;
-    this.movementInterval = null;
-    NpcMovementManager.instance = this;
-  }
-  static getInstance(gameManager, logger, configManager) {
-    if (!this.instance) {
-      this.instance = new NpcMovementManager(gameManager, logger, configManager);
-    }
-    return this.instance;
-  }
-  startMovement() {
-    this.logger.debug('Starting NPC Movement');
-    const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL') || 60000; // Ensure this matches the intended interval
-    this.movementInterval = setInterval(() => this.moveAllNpcs(), MOVEMENT_INTERVAL);
-  }
-  moveAllNpcs() {
-    this.logger.debug('Attempting to move all NPCs');
-    let movedNpcs = 0;
-    let totalNpcs = 0;
-    let mobileNpcs = 0;
-    this.gameManager.npcs.forEach((npc, id) => {
-      totalNpcs++;
-      this.logger.debug(`Checking NPC ${npc.name} (ID: ${id}, Type: ${npc.type})`);
-      if (npc instanceof MobileNpc && npc.canMove()) {
-        mobileNpcs++;
-        try {
-          npc.moveRandomly();
-          movedNpcs++;
-          this.logger.debug(`NPC ${npc.name} (ID: ${id}) moved successfully`);
-        } catch (error) {
-          this.logger.error(`Error moving NPC ${npc.name} (ID: ${id}):`, error);
-        }
-      } else {
-        this.logger.debug(`NPC ${npc.name} (ID: ${id}) is not a MobileNpc`);
-      }
-    });
-    this.logger.debug(`Moved ${movedNpcs} NPCs out of ${mobileNpcs} mobile NPCs and ${totalNpcs} total NPCs`);
-    const now = new Date();
-    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-    this.logger.debug(`[${timestamp}]`);
-    this.logger.debug(``);
-  }
-  stopMovement() {
-    if (this.movementInterval) {
-      clearInterval(this.movementInterval);
-      this.movementInterval = null;
-      this.logger.debug('Stopped NPC movement');
-    }
+    this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
   }
 }
 /**************************************************************************************************
