@@ -3104,16 +3104,19 @@ debugging purposes.
 ***************************************************************************************************/
 class MessageManager {
   static instance;
+  // Get the singleton instance of MessageManager
   static getInstance() {
     if (!this.instance) {
       this.instance = new MessageManager();
     }
     return this.instance;
   }
+  // Set the socket instance
   static socket;
   static setSocket(socketInstance) {
     this.socket = socketInstance;
   }
+  // Notify a player with a message
   static notify({ player, message, type = '' }) {
     try {
       player.server.logger.info(`Message to ${player.getName()}: ${message}`);
@@ -3127,123 +3130,166 @@ class MessageManager {
       player.server.logger.error(`ERROR: Notifying player ${player.getName()}:`, error, error.stack);
     }
   }
+  // Notify all players in a specific location with a message
   static notifyPlayersInLocation({ location, message, type = '' }) {
     if (!location || !location.playersInLocation) return;
     Array.from(location.playersInLocation).forEach(player => this.notify({ player, message, type }));
   }
+  // Notify a player about a specific action performed on a target
   static notifyAction({ player, action, targetName, type }) {
     return this.notify({ player, message: `${player.getName()} ${action} ${targetName}.`, type });
   }
+  // Notify a player of a successful login
   static notifyLoginSuccess({ player }) {
     return this.notifyAction({ player, action: 'has logged in successfully!', targetName: '', type: 'loginSuccess' });
   }
+  // Notify a player of an incorrect password attempt
   static notifyIncorrectPassword({ player }) {
     return this.notify({ player, message: `Incorrect password. Please try again.`, type: 'incorrectPassword' });
   }
+  // Notify a player of disconnection due to too many failed login attempts
   static notifyDisconnectionDueToFailedAttempts({ player }) {
     return this.notify({ player, message: `${player.getName()} has been disconnected due to too many failed login attempts.`, type: 'disconnectionFailedAttempts' });
   }
+  // Notify a player when they pick up an item
   static notifyPickupItem({ player, itemName }) {
     return this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
   }
+  // Notify a player when they drop an item
   static notifyDropItem({ player, itemName }) {
     return this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
   }
+  // Notify players in a location about an NPC's movement
+  static notifyNpcMovement(npc, direction, isArrival) {
+    const action = isArrival ? 'arrives' : 'leaves';
+    const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
+    this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
+  }
+  // Notify players of an NPC's departure
   static notifyNpcDeparture({ npc, direction }) {
-    const message = `${npc.name} leaves ${direction}.`;
-    this.notifyPlayersInLocation({ location: npc.currentLocation, message, type: 'npcMovement' });
+    this.notifyNpcMovement(npc, direction, false);
   }
+  // Notify players of an NPC's arrival
   static notifyNpcArrival({ npc, direction }) {
-    const message = `${npc.name} arrives ${direction}.`;
-    this.notifyPlayersInLocation({ location: npc.currentLocation, message, type: 'npcMovement' });
+    this.notifyNpcMovement(npc, direction, true);
   }
+  // Get a template message for combat initiation
   static getCombatInitiationTemplate({ initiatorName, targetName }) {
     return `${initiatorName} initiates combat with ${targetName}!`;
   }
+  // Get a template message for an NPC joining combat
   static getCombatJoinTemplate({ npcName }) {
     return `${npcName} joins the combat!`;
   }
+  // Get a template message for a victory announcement
   static getVictoryTemplate({ playerName, defeatedName }) {
     return `${playerName} has defeated ${defeatedName}!`;
   }
+  // Get a template message for a target not found
   static getTargetNotFoundTemplate({ playerName, target }) {
     return `${playerName} doesn't see ${target} here.`;
   }
+  // Get a template message for no conscious enemies
   static getNoConsciousEnemiesTemplate({ playerName }) {
     return `${playerName} doesn't see any conscious enemies here.`;
   }
+  // Get a template message for an NPC already in a specific status
   static getNpcAlreadyInStatusTemplate({ npcName, status }) {
     return `${npcName} is already ${status}.`;
   }
+  // Get a template message for an unknown location
   static getUnknownLocationTemplate({ playerName }) {
     return `${playerName} is in an unknown location.`;
   }
+  // Get a template message for looting an NPC
   static getLootedNPCTemplate({ playerName, npcName, lootedItems }) {
     return `${playerName} looted ${npcName} and found: ${lootedItems.map(item => item.name).join(', ')}.`;
   }
+  // Get a template message for finding nothing to loot from an NPC
   static getNoLootTemplate({ playerName, npcName }) {
     return `${playerName} found nothing to loot from ${npcName}.`;
   }
+  // Get a template message for being unable to loot an NPC
   static getCannotLootNPCTemplate({ playerName, npcName }) {
     return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
   }
+  // Get a template message for no NPC to loot
   static getNoNPCToLootTemplate({ playerName, target }) {
     return `${playerName} doesn't see ${target} here to loot.`;
   }
+  // Get a template message for no NPCs to loot
   static getNoNPCsToLootTemplate({ playerName }) {
     return `${playerName} doesn't see any NPCs to loot here.`;
   }
+  // Get a template message for finding nothing to loot from any NPCs
   static getNothingToLootFromNPCsTemplate({ playerName }) {
     return `${playerName} found nothing to loot from any NPCs here.`;
   }
+  // Get a template message for looting all NPCs
   static getLootedAllNPCsTemplate({ playerName, lootedNPCs, lootedItems }) {
     return `${playerName} looted ${lootedNPCs.join(', ')} and found: ${lootedItems.join(', ')}.`;
   }
+  // Notify a player that they have no items to drop
   static notifyNoItemsToDrop({ player, type, itemType }) {
     return this.notify({ player, message: `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, type: 'errorMessage' });
   }
+  // Notify a player about items they dropped
   static notifyItemsDropped({ player, items }) {
     return this.notify({ player, message: `${player.getName()} dropped: ${items.map(item => item.name).join(', ')}.`, type: 'dropMessage' });
   }
+  // Notify a player about items they took
   static notifyItemsTaken({ player, items }) {
     return this.notify({ player, message: `${player.getName()} took: ${items.map(item => item.name).join(', ')}.`, type: 'takeMessage' });
   }
+  // Notify a player that there are no items here
   static notifyNoItemsHere({ player }) {
     return this.notify({ player, message: `There are no items here.`, type: 'errorMessage' });
   }
+  // Notify a player about items taken from a container
   static notifyItemsTakenFromContainer({ player, items, containerName }) {
     return this.notify({ player, message: `${player.getName()} took ${items.map(item => item.name).join(', ')} from ${containerName}.`, type: 'takeMessage' });
   }
+  // Notify a player that there are no specific items in a container
   static notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
     return this.notify({ player, message: `There are no ${itemType} items in ${containerName}.`, type: 'errorMessage' });
   }
+  // Notify a player that there is no item in a container
   static notifyNoItemInContainer({ player, itemName, containerName }) {
     return this.notify({ player, message: `There is no ${itemName} in ${containerName}.`, type: 'errorMessage' });
   }
+  // Notify a player that there is no item here
   static notifyNoItemHere({ player, itemName }) {
     return this.notify({ player, message: `There is no ${itemName} here.`, type: 'errorMessage' });
   }
+  // Notify a player that they don't have a specific container
   static notifyNoContainer({ player, containerName }) {
     return this.notify({ player, message: `${player.getName()} doesn't have a ${containerName}.`, type: 'errorMessage' });
   }
+  // Notify a player that an item is not in their inventory
   static notifyItemNotInInventory({ player, itemName }) {
     return this.notify({ player, message: `${player.getName()} doesn't have a ${itemName} in their inventory.`, type: 'errorMessage' });
   }
+  // Notify a player that they put an item in a container
   static notifyItemPutInContainer({ player, itemName, containerName }) {
     return this.notify({ player, message: `${player.getName()} put ${itemName} in ${containerName}.`, type: 'putMessage' });
   }
+  // Notify a player that they have no items to put in a container
   static notifyNoItemsToPut({ player, containerName }) {
     return this.notify({ player, message: `${player.getName()} has no items to put in ${containerName}.`, type: 'errorMessage' });
   }
+  // Notify a player about items put in a container
   static notifyItemsPutInContainer({ player, items, containerName }) {
     return this.notify({ player, message: `${player.getName()} put ${items.map(item => item.name).join(', ')} in ${containerName}.`, type: 'putMessage' });
   }
+  // Notify a player that they have no specific items to put in a container
   static notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
     return this.notify({ player, message: `${player.getName()} has no ${itemType} items to put in ${containerName}.`, type: 'errorMessage' });
   }
+  // Notify a player that there are no specific items here
   static notifyNoSpecificItemsHere({ player, itemType }) {
     return this.notify({ player, message: `There are no ${itemType} items here.`, type: 'errorMessage' });
   }
+  // Get a template message for auto-looting items from an NPC
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
     return `${playerName} auto-looted ${lootedItems.map(item => item.name).join(', ')} from ${npcName}.`;
   }
