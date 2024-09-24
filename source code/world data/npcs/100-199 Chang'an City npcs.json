@@ -26,7 +26,7 @@
     "assist": false,
     "status": "standing",
     "currentLocation": "100",
-    "zones": ["Chang'an City"],
+    "zones": ["Chang'an City", "Shaanxi Province"],
     "aliases": ["mob", "npc", "merchant", "wei"],
     "type": "mobile",
     "lastMovement": 0

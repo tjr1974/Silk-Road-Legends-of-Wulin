@@ -2174,16 +2174,28 @@ class MobileNpc extends Npc {
     }
   }
   getValidDirections(location) {
-    return Object.keys(location.exits || {}).filter(direction => this.zones.includes(location.zone[0]));
+    const validDirections = Object.keys(location.exits || {}).filter(direction => {
+      const exitLocationId = location.exits[direction];
+      const exitLocation = this.server.gameManager.getLocation(exitLocationId);
+      const isValidZone = exitLocation && (this.zones.length === 0 || this.zones.includes(exitLocation.zone[0]));
+      this.logger.debug(`Checking direction: ${direction}, Exit Location ID: ${exitLocationId}, Valid Zone: ${isValidZone}`);
+      return isValidZone;
+    });
+    this.logger.debug(`Valid Directions for ${this.name} (ID: ${this.id}): ${validDirections.join(', ')}`);
+    return validDirections;
   }
   getRandomDirection(validDirections) {
     return validDirections[Math.floor(Math.random() * validDirections.length)];
   }
   moveToNewLocation(location, direction) {
     const newLocationId = location.exits[direction];
+    const newLocation = this.server.gameManager.getLocation(newLocationId);
+    if (this.zones.length > 0 && !this.zones.includes(newLocation.zone[0])) {
+      this.logger.warn(`${this.name} cannot move to ${newLocation.name} due to zone restrictions.`);
+      return; // Prevent movement if the zone is not allowed
+    }
     MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
     this.currentLocation = newLocationId;
-    const newLocation = this.server.gameManager.getLocation(this.currentLocation);
     MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionFrom(direction), true);
   }
 }
