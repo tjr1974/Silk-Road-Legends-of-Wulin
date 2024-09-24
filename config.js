@@ -14,11 +14,11 @@ const LOG_LEVEL = 'DEBUG'; // Set the default logger level. Options: 'DEBUG', 'F
 const LOG_FILE_PATH = './server logs';     // Path for log files
 const LOG_MAX_FILE_SIZE = 1048576;  // Max file size for logger = 1 MB in bytes
 // File Paths for Game Data
-const PLAYER_DATA_PATH = './source code/world data/players'; // Named constant
-const LOCATION_DATA_PATH = './source code/world data/locations'; // Named constant
-const NPC_DATA_PATH = './source code/world data/npcs'; // Named constant
-const ITEM_DATA_PATH = './source code/world data/items'; // Named constant
-const GAME_DATA_PATH = './source code/world data/gameData.json'; // Named constant
+const PLAYER_DATA_PATH = './source code/world data/players';
+const LOCATIONS_DATA_PATH = './source code/world data/locations'; // Changed from LOCATION_DATA_PATH
+const NPCS_DATA_PATH = './source code/world data/npcs'; // Changed from NPC_DATA_PATH
+const ITEMS_DATA_PATH = './source code/world data/items'; // Changed from ITEM_DATA_PATH
+const GAME_DATA_PATH = './source code/world data/gameData.json';
 // Game Configuration
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute
 const WORLD_EVENT_INTERVAL = 1440;  //
@@ -44,9 +44,9 @@ const CONFIG = {
   LOG_FILE_PATH, // Added log file path
   LOG_MAX_FILE_SIZE, // Added max file size for logs
   PLAYER_DATA_PATH, // Added to config
-  LOCATION_DATA_PATH, // Added to config
-  NPC_DATA_PATH, // Added to config
-  ITEM_DATA_PATH, // Added to config
+  LOCATIONS_DATA_PATH, // Updated
+  NPCS_DATA_PATH, // Updated
+  ITEMS_DATA_PATH, // Updated
   GAME_DATA_PATH, // Added to config
   TICK_RATE,
   WORLD_EVENT_INTERVAL,
