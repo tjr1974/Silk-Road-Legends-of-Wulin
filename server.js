@@ -70,7 +70,7 @@ class ILogger {
 /**************************************************************************************************
 Database Manager Interface Class
 The IDatabaseManager class defines an abstract interface for database operations within the game
-system. It outlines methods for loading and saving various types of game data (locations, NPCs,
+system. It outlines methods for loading and saving various types of game data (locations, Npcs,
 items) without specifying the underlying database technology. This abstraction allows for
 flexible implementation of data persistence strategies.
 Key features:
@@ -701,7 +701,7 @@ It coordinates game loops, event processing, and player actions, ensuring that t
 remains consistent and responsive. This class serves as the central hub for game logic and
 state management.
 Key features:
-1. Management of active players and NPCs
+1. Management of active players and Npcs
 2. Game loop execution and event handling
 3. Coordination of game state updates and notifications
 4. Integration with the EventEmitter for event-driven architecture
@@ -1003,12 +1003,12 @@ class GameComponentInitializer extends BaseManager {
 /**************************************************************************************************
 Game Data Loader Class
 The GameDataLoader class is responsible for loading and managing game data from the database.
-It handles the retrieval and initialization of crucial game elements such as locations, NPCs,
+It handles the retrieval and initialization of crucial game elements such as locations, Npcs,
 and items.
 Key features:
 1. Asynchronous data fetching
 2. Location data processing and coordinate assignment
-3. NPC and item data loading and instantiation
+3. Npc and item data loading and instantiation
 4. Error handling and logging during data loading
 This class plays a critical role in populating the game world with the necessary entities and
 ensuring that all game data is properly loaded and structured for use by other game systems.
@@ -1035,7 +1035,7 @@ class GameDataLoader {
         logger.error(`Invalid Location Data Format: ${JSON.stringify(locationData)}`);
         throw new Error(`Invalid Location Data Format.`);
       }
-      // Load NPC data
+      // Load Npc data
       const npcData = await this.loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC);
       if (npcData instanceof Map) {
         this.server.gameManager.npcs = await this.createNpcs(npcData);
@@ -2045,10 +2045,10 @@ class DirectionManager {
 Location Class
 The Location class is intended to be used with OLC (online creation system).
 Each location represents a specific area within the game world. It includes properties
-for managing exits, items, NPCs, and players within the location, facilitating interactions
+for managing exits, items, Npcs, and players within the location, facilitating interactions
 and navigation.
 Key features:
-1. Properties for managing exits, items, and NPCs
+1. Properties for managing exits, items, and Npcs
 2. Methods for adding and removing entities from the location
 3. Description management for the location
 This class serves as the foundation for all locations within the game, ensuring that
@@ -2095,7 +2095,7 @@ The Npc class represents non-player characters within the game. It includes prop
 methods specific to Npc behavior, interactions, and state management.
 Key features:
 1. Properties for managing Npc attributes (health, status, location)
-2. Methods for NPC actions and interactions
+2. Methods for Npc actions and interactions
 This class provides a foundation for all Npc types, ensuring that their behavior and
 interactions are managed consistently within the game.
 ***************************************************************************************************/
@@ -2260,7 +2260,7 @@ class NpcMovementManager {
     if (this.movementInterval) {
       clearInterval(this.movementInterval);
       this.movementInterval = null;
-      this.logger.debug('- Stopped NPC movement');
+      this.logger.debug('- Stopped Npc movement');
     }
   }
 }
@@ -2466,7 +2466,7 @@ class InventoryManager {
       MessageManager.notifyNoSpecificItemsInContainer(this.player, itemType, container.name);
     }
   }
-  autoLootNPC(npc) {
+  autoLootNpc(npc) {
     if (npc.inventory && npc.inventory.size > 0) {
       const lootedItems = new Set(npc.inventory);
       lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
@@ -2475,7 +2475,7 @@ class InventoryManager {
     }
     return null;
   }
-  lootNPC(target) {
+  lootNpc(target) {
     const npcId = this.getNpcIdFromLocation(target, this.player.server.location[this.player.currentLocation].npcs);
     if (npcId) {
       const npc = this.player.server.npcs[npcId];
@@ -2485,7 +2485,7 @@ class InventoryManager {
           lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
           npc.inventory.clear();
           this.messageManager.sendMessage(this.player,
-            MessageManager.getLootedNPCTemplate(this.player.getName(), npc.getName(), Array.from(lootedItems)),
+            MessageManager.getLootedNpcTemplate(this.player.getName(), npc.getName(), Array.from(lootedItems)),
             'lootMessage'
           );
         } else {
@@ -2496,28 +2496,28 @@ class InventoryManager {
         }
       } else {
         this.messageManager.sendMessage(this.player,
-          MessageManager.getCannotLootNPCTemplate(this.player.getName(), npc.getName()),
+          MessageManager.getCannotLootNpcTemplate(this.player.getName(), npc.getName()),
           'errorMessage'
         );
       }
     } else {
       this.messageManager.sendMessage(this.player,
-        MessageManager.getNoNPCToLootTemplate(this.player.getName(), target),
+        MessageManager.getNoNpcToLootTemplate(this.player.getName(), target),
         'errorMessage'
       );
     }
   }
-  lootAllNPCs() {
+  lootAllNpcs() {
     const currentLocation = this.player.server.location[this.player.currentLocation];
     if (!currentLocation.npcs || currentLocation.npcs.size === 0) {
       this.messageManager.sendMessage(this.player,
-        MessageManager.getNoNPCsToLootTemplate(this.player.getName()),
+        MessageManager.getNoNpcsToLootTemplate(this.player.getName()),
         'errorMessage'
       );
       return;
     }
     const lootedItems = new Set();
-    const lootedNPCs = new Set();
+    const lootedNpcs = new Set();
     currentLocation.npcs.forEach(npcId => {
       const npc = this.player.server.npcs[npcId];
       if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory && npc.inventory.size > 0) {
@@ -2525,18 +2525,18 @@ class InventoryManager {
           lootedItems.add(itemId);
           this.player.inventory.add(this.player.server.items[itemId]);
         });
-        lootedNPCs.add(npc.name);
+        lootedNpcs.add(npc.name);
         npc.inventory.clear();
       }
     });
     if (lootedItems.size > 0) {
       this.messageManager.sendMessage(this.player,
-        MessageManager.getLootedAllNPCsTemplate(this.player.getName(), Array.from(lootedNPCs), Array.from(lootedItems)),
+        MessageManager.getLootedAllNpcsTemplate(this.player.getName(), Array.from(lootedNpcs), Array.from(lootedItems)),
         'lootMessage'
       );
     } else {
       this.messageManager.sendMessage(this.player,
-        MessageManager.getNothingToLootFromNPCsTemplate(this.player.getName()),
+        MessageManager.getNothingToLootFromNpcsTemplate(this.player.getName()),
         'lootMessage'
       );
     }
@@ -2632,11 +2632,11 @@ class CombatAction {
 }
 /**************************************************************************************************
 Combat Manager Class
-The CombatManager class is responsible for managing combat interactions between players and NPCs.
+The CombatManager class is responsible for managing combat interactions between players and Npcs.
 It coordinates combat turns, handles combat actions, and tracks combat state. This class
 ensures that combat mechanics are applied correctly and efficiently.
 Key features:
-1. Turn-based combat management for players and NPCs
+1. Turn-based combat management for players and Npcs
 2. Combat action execution and outcome determination
 3. Integration with the logger for combat event tracking
 The CombatManager is essential for maintaining the integrity of combat interactions,
@@ -2698,10 +2698,10 @@ class CombatManager {
   }
   initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
     try {
-      this.logger.debug(`Initiating combat with NPC ${npcId} for player ${player.getName()}`);
+      this.logger.debug(`Initiating combat with Npc ${npcId} for player ${player.getName()}`);
       this.startCombat({ npcId, player, playerInitiated });
     } catch (error) {
-      this.logger.error(`- ERROR: Initiating combat with NPC ${npcId} for player ${player.getName()}:`, error, error.stack);
+      this.logger.error(`- ERROR: Initiating combat with Npc ${npcId} for player ${player.getName()}:`, error, error.stack);
     }
   }
   endCombatForPlayer({ player }) {
@@ -2709,10 +2709,10 @@ class CombatManager {
   }
   startCombat({ npcId, player, playerInitiated }) {
     try {
-      this.logger.debug(`Starting combat between player ${player.getName()} and NPC ${npcId}`);
+      this.logger.debug(`Starting combat between player ${player.getName()} and Npc ${npcId}`);
       const npc = this.gameManager.getNpc(npcId);
       if (!npc || this.combatOrder.has(npcId)) {
-        this.logger.debug(`NPC ${npcId} not found or already in combat`);
+        this.logger.debug(`Npc ${npcId} not found or already in combat`);
         return;
       }
       this.combatOrder.set(npcId, { state: 'engaged' });
@@ -2721,7 +2721,7 @@ class CombatManager {
         : this.notifyCombatJoin({ npc, player });
       npc.status = "engaged in combat";
     } catch (error) {
-      this.logger.error(`- ERROR: Starting combat between player ${player.getName()} and NPC ${npcId}:`, error, error.stack);
+      this.logger.error(`- ERROR: Starting combat between player ${player.getName()} and Npc ${npcId}:`, error, error.stack);
     }
   }
   initiateCombat({ player, npc, playerInitiated }) {
@@ -2946,7 +2946,7 @@ enhancing their understanding of their surroundings.
 Key features:
 1. Location description formatting and management
 2. Integration with the server's message manager for communication
-3. Handling of exits, items, NPCs, and players in the description
+3. Handling of exits, items, Npcs, and players in the description
 This class enhances player immersion by providing rich, contextual information about
 the game world, allowing players to engage more deeply with their environment.
 ***************************************************************************************************/
@@ -3167,7 +3167,7 @@ class MessageManager {
   static notifyDropItem({ player, itemName }) {
     return this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
   }
-  // Notify players in a location about an NPC's movement
+  // Notify players in a location about an Npc's movement
   static notifyNpcMovement(npc, direction, isArrival) {
     const action = isArrival ? 'arrives' : 'leaves';
     const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
@@ -3177,7 +3177,7 @@ class MessageManager {
   static getCombatInitiationTemplate({ initiatorName, targetName }) {
     return `${initiatorName} initiates combat with ${targetName}!`;
   }
-  // Get a template message for an NPC joining combat
+  // Get a template message for an Npc joining combat
   static getCombatJoinTemplate({ npcName }) {
     return `${npcName} joins the combat!`;
   }
@@ -3193,7 +3193,7 @@ class MessageManager {
   static getNoConsciousEnemiesTemplate({ playerName }) {
     return `${playerName} doesn't see any conscious enemies here.`;
   }
-  // Get a template message for an NPC already in a specific status
+  // Get a template message for an Npc already in a specific status
   static getNpcAlreadyInStatusTemplate({ npcName, status }) {
     return `${npcName} is already ${status}.`;
   }
@@ -3201,33 +3201,33 @@ class MessageManager {
   static getUnknownLocationTemplate({ playerName }) {
     return `${playerName} is in an unknown location.`;
   }
-  // Get a template message for looting an NPC
-  static getLootedNPCTemplate({ playerName, npcName, lootedItems }) {
+  // Get a template message for looting an Npc
+  static getLootedNpcTemplate({ playerName, npcName, lootedItems }) {
     return `${playerName} looted ${npcName} and found: ${lootedItems.map(item => item.name).join(', ')}.`;
   }
-  // Get a template message for finding nothing to loot from an NPC
+  // Get a template message for finding nothing to loot from an Npc
   static getNoLootTemplate({ playerName, npcName }) {
     return `${playerName} found nothing to loot from ${npcName}.`;
   }
-  // Get a template message for being unable to loot an NPC
-  static getCannotLootNPCTemplate({ playerName, npcName }) {
+  // Get a template message for being unable to loot an Npc
+  static getCannotLootNpcTemplate({ playerName, npcName }) {
     return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
   }
-  // Get a template message for no NPC to loot
-  static getNoNPCToLootTemplate({ playerName, target }) {
+  // Get a template message for no Npc to loot
+  static getNoNpcToLootTemplate({ playerName, target }) {
     return `${playerName} doesn't see ${target} here to loot.`;
   }
-  // Get a template message for no NPCs to loot
-  static getNoNPCsToLootTemplate({ playerName }) {
-    return `${playerName} doesn't see any NPCs to loot here.`;
+  // Get a template message for no Npcs to loot
+  static getNoNpcsToLootTemplate({ playerName }) {
+    return `${playerName} doesn't see any Npcs to loot here.`;
   }
-  // Get a template message for finding nothing to loot from any NPCs
-  static getNothingToLootFromNPCsTemplate({ playerName }) {
-    return `${playerName} found nothing to loot from any NPCs here.`;
+  // Get a template message for finding nothing to loot from any Npcs
+  static getNothingToLootFromNpcsTemplate({ playerName }) {
+    return `${playerName} found nothing to loot from any Npcs here.`;
   }
-  // Get a template message for looting all NPCs
-  static getLootedAllNPCsTemplate({ playerName, lootedNPCs, lootedItems }) {
-    return `${playerName} looted ${lootedNPCs.join(', ')} and found: ${lootedItems.join(', ')}.`;
+  // Get a template message for looting all Npcs
+  static getLootedAllNpcsTemplate({ playerName, lootedNpcs, lootedItems }) {
+    return `${playerName} looted ${lootedNpcs.join(', ')} and found: ${lootedItems.join(', ')}.`;
   }
   // Notify a player that they have no items to drop
   static notifyNoItemsToDrop({ player, type, itemType }) {
@@ -3289,7 +3289,7 @@ class MessageManager {
   static notifyNoSpecificItemsHere({ player, itemType }) {
     return this.notify({ player, message: `There are no ${itemType} items here.`, type: 'errorMessage' });
   }
-  // Get a template message for auto-looting items from an NPC
+  // Get a template message for auto-looting items from an Npc
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
     return `${playerName} auto-looted ${lootedItems.map(item => item.name).join(', ')} from ${npcName}.`;
   }
