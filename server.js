@@ -43,7 +43,7 @@ class MoveCommandHandler {
     this.logger = logger;
   }
   execute(socket, { direction }) { // Destructured payload
-    this.logger.debug(`Player ${socket.id} moved ${direction}`);
+    this.logger.debug(`- Player ${socket.id} Moved ${direction}`);
   }
 }
 /**************************************************************************************************
@@ -592,7 +592,9 @@ class DatabaseManager extends IDatabaseManager {
     const referencedLocations = new Set();
     for (const [id, location] of Object.entries(data)) {
       this.logger.debug(`- Validate Location - ID: ${id}`);
-      //this.logger.debug(`Location data: ${JSON.stringify(location, null, 2)}`);
+      //this.logger.debug(`- Locations Data:`);
+      //this.logger.debug(`${JSON.stringify(location, null, 2)}`);
+      //this.logger.debug(``);
       if (!this.isValidLocation(location)) {
         this.logger.error(`- ERROR: Invalid Locations Object${JSON.stringify(location)}`);
         continue;
@@ -609,7 +611,7 @@ class DatabaseManager extends IDatabaseManager {
         this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: ${refId} `);
       }
     });
-    this.logger.debug(`Total Locations Validated: ${locationData.size}`);
+    this.logger.debug(`- Total Locations Validated: ${locationData.size}`);
     return locationData;
   }
   isValidLocation(location) {
@@ -630,8 +632,7 @@ class DatabaseManager extends IDatabaseManager {
       const npcData = this.validateAndParseNpcData(data[0]);
       this.logger.debug(`- Loaded ${npcData.size} Npcs`);
       this.logger.debug(``);
-      this.logger.debug(`- Npcs Map Contents:`);
-      this.logger.debug(``);
+      this.logger.debug(`- Npcs Data:`);
       this.logger.debug(`${JSON.stringify(Array.from(npcData.entries()))}`);
       this.logger.debug(``);
       return npcData;
@@ -676,7 +677,7 @@ class DatabaseManager extends IDatabaseManager {
       const itemData = this.validateAndParseItemData(data[0]);
       this.logger.debug(`- Loaded ${itemData.size} Items`);
       this.logger.debug(``);
-      this.logger.debug(`- Items Map Contents:`);
+      this.logger.debug(`- Items Data:`);
       this.logger.debug(``);
       this.logger.debug(`${JSON.stringify(Array.from(itemData.entries()))}`);
       this.logger.debug(``);
@@ -753,7 +754,7 @@ class GameManager {
   }
   startGame() {
     if (this.isGameRunning()) {
-      this.logger.debug('Game is already running.');
+      this.logger.debug('Game Is Already Running');
       return;
     }
     try {
@@ -882,7 +883,7 @@ class GameManager {
       const direction = DirectionManager.getDirectionFrom(oldLocationId);
       MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
     } else {
-      this.logger.debug(`Cannot notify entering location: ${newLocationId} not found.`);
+      this.logger.debug(`- Cannot Notify Entering - Location: ${newLocationId} - Not Found.`);
     }
   }
   updateNpcs() {
@@ -920,7 +921,7 @@ class GameManager {
       this.players.delete(uid);
       this.logger.info(`Player ${uid} Disconnected.`);
     } else {
-      this.logger.debug(`Player ${uid} Not Found For Disconnection.`);
+      this.logger.debug(`- Player: ${uid} - Not Found For Disconnection.`);
     }
   }
   createNpc(name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, type, quest = null, zones = [], aliases) {
@@ -952,7 +953,7 @@ class GameManager {
   handlePlayerAction(action) {
     const task = new TaskManager({ name: 'PlayerAction', execute: () => {
       // Logic for handling player action
-      this.logger.debug(`Handling Action: ${action}`);
+      this.logger.debug(`- Handling Action: ${action}`);
     }});
     this.server.addTask(task);
   }
@@ -1205,15 +1206,15 @@ class LocationCoordinateManager {
     this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
   }
   _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
-    this.logger.debug(`- Assign Coordinates To Location: ${locationId} at (${x}, ${y}, ${z})`);
+    this.logger.debug(`- Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
     const location = this.locations.get(locationId);
     if (!location) {
-      this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: 101`);
+      this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: ${locationId}`);
       return;
     }
     location.coordinates = { x, y, z };
     if (!location.exits) {
-      this.logger.debug(`No Exits Found For Location: ${locationId}`);
+      this.logger.debug(`- No Exits Found For Location: ${locationId}`);
       return;
     }
     for (const [direction, exitId] of Object.entries(location.exits)) {
@@ -2163,7 +2164,7 @@ class MobileNpc extends Npc {
     const location = this.server.gameManager.getLocation(this.currentLocation);
     if (!location) {
       this.logger.debug(`- Invalid Location For:`);
-      this.logger.debug(`- Mobile: ${this.name} (ID: ${this.id}). Current Location: ${this.currentLocation}`);
+      this.logger.debug(`- Mobile: ${this.name} (ID: ${this.id}) - Current Location: ${this.currentLocation}`);
       return;
     }
     const validDirections = this.getValidDirections(location);
@@ -2172,7 +2173,7 @@ class MobileNpc extends Npc {
       this.moveToNewLocation(location, randomDirection);
     } else {
       this.logger.debug(`- No Valid Directions For:`);
-      this.logger.debug(`- Mobile: ${this.name} (ID: ${this.id}) At Location: ${this.currentLocation}`);
+      this.logger.debug(`- Mobile: ${this.name} - (ID: ${this.id}) - At Location: ${this.currentLocation}`);
     }
   }
   getValidDirections(location) {
@@ -2184,7 +2185,7 @@ class MobileNpc extends Npc {
       return isValidZone;
     });
     this.logger.debug(`- Valid Directions For:`);
-    this.logger.debug(`- Mobile: ${this.name} (ID: ${this.id}): ${validDirections.join(', ')}`);
+    this.logger.debug(`- Mobile: ${this.name} - (ID: ${this.id}): ${validDirections.join(', ')}`);
     return validDirections;
   }
   getRandomDirection(validDirections) {
@@ -2195,7 +2196,7 @@ class MobileNpc extends Npc {
     const newLocation = this.server.gameManager.getLocation(newLocationId);
     if (this.zones.length > 0 && !this.zones.includes(newLocation.zone[0])) {
       this.logger.debug(`- Mobile:${this.name} Cannot Move To:`);
-      this.logger.debug(`- ${newLocation.name} Due To Zone Restrictions.`);
+      this.logger.debug(`- ${newLocation.name} - Due To Zone Restrictions.`);
       return; // Prevent movement if the zone is not allowed
     }
     MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
@@ -2244,13 +2245,13 @@ class NpcMovementManager {
     this.gameManager.npcs.forEach((npc, id) => {
       totalNpcs++;
       this.logger.debug(`- Checking Mobile:`);
-      this.logger.debug(`- ${npc.name} (ID: ${id}, Type: ${npc.type})`);
+      this.logger.debug(`- ${npc.name} - (ID: ${id}) - Type: ${npc.type}`);
       if (npc instanceof MobileNpc && npc.canMove()) {
         mobileNpcs++;
         try {
           npc.moveRandomly();
           movedNpcs++;
-          this.logger.debug(`- Mobile: ${npc.name} (ID: ${id}) moved successfully`);
+          this.logger.debug(`- Mobile: ${npc.name} - (ID: ${id}) - Moved Successfully`);
         } catch (error) {
           this.logger.error(`- ERROR: Moving Mobile: ${npc.name} - (ID: ${id}): ${error.message}`, { error });
         }
@@ -2708,7 +2709,7 @@ class CombatManager {
   }
   initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
     try {
-      this.logger.debug(`Initiating combat with Npc ${npcId} for player ${player.getName()}`);
+      this.logger.debug(`- Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}`);
       this.startCombat({ npcId, player, playerInitiated });
     } catch (error) {
       this.logger.error(`- ERROR: Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}:`, error);
@@ -2719,10 +2720,10 @@ class CombatManager {
   }
   startCombat({ npcId, player, playerInitiated }) {
     try {
-      this.logger.debug(`Starting combat between player ${player.getName()} and Npc ${npcId}`);
+      this.logger.debug(`- Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npcId}`);
       const npc = this.gameManager.getNpc(npcId);
       if (!npc || this.combatOrder.has(npcId)) {
-        this.logger.debug(`Npc: ${npcId} - Not Found Or Already In Combat`);
+        this.logger.debug(`- Npc: ${npcId} - Not Found Or Already In Combat`);
         return;
       }
       this.combatOrder.set(npcId, { state: 'engaged' });
