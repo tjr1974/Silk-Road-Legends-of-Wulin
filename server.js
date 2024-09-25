@@ -240,9 +240,13 @@ The Server class acts as the backbone of the game system, providing a robust fou
 multiplayer gameplay and server-side game logic execution.
 ***************************************************************************************************/
 class Server {
+  static instance;
   constructor({ logger, configManager }) {
+    if (Server.instance) {
+      return Server.instance;
+    }
     this.eventEmitter = new EventEmitter();
-    this.configManager = configManager || ConfigManager.getInstance(); // Use getInstance here
+    this.configManager = configManager || ConfigManager.getInstance();
     this.logger = logger;
     this.databaseManager = null;
     this.socketEventManager = null;
@@ -254,13 +258,18 @@ class Server {
     this.queueManager = new QueueManager();
     this.messageManager = new MessageManager();
     this.messageQueueSystem = new MessageQueueSystem(this);
-    this.gameComponentInitializer = null; // Initialize as null
+    this.gameComponentInitializer = null;
+    Server.instance = this;
+  }
+  static getInstance({ logger, configManager }) {
+    if (!Server.instance) {
+      Server.instance = new Server({ logger, configManager });
+    }
+    return Server.instance;
   }
   async init() {
     try {
-      // Ensure config is loaded before creating DatabaseManager
       await this.configManager.loadConfig();
-      this.databaseManager = new DatabaseManager({ server: this, logger: this.logger });
       this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger });
       this.serverConfigurator = new ServerConfigurator({
         server: this,
@@ -271,9 +280,6 @@ class Server {
       await this.serverConfigurator.configureServer();
       this.eventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this));
       this.gameManager = new GameManager({ eventEmitter: this.eventEmitter, logger: this.logger, server: this });
-      // Initialize LocationCoordinateManager here
-      this.locationCoordinateManager = new LocationCoordinateManager(this, this.logger, []);
-      // Create and initialize GameComponentInitializer
       this.gameComponentInitializer = new GameComponentInitializer({ server: this, logger: this.logger });
       await this.gameComponentInitializer.setupGameComponents();
       if (this.gameManager) {
@@ -297,10 +303,6 @@ class Server {
       this.logger.info(`- Configuring Server using ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
       return this.server;
     } catch (error) {
-      /*this.logger.error(`- ERROR: Failed to setup HTTP server: ${error.message}`);
-      this.logger.error(`Stack trace: ${error.stack}`);
-      this.logger.error(`Additional context: Check SSL configuration and file paths if using HTTPS.`);
-      throw error; */
     }
   }
   async loadSslOptions() {
@@ -312,11 +314,8 @@ class Server {
         sslOptions.cert = await fs.readFile(SSL_CERT_PATH);
         sslOptions.key = await fs.readFile(SSL_KEY_PATH);
       } else if (SSL_CERT_PATH || SSL_KEY_PATH) {
-        //throw new Error('Both SSL_CERT_PATH and SSL_KEY_PATH must be provided for SSL configuration');
       }
     } catch (error) {
-      //this.logger.error(`- ERROR: Failed to load SSL files: ${error.message}`);
-      //throw error;
     }
     return sslOptions;
   }
@@ -511,8 +510,6 @@ class DatabaseManager extends IDatabaseManager {
       NPCS: this.configManager.get('NPCS_DATA_PATH'),
       ITEMS: this.configManager.get('ITEMS_DATA_PATH')
     };
-    this.path = path;
-    this.locationCoordinateManager = new LocationCoordinateManager(server, logger, []);
   }
   async initialize() {
     for (const [key, path] of Object.entries(this.DATA_PATHS)) {
@@ -521,99 +518,93 @@ class DatabaseManager extends IDatabaseManager {
       }
     }
   }
-  async loadData(dataPath, type) {
-    if (!dataPath) {
-      throw new Error(`${type.toUpperCase()}_DATA_PATH is not defined in the configuration`);
-    }
-    try {
-      const files = await this.getFilesInDirectory(dataPath);
-      // Ensure each file's content is awaited properly
-      const data = await Promise.all(files.map(async file => {
-        const fileContent = await fs.readFile(file, 'utf-8'); // Await the file read
-        return this.customJsonParse(fileContent); // Pass the awaited content
-      }));
-      return data;
-    } catch (error) {
-      throw error;
-    }
-  }
-  customJsonParse(jsonString) {
-    const seenKeys = new Set();
-    const result = {};
-    const regex = /"([^"]+)":/g;
-    let match;
-    while ((match = regex.exec(jsonString)) !== null) {
-      const key = match[1];
-      if (seenKeys.has(key)) {
-        this.logger.error(`- ERROR: Duplicate key detected: ${key}`);
-      }
-      seenKeys.add(key);
-    }
-    return JSON.parse(jsonString);
-  }
-  async getFilesInDirectory(directory) {
-    if (!directory) {
-      throw new Error('Directory path is undefined');
-    }
-    try {
-      const files = await fs.readdir(directory);
-      return files.filter(file => path.extname(file) === '.json').map(file => path.join(directory, file));
-    } catch (error) {
-      throw error;
-    }
-  }
-  async saveData(filePath, key, data) {
-    try {
-      const existingData = await fs.readFile(filePath, 'utf-8');
-      const parsedData = JSON.parse(existingData);
-      parsedData[key] = data;
-      await fs.writeFile(filePath, JSON.stringify(parsedData, null, 2));
-      this.logger.info(`Data saved for ${key} to ${filePath}`, { filePath, key });
-    } catch (error) {
-      this.logger.error(`- ERROR: Saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
-      this.logger.error(error.stack);
-    }
-  }
   async loadLocationData() {
     const locationDataPath = this.DATA_PATHS.LOCATIONS;
     if (!locationDataPath) {
-      throw new Error('LOCATIONS_DATA_PATH is not defined in the configuration. Check your config file for missing LOCATIONS_DATA_PATH.');
+      throw new Error('LOCATIONS_DATA_PATH is not defined in the configuration');
     }
     try {
-      this.logger.info(``);
-      this.logger.info(`STARTING LOAD GAME DATA:`);
       this.logger.info('- Starting Load Locations');
-      this.logger.debug(``);
       this.logger.debug(`- Loading Locations Data From: ${locationDataPath}`);
-      const data = await this.loadData(locationDataPath, 'location');
-      const locationData = this.validateAndParseLocationData(data[0]);
-      this.logger.debug(`- Loaded ${locationData.size} Locations`);
-      this.logger.debug(``);
-      this.logger.debug(`- Locations Map Contents:`);
-      this.logger.debug(``);
-      this.logger.debug(`${JSON.stringify(Array.from(locationData.entries()))}`);
-      return locationData;
+      const allLocationData = await this.loadData(locationDataPath, 'locations');
+      return this.validateAndParseLocationData(allLocationData);
+    } catch (error) {
+      this.logger.error(`- ERROR: Failed to load location data: ${error.message}`);
+      throw error;
+    }
+  }
+  async loadData(folderPath, dataType = 'default') {
+    try {
+      const files = await fs.readdir(folderPath);
+      const jsonFiles = files.filter(file => path.extname(file).toLowerCase() === '.json');
+      if (dataType === 'locations') {
+        let allLocationData = {};
+        let duplicateLocationIds = new Set();
+        for (const file of jsonFiles) {
+          const filePath = path.join(folderPath, file);
+          const fileContent = await fs.readFile(filePath, 'utf8');
+          this.customJsonParse(fileContent, duplicateLocationIds, allLocationData, file);
+        }
+        return allLocationData;
+      } else {
+        const fileContents = await Promise.all(
+          jsonFiles.map(async file => {
+            const filePath = path.join(folderPath, file);
+            const fileContent = await fs.readFile(filePath, 'utf8');
+            return JSON.parse(fileContent);
+          })
+        );
+        return fileContents.reduce((acc, content) => ({ ...acc, ...content }), {});
+      }
     } catch (error) {
       throw error;
     }
   }
+  customJsonParse(jsonString, duplicateIds, allLocationData, fileName) {
+    const regex = /"(\d+)":\s*(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})/g;
+    let match;
+    while ((match = regex.exec(jsonString)) !== null) {
+      const [, id, locationData] = match;
+      if (id in allLocationData) {
+        duplicateIds.add(id);
+        this.logger.error(`- ERROR: Duplicate Location Detected - ID: ${id}`);
+        this.logger.error(`- Detected In File: ${fileName}`);
+      } else {
+        try {
+          allLocationData[id] = JSON.parse(locationData);
+        } catch (error) {
+          this.logger.error(`- ERROR: Error parsing location data for ID ${id} in file ${fileName}: ${error.message}`);
+        }
+      }
+    }
+  }
   validateAndParseLocationData(data) {
+    this.logger.debug('Validating and parsing location data');
     if (typeof data !== 'object' || Array.isArray(data)) {
       throw new Error('Locations data must be an object');
     }
     const locationData = new Map();
-    const seenLocationIds = new Set();
+    const referencedLocations = new Set();
     for (const [id, location] of Object.entries(data)) {
-      if (seenLocationIds.has(id)) {
-        this.logger.error(`- ERROR: Duplicate Location ID Found: ${id}`);
-      } else {
-        seenLocationIds.add(id);
-        if (!this.isValidLocation(location)) {
-          throw new Error(`Invalid Locations Object: ${JSON.stringify(location)}`);
-        }
-        locationData.set(id, location);
+      this.logger.debug(`Processing location with ID: ${id}`);
+      //this.logger.debug(`Location data: ${JSON.stringify(location, null, 2)}`);
+      if (!this.isValidLocation(location)) {
+        this.logger.error(`Invalid location object: ${JSON.stringify(location)}`);
+        throw new Error(`Invalid Locations Object: ${JSON.stringify(location)}`);
+      }
+      locationData.set(id, location);
+      // Collect referenced locations from exits
+      if (location.exits) {
+        Object.values(location.exits).forEach(exitId => referencedLocations.add(exitId));
       }
     }
+    // Check for missing referenced locations
+    referencedLocations.forEach(refId => {
+      if (!locationData.has(refId)) {
+        this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: ${refId} `);
+      }
+    });
+    this.logger.debug(`Total locations processed: ${locationData.size}`);
     return locationData;
   }
   isValidLocation(location) {
@@ -644,12 +635,12 @@ class DatabaseManager extends IDatabaseManager {
   }
   validateAndParseNpcData(data) {
     if (typeof data !== 'object' || Array.isArray(data)) {
-      throw new Error('NPC data must be an object');
+      this.logger.error(`- ERROR: Npc Data Must Be An Object`);
     }
     const npcData = new Map();
     for (const [id, npc] of Object.entries(data)) {
       if (!this.isValidNpc(npc)) {
-        throw new Error(`Invalid NPC object: ${JSON.stringify(npc)}`);
+        this.logger.error(`- ERROR: Invalid Npc Object: ${JSON.stringify(npc)}`);
       }
       npcData.set(id, npc);
     }
@@ -944,7 +935,7 @@ class GameManager {
   getLocation(locationId) {
     const location = this.locations.get(locationId);
     if (!location) {
-      this.logger.error(`- ERROR:Location Not Found: ${locationId}`);
+      this.logger.error(`- ERROR: Location Not Found - ID : ${locationId}`);
       return null;
     }
     return location;
@@ -981,7 +972,6 @@ class GameComponentInitializer extends BaseManager {
     try {
       await this.initializeDatabaseManager();
       await this.initializeGameManager();
-      await this.initializeLocationCoordinateManager();
       await this.initializeGameDataLoader();
     } catch (error) {
       this.handleSetupError(error);
@@ -1001,9 +991,6 @@ class GameComponentInitializer extends BaseManager {
       logger: this.server.logger,
       server: this.server
     });
-  }
-  async initializeLocationCoordinateManager() {
-    this.server.locationCoordinateManager = new LocationCoordinateManager({ server: this.server, logger: this.server.logger, locationData: [] });
   }
   async initializeGameDataLoader() {
     this.server.gameDataLoader = new GameDataLoader({ server: this.server });
@@ -1032,7 +1019,6 @@ class GameDataLoader {
     this.server = server;
     this.config = configManager.config;
     this.logger = logger;
-    this.locationManager = new LocationCoordinateManager({ server, logger, locationData: [] });
   }
   async fetchGameData() {
     const { logger, databaseManager } = this.server;
@@ -1042,7 +1028,8 @@ class GameDataLoader {
       const locationData = await this.loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION);
       // Assign coordinates to locations
       if (locationData instanceof Map) {
-        await this.locationManager.assignCoordinates(locationData);
+        const locationCoordinateManager = LocationCoordinateManager.getInstance({ logger: this.logger, server: this.server, locationData });
+        await locationCoordinateManager.assignCoordinates(locationData);
         this.server.gameManager.locations = locationData;
       } else {
         logger.error(`Invalid Location Data Format: ${JSON.stringify(locationData)}`);
@@ -1145,11 +1132,45 @@ spatial relationships between different areas of the game world. It works closel
 GameDataLoader to process and enhance location data.
 ***************************************************************************************************/
 class LocationCoordinateManager {
+  static instance;
   constructor({ logger, server, locationData }) {
+    if (LocationCoordinateManager.instance) {
+      return LocationCoordinateManager.instance;
+    }
     this.server = server;
     this.logger = logger;
     this.locations = new Map();
     this.parsedData = locationData instanceof Map ? locationData : new Map();
+    this.checkLocationDataForDuplicateIds(locationData);
+    LocationCoordinateManager.instance = this;
+  }
+  static getInstance({ logger, server, locationData }) {
+    if (!LocationCoordinateManager.instance) {
+      LocationCoordinateManager.instance = new LocationCoordinateManager({ logger, server, locationData });
+    }
+    return LocationCoordinateManager.instance;
+  }
+  checkLocationDataForDuplicateIds(locationData) {
+    this.logger.debug(`- Process Location Data:`);
+    if (!locationData || typeof locationData !== 'object') {
+      this.logger.error(`- ERROR: Invalid or missing location data`);
+      return;
+    }
+    const topLevelKeys = Object.keys(locationData);
+    const uniqueKeys = new Set(topLevelKeys);
+    if (topLevelKeys.length !== uniqueKeys.size) {
+      for (const key of topLevelKeys) {
+        if (topLevelKeys.indexOf(key) !== topLevelKeys.lastIndexOf(key)) {
+          this.logger.error(`- ERROR: Duplicate key detected: ${key}`);
+        }
+      }
+      this.logger.error(`- ERROR: Duplicate Location IDs found. No locations processed.`);
+    } else {
+      for (const [id, location] of Object.entries(locationData)) {
+        this.locations.set(id, location);
+      }
+      this.logger.debug(`- Total Locations Processed: ${this.locations.size}`);
+    }
   }
   async assignCoordinates(locationData) {
     if (!(locationData instanceof Map)) {
@@ -1180,7 +1201,7 @@ class LocationCoordinateManager {
     this.logger.debug(`- Assign Coordinates To Location: ${locationId} at (${x}, ${y}, ${z})`);
     const location = this.locations.get(locationId);
     if (!location) {
-      this.logger.debug(`Location ${locationId} Not Found In Locations Map`);
+      this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: 101`);
       return;
     }
     location.coordinates = { x, y, z };
@@ -1216,11 +1237,33 @@ class LocationCoordinateManager {
         location.coordinates = coord;
         this.logger.debug(`- Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
       } else {
-        this.logger.debug(`Location ${id} Not Found`);
+        this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: 101`);
       }
     }
     this.logger.debug(`- Total Locations Updated: ${coordinates.size}`);
     this.logger.debug(``)
+  }
+  validateAndParseLocationData(data) {
+    if (typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('Locations data must be an object');
+    }
+    const locationData = new Map();
+    for (const [id, location] of Object.entries(data)) {
+      if (!this.isValidLocation(location)) {
+        throw new Error(`Invalid Locations Object: ${JSON.stringify(location)}`);
+      }
+      locationData.set(id, location);
+    }
+    return locationData;
+  }
+  isValidLocation(location) {
+    return (
+      typeof location === 'object' &&
+      typeof location.name === 'string' &&
+      typeof location.description === 'string' &&
+      typeof location.exits === 'object' &&
+      !Array.isArray(location.exits)
+    );
   }
 }
 /**************************************************************************************************
@@ -3066,8 +3109,7 @@ Key features:
 5. Error handling and logging
 The class works closely with the FormatMessageManager to ensure consistent message formatting
 and styling across the game. It also interacts with the server's logger for error tracking and
-debugging purposes.
-***************************************************************************************************/
+debugging purposes.***************************************************************************************************/
 class MessageManager {
   static instance;
   // Get the singleton instance of MessageManager
