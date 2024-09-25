@@ -119,25 +119,21 @@ facilitating easier maintenance and modification of game parameters.
 class ConfigManager {
   static instance;
   static config;
-
   constructor() {
     if (ConfigManager.instance) {
       return ConfigManager.instance;
     }
     ConfigManager.instance = this;
   }
-
   static getInstance() {
     if (!ConfigManager.instance) {
       ConfigManager.instance = new ConfigManager();
     }
     return ConfigManager.instance;
   }
-
   async loadConfig() {
     try {
   const { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL } = CONFIG;
-
       // Validate required configuration values
       const requiredConfigs = { HOST, PORT, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
       for (const [key, value] of Object.entries(requiredConfigs)) {
@@ -145,19 +141,15 @@ class ConfigManager {
           throw new Error(`Missing required configuration: ${key}`);
         }
       }
-
       // Validate SSL configuration
       if ((SSL_CERT_PATH && !SSL_KEY_PATH) || (!SSL_CERT_PATH && SSL_KEY_PATH)) {
         throw new Error('Both SSL_CERT_PATH and SSL_KEY_PATH must be provided for SSL configuration');
       }
-
       ConfigManager.config = { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
     } catch (error) {
-      console.error('Error loading configuration:', error.message);
-      throw error; // Rethrow to be caught in Server.init
+      throw error;
     }
   }
-
   get(key) {
     return ConfigManager.config[key];
   }
@@ -189,7 +181,7 @@ class Logger extends ILogger {
       'FLOW': 1,
       'INFO': 1,
       'WARN': 2,
-      'ERROR': 4
+      '- ERROR': 4
     };
     Logger.instance = this;
   }
@@ -206,7 +198,7 @@ class Logger extends ILogger {
         case 'WARN':
           coloredMessage = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
           break;
-        case 'ERROR':
+        case '- ERROR':
           coloredMessage = `${this.CONFIG.RED}${message}${this.CONFIG.RESET}`;
           break;
       }
@@ -229,7 +221,7 @@ class Logger extends ILogger {
     this.log('WARN', message);
   }
   error(message) {
-    this.log('ERROR', message);
+    this.log('- ERROR', message);
   }
 }
 /**************************************************************************************************
@@ -290,10 +282,7 @@ class Server {
         throw new Error('GameManager not initialized. Check GameManager initialization in Server.init()');
       }
     } catch (error) {
-      this.logger.error(`ERROR: Server initialization failed: ${error.message}`);
-      this.logger.error(`Stack trace: ${error.stack}`);
-      this.logger.error(`Additional context: Failed to initialize one or more server components. Check individual component logs for more details.`);
-      throw error; // Rethrow to be caught in ServerInitializer
+      throw error;
     }
   }
   handlePlayerConnected(player) {
@@ -308,7 +297,7 @@ class Server {
       this.logger.info(`- Configuring Server using ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
       return this.server;
     } catch (error) {
-      /*this.logger.error(`ERROR: Failed to setup HTTP server: ${error.message}`);
+      /*this.logger.error(`- ERROR: Failed to setup HTTP server: ${error.message}`);
       this.logger.error(`Stack trace: ${error.stack}`);
       this.logger.error(`Additional context: Check SSL configuration and file paths if using HTTPS.`);
       throw error; */
@@ -326,7 +315,7 @@ class Server {
         //throw new Error('Both SSL_CERT_PATH and SSL_KEY_PATH must be provided for SSL configuration');
       }
     } catch (error) {
-      //this.logger.error(`ERROR: Failed to load SSL files: ${error.message}`);
+      //this.logger.error(`- ERROR: Failed to load SSL files: ${error.message}`);
       //throw error;
     }
     return sslOptions;
@@ -398,28 +387,28 @@ class ServerConfigurator extends BaseManager {
     try {
       await this.setupExpress();
     } catch (error) {
-      logger.error(`ERROR: During Express configuration: ${error.message}`, { error });
+      logger.error(`- ERROR: During Express configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
     logger.info(`- Configuring Server`);
     try {
       await server.setupHttpServer();
     } catch (error) {
-      logger.error(`ERROR: During Http Server configuration: ${error.message}`, { error });
+      logger.error(`- ERROR: During Http Server configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
     logger.info(`- Configuring Middleware`);
     try {
       this.configureMiddleware();
     } catch (error) {
-      logger.error(`ERROR: During Middleware configuration: ${error.message}`, { error });
+      logger.error(`- ERROR: During Middleware configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
     logger.log('INFO', '- Configuring Queue Manager');
     try {
       server.queueManager = new QueueManager();
     } catch (error) {
-      logger.error(`ERROR: During Queue Manager configuration: ${error.message}`, { error });
+      logger.error(`- ERROR: During Queue Manager configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
     logger.info(`SERVER CONFIGURATION FINISHED.`);
@@ -528,7 +517,7 @@ class DatabaseManager extends IDatabaseManager {
   async initialize() {
     for (const [key, path] of Object.entries(this.DATA_PATHS)) {
       if (!path) {
-        this.logger.error(`ERROR: ${key}_DATA_PATH is not defined in the configuration`);
+        this.logger.error(`- ERROR: ${key}_DATA_PATH is not defined in the configuration`);
       }
     }
   }
@@ -538,13 +527,29 @@ class DatabaseManager extends IDatabaseManager {
     }
     try {
       const files = await this.getFilesInDirectory(dataPath);
-      const data = await Promise.all(files.map(file => fs.readFile(file, 'utf-8').then(data => JSON.parse(data))));
+      // Ensure each file's content is awaited properly
+      const data = await Promise.all(files.map(async file => {
+        const fileContent = await fs.readFile(file, 'utf-8'); // Await the file read
+        return this.customJsonParse(fileContent); // Pass the awaited content
+      }));
       return data;
     } catch (error) {
-      this.logger.error(`ERROR: Loading ${type} data: ${error.message}`, { error, dataPath });
-      this.logger.error(error.stack);
       throw error;
     }
+  }
+  customJsonParse(jsonString) {
+    const seenKeys = new Set();
+    const result = {};
+    const regex = /"([^"]+)":/g;
+    let match;
+    while ((match = regex.exec(jsonString)) !== null) {
+      const key = match[1];
+      if (seenKeys.has(key)) {
+        this.logger.error(`- ERROR: Duplicate key detected: ${key}`);
+      }
+      seenKeys.add(key);
+    }
+    return JSON.parse(jsonString);
   }
   async getFilesInDirectory(directory) {
     if (!directory) {
@@ -554,8 +559,6 @@ class DatabaseManager extends IDatabaseManager {
       const files = await fs.readdir(directory);
       return files.filter(file => path.extname(file) === '.json').map(file => path.join(directory, file));
     } catch (error) {
-      this.logger.error(`ERROR: Reading directory ${directory}: ${error.message}`, { error, directory });
-      this.logger.error(error.stack);
       throw error;
     }
   }
@@ -567,7 +570,7 @@ class DatabaseManager extends IDatabaseManager {
       await fs.writeFile(filePath, JSON.stringify(parsedData, null, 2));
       this.logger.info(`Data saved for ${key} to ${filePath}`, { filePath, key });
     } catch (error) {
-      this.logger.error(`ERROR: Saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
+      this.logger.error(`- ERROR: Saving data for ${key} to ${filePath}: ${error.message}`, { error, filePath, key });
       this.logger.error(error.stack);
     }
   }
@@ -584,11 +587,6 @@ class DatabaseManager extends IDatabaseManager {
       this.logger.debug(`- Loading Locations Data From: ${locationDataPath}`);
       const data = await this.loadData(locationDataPath, 'location');
       const locationData = this.validateAndParseLocationData(data[0]);
-      const duplicates = this.findDuplicateIds(locationData);
-      if (duplicates.size > 0) {
-        this.logDuplicateIds(duplicates);
-        this.removeDuplicates(locationData, duplicates);
-      }
       this.logger.debug(`- Loaded ${locationData.size} Locations`);
       this.logger.debug(``);
       this.logger.debug(`- Locations Map Contents:`);
@@ -596,38 +594,7 @@ class DatabaseManager extends IDatabaseManager {
       this.logger.debug(`${JSON.stringify(Array.from(locationData.entries()))}`);
       return locationData;
     } catch (error) {
-      this.logger.error(`ERROR: Failed to load Locations Data: ${error.message}`);
-      this.logger.error(`Stack trace: ${error.stack}`);
-      this.logger.error(`Additional context: Check if the location data file exists at ${locationDataPath} and has the correct format.`);
       throw error;
-    }
-  }
-  findDuplicateIds(locationData) {
-    const ids = new Set();
-    const duplicates = new Set();
-    for (const [id] of locationData) {
-      if (ids.has(id)) {
-        duplicates.add(id);
-      }
-      ids.add(id);
-    }
-    return duplicates;
-  }
-  logDuplicateIds(duplicates) {
-    const duplicateList = Array.from(duplicates).join(', ');
-    this.logger.debug(`WARNING: Duplicate location IDs found: ${duplicateList}`);
-    this.logger.debug('These duplicates will be removed, keeping only the first occurrence.');
-  }
-  removeDuplicates(locationData, duplicates) {
-    const seenIds = new Set();
-    for (const [id, location] of locationData) {
-      if (duplicates.has(id)) {
-        if (seenIds.has(id)) {
-          locationData.delete(id);
-        } else {
-          seenIds.add(id);
-        }
-      }
     }
   }
   validateAndParseLocationData(data) {
@@ -635,11 +602,17 @@ class DatabaseManager extends IDatabaseManager {
       throw new Error('Locations data must be an object');
     }
     const locationData = new Map();
+    const seenLocationIds = new Set();
     for (const [id, location] of Object.entries(data)) {
-      if (!this.isValidLocation(location)) {
-        throw new Error(`Invalid Locations Object: ${JSON.stringify(location)}`);
+      if (seenLocationIds.has(id)) {
+        this.logger.error(`- ERROR: Duplicate Location ID Found: ${id}`);
+      } else {
+        seenLocationIds.add(id);
+        if (!this.isValidLocation(location)) {
+          throw new Error(`Invalid Locations Object: ${JSON.stringify(location)}`);
+        }
+        locationData.set(id, location);
       }
-      locationData.set(id, location);
     }
     return locationData;
   }
@@ -666,8 +639,6 @@ class DatabaseManager extends IDatabaseManager {
       this.logger.debug(``);
       return npcData;
     } catch (error) {
-      this.logger.error(`ERROR: Failed to load NPCs Data: ${error.message}`, { error });
-      this.logger.error(`Stack trace: ${error.stack}`);
       throw error;
     }
   }
@@ -711,8 +682,6 @@ class DatabaseManager extends IDatabaseManager {
       this.logger.debug(``);
       return itemData;
     } catch (error) {
-      this.logger.error(`ERROR: Failed to load Items Data: ${error.message}`, { error });
-      this.logger.error(`Stack trace: ${error.stack}`);
       throw error;
     }
   }
@@ -825,9 +794,6 @@ class GameManager {
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      this.logger.error(`ERROR: Shutting down game: ${error}`);
-      this.logger.error(error.stack);
-      MessageManager.notifyError(this, `ERROR shutting down game: ${error}`);
       throw error;
     }
   }
@@ -837,7 +803,7 @@ class GameManager {
       this.logger.info('All socket connections closed.');
       exit(0);
     } catch (error) {
-      this.logger.error(`ERROR: Shutting down server: ${error.message}`, { error });
+      this.logger.error(`- ERROR: Shutting down server: ${error.message}`, { error });
     }
   }
   startGameLoop() {
@@ -978,7 +944,7 @@ class GameManager {
   getLocation(locationId) {
     const location = this.locations.get(locationId);
     if (!location) {
-      this.logger.debug(`Location Not Found: ${locationId}`);
+      this.logger.error(`- ERROR:Location Not Found: ${locationId}`);
       return null;
     }
     return location;
@@ -1019,7 +985,7 @@ class GameComponentInitializer extends BaseManager {
       await this.initializeGameDataLoader();
     } catch (error) {
       this.handleSetupError(error);
-      throw error; // Rethrow to be caught in Server.init
+      throw error;
     }
   }
   async initializeDatabaseManager() {
@@ -1044,9 +1010,7 @@ class GameComponentInitializer extends BaseManager {
     await this.server.gameDataLoader.fetchGameData();
   }
   handleSetupError(error) {
-    this.server.logger.error(`ERROR: Failed to initialize game components: ${error.message}`);
-    this.server.logger.error(`Stack trace: ${error.stack}`);
-    this.server.logger.error(`Additional Context: Check individual component initialization methods for more details.`);
+    throw error;
   }
 }
 /**************************************************************************************************
@@ -1103,9 +1067,6 @@ class GameDataLoader {
       logger.info(`LOADING GAME DATA FINISHED.`);
       return [locationData, npcData, itemData];
     } catch (error) {
-      logger.error(`ERROR: Fetching Game Data Failed: ${error.message}`);
-      logger.error(`Stack trace: ${error.stack}`);
-      logger.error(`Additional Context: Check database connections and data file integrity. Ensure all required data files are present and correctly formatted.`);
       throw error;
     }
   }
@@ -1115,8 +1076,6 @@ class GameDataLoader {
       const data = await loadFunction();
       return data;
     } catch (error) {
-      logger.error(`ERROR: Loading ${type} Data: ${error.message}`, { error, type });
-      logger.error(error.stack);
       throw error;
     }
   }
@@ -1443,9 +1402,6 @@ class ServerInitializer {
     try {
       await this.server.init();
     } catch (error) {
-      this.logger.error(`ERROR: Server initialization failed: ${error.message}`);
-      this.logger.error(`Stack trace: ${error.stack}`);
-      this.logger.error(`Additional context: Unable to initialize server components. Check configuration and dependencies.`);
       throw error; // Rethrow to be caught by the main application
     }
   }
@@ -1729,7 +1685,7 @@ class Player extends Character {
         this.server.messageManager.sendMessage(this, message, 'movementMessage');
       }
     } catch (error) {
-      this.server.logger.error(`ERROR: Moving to location: ${error.message}`, { error });
+      this.server.logger.error(`- ERROR: Moving to location: ${error.message}`, { error });
       this.server.logger.error(error.stack);
     }
   }
@@ -2244,7 +2200,7 @@ class NpcMovementManager {
           movedNpcs++;
           this.logger.debug(`- Mobile: ${npc.name} (ID: ${id}) moved successfully`);
         } catch (error) {
-          this.logger.error(`ERROR: Moving Mobile: ${npc.name} (ID: ${id}): ${error.message}`, { error });
+          this.logger.error(`- ERROR: Moving Mobile: ${npc.name} (ID: ${id}): ${error.message}`, { error });
         }
       } else {
         this.logger.debug(`- Mobile: ${npc.name} (ID: ${id}) Cannot Move`);
@@ -2331,7 +2287,7 @@ class InventoryManager {
         }
       }
     } catch (error) {
-      this.messageManager.notifyError(this.player, `ERROR: Adding item to inventory: ${error.message}`);
+      this.messageManager.notifyError(this.player, `- ERROR: Adding item to inventory: ${error.message}`);
       this.player.server.logger.error(error.stack);
     }
   }
@@ -2616,7 +2572,7 @@ class CombatAction {
         this.handleDefeat(defender);
       }
     } catch (error) {
-      this.logger.error(`ERROR: During combat action: ${error.message}`, { error, stack: error.stack });
+      this.logger.error(`- ERROR: During combat action: ${error.message}`, { error, stack: error.stack });
     }
   }
   calculateDamage(attacker, defender) {
@@ -2702,7 +2658,7 @@ class CombatManager {
       this.logger.debug(`Initiating combat with NPC ${npcId} for player ${player.getName()}`);
       this.startCombat({ npcId, player, playerInitiated });
     } catch (error) {
-      this.logger.error(`ERROR: Initiating combat with NPC ${npcId} for player ${player.getName()}:`, error, error.stack);
+      this.logger.error(`- ERROR: Initiating combat with NPC ${npcId} for player ${player.getName()}:`, error, error.stack);
     }
   }
   endCombatForPlayer({ player }) {
@@ -2722,7 +2678,7 @@ class CombatManager {
         : this.notifyCombatJoin({ npc, player });
       npc.status = "engaged in combat";
     } catch (error) {
-      this.logger.error(`ERROR: Starting combat between player ${player.getName()} and NPC ${npcId}:`, error, error.stack);
+      this.logger.error(`- ERROR: Starting combat between player ${player.getName()} and NPC ${npcId}:`, error, error.stack);
     }
   }
   initiateCombat({ player, npc, playerInitiated }) {
@@ -2971,7 +2927,7 @@ class DescribeLocationManager {
       this.description = this.formatDescription(location);
       this.server.messageManager.sendMessage(this.player, this.description, 'locationDescription');
     } catch (error) {
-      this.logger.error(`ERROR: Describing location for player ${this.player.getName()}:`, error, error.stack);
+      this.logger.error(`- ERROR: Describing location for player ${this.player.getName()}:`, error, error.stack);
     }
   }
   formatDescription(location) {
@@ -3137,7 +3093,7 @@ class MessageManager {
       }
       return messageData;
     } catch (error) {
-      player.server.logger.error(`ERROR: Notifying player ${player.getName()}:`, error, error.stack);
+      player.server.logger.error(`- ERROR: Notifying player ${player.getName()}:`, error, error.stack);
     }
   }
   // Notify all players in a specific location with a message
