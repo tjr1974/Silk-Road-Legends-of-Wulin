@@ -402,6 +402,7 @@ class ServerConfigurator extends BaseManager {
       await server.setupHttpServer();
     } catch (error) {
       logger.error(`- ERROR: During Http Server Configuration: ${error.message}`, { error });
+    }
     logger.info(`- Configuring Middleware`);
     try {
       this.configureMiddleware();
@@ -409,7 +410,7 @@ class ServerConfigurator extends BaseManager {
       logger.error(`- ERROR: During Middleware Configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
-      logger.info('- Configuring Queue Manager');
+    logger.info('- Configuring Queue Manager');
     try {
       server.queueManager = new QueueManager();
     } catch (error) {
@@ -1973,19 +1974,20 @@ game world through examination and observation.
 class LookAt {
   constructor({ player }) {
     this.player = player;
+    this.server = player.server; // Add this line to access the server
   }
   look(target) {
-    const { currentLocation, player } = this;
+    const { currentLocation } = this.player; // Change this line
     const location = this.server.gameManager.getLocation(currentLocation);
     if (!location) return;
     const targetLower = target.toLowerCase();
-    const playerNameLower = player.getName().toLowerCase();
+    const playerNameLower = this.player.getName().toLowerCase(); // Change this line
     if (this.isSelfLook(targetLower, playerNameLower)) {
       this.lookAtSelf();
       return;
     }
     const lookTargets = [
-      { check: () => player.inventory.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtItemInInventory },
+      { check: () => this.player.inventory.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtItemInInventory },
       { check: () => location.items.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtItemInLocation },
       { check: () => this.findNpc(location, targetLower), notify: this.server.messageManager.notifyLookAtNpc },
       { check: () => location.playersInLocation.find(p => p.name.toLowerCase() === targetLower), notify: this.server.messageManager.notifyLookAtOtherPlayer }
@@ -1993,11 +1995,11 @@ class LookAt {
     for (const { check, notify } of lookTargets) {
       const result = check();
       if (result) {
-        notify(player, result);
+        notify(this.player, result);
         return;
       }
     }
-    this.server.messageManager.notifyTargetNotFoundInLocation(player, target);
+    this.server.messageManager.notifyTargetNotFoundInLocation(this.player, target);
   }
   isSelfLook(targetLower, playerNameLower) {
     return targetLower === 'self' || targetLower === playerNameLower || playerNameLower.startsWith(targetLower);
@@ -2234,9 +2236,7 @@ class NpcMovementManager {
     return this.instance;
   }
   startMovement() {
-    this.logger.debug('- Starting Mobile Movement');
-    const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
-    this.movementInterval = setInterval(() => this.moveAllNpcs(), MOVEMENT_INTERVAL);
+    // # todo: This method is incomplete, add the missing implementation
   }
   moveAllNpcs() {
     let movedNpcs = 0;
