@@ -2916,23 +2916,24 @@ This class ensures that players can effectively manage their inventory, enhancin
 experience through item interactions.
 ***************************************************************************************************/
 class InventoryManager {
-  constructor({ player }) {
+  constructor(player) {
     this.player = player;
-    this.messageManager = MessageManager.getInstance();
+    this.server = player.server;
+    this.messageManager = this.server.messageManager;
     this.itemTypeMap = new Map();
   }
   // Create an item instance from the item data
   async createItemFromData(itemId) {
-    const itemData = this.player.server.items[itemId];
+    const itemData = this.server.items[itemId];
     if (!itemData) {
-      this.player.server.logger.error(`Item with ID ${itemId} not found`);
+      this.server.logger.error(`Item with ID ${itemId} not found`);
       return null;
     }
     try {
       const uniqueId = await UidGenerator.generateUid();
-      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
+      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.server });
     } catch (error) {
-      this.player.server.logger.error(`- ERROR: Creating Item From Data: ${error.message}`);
+      this.server.logger.error(`- ERROR: Creating Item From Data: ${error.message}`);
       return null;
     }
   }
@@ -2947,7 +2948,7 @@ class InventoryManager {
       }
     } catch (error) {
       this.messageManager.notifyError(this.player, `- ERROR: Adding item to inventory: ${error.message}`);
-      this.player.server.logger.error(error.stack);
+      this.server.logger.error(error.stack);
     }
   }
   removeFromInventory(item) {
@@ -2961,23 +2962,23 @@ class InventoryManager {
       MessageManager.notifyNoItemsHere(this.player);
       return;
     }
-    const itemsTaken = Array.from(source).map(itemId => this.player.server.items[itemId]);
+    const itemsTaken = Array.from(source).map(itemId => this.server.items[itemId]);
     itemsTaken.forEach(item => this.player.inventory.add(item));
     if (sourceType === 'location') {
-      this.player.server.location[this.player.currentLocation].items.clear();
+      this.server.location[this.player.currentLocation].items.clear();
     } else {
-      this.player.server.items[containerName].inventory.clear();
+      this.server.items[containerName].inventory.clear();
     }
     MessageManager.notifyItemsTaken(this.player, itemsTaken);
   }
   getAllItemsFromLocation() {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
+    const currentLocation = this.server.location[this.player.currentLocation];
     this.getAllItemsFromSource(currentLocation.items, 'location');
   }
   getAllItemsFromContainer(containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const items = new Set(Array.from(container.inventory).filter(i => this.player.server.items[i]));
+    const items = new Set(Array.from(container.inventory).filter(i => this.server.items[i]));
     this.getAllItemsFromSource(items, 'container', container.name);
   }
   getSingleItemFromContainer(itemName, containerName) {
@@ -2991,7 +2992,7 @@ class InventoryManager {
     }
   }
   getSingleItemFromLocation(target) {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
+    const currentLocation = this.server.location[this.player.currentLocation];
     const itemId = this.getItemIdFromLocation(target, currentLocation.items);
     if (itemId) {
       this.transferItem(itemId, currentLocation, 'location');
@@ -3009,7 +3010,7 @@ class InventoryManager {
   dropSingleItem(target) {
     const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === target.toLowerCase());
     if (item) {
-      this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
+      this.transferItem(item, this.server.location[this.player.currentLocation], 'drop');
     } else {
       this.messageManager.notifyNoItemToDrop(this.player, target);
     }
@@ -3052,12 +3053,12 @@ class InventoryManager {
     MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
   }
   getAllSpecificItemsFromLocation(itemType) {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
+    const currentLocation = this.server.location[this.player.currentLocation];
     if (currentLocation.items && currentLocation.items.size > 0) {
-      const itemsTaken = new Set(Array.from(currentLocation.items).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
+      const itemsTaken = new Set(Array.from(currentLocation.items).filter(itemId => this.itemMatchesType(this.server.items[itemId], itemType)));
       if (itemsTaken.size > 0) {
         itemsTaken.forEach(itemId => {
-          this.player.inventory.add(this.player.server.items[itemId]);
+          this.player.inventory.add(this.server.items[itemId]);
           currentLocation.items.delete(itemId);
         });
         MessageManager.notifyItemsTaken(this.player, Array.from(itemsTaken));
@@ -3071,10 +3072,10 @@ class InventoryManager {
   getAllSpecificItemsFromContainer(itemType, containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const itemsTaken = new Set(Array.from(container.inventory).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
+    const itemsTaken = new Set(Array.from(container.inventory).filter(itemId => this.itemMatchesType(this.server.items[itemId], itemType)));
     if (itemsTaken.size > 0) {
       itemsTaken.forEach(itemId => {
-        this.player.inventory.add(this.player.server.items[itemId]);
+        this.player.inventory.add(this.server.items[itemId]);
         container.inventory.delete(itemId);
       });
       MessageManager.notifyItemsTakenFromContainer(this.player, Array.from(itemsTaken), container.name);
@@ -3085,20 +3086,20 @@ class InventoryManager {
   autoLootNpc(npc) {
     if (npc.inventory && npc.inventory.size > 0) {
       const lootedItems = new Set(npc.inventory);
-      lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
+      lootedItems.forEach(itemId => this.player.inventory.add(this.server.items[itemId]));
       npc.inventory.clear();
       return MessageManager.createAutoLootMessage(this.player, npc, Array.from(lootedItems));
     }
     return null;
   }
   lootNpc(target) {
-    const npcId = this.getNpcIdFromLocation(target, this.player.server.location[this.player.currentLocation].npcs);
+    const npcId = this.getNpcIdFromLocation(target, this.server.location[this.player.currentLocation].npcs);
     if (npcId) {
-      const npc = this.player.server.npcs[npcId];
+      const npc = this.server.npcs[npcId];
       if (npc.status === "lying unconscious" || npc.status === "lying dead") {
         if (npc.inventory && npc.inventory.size > 0) {
           const lootedItems = new Set(npc.inventory);
-          lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
+          lootedItems.forEach(itemId => this.player.inventory.add(this.server.items[itemId]));
           npc.inventory.clear();
           this.messageManager.sendMessage(this.player,
             MessageManager.getLootedNpcTemplate(this.player.getName(), npc.getName(), Array.from(lootedItems)),
@@ -3124,7 +3125,7 @@ class InventoryManager {
     }
   }
   lootAllNpcs() {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
+    const currentLocation = this.server.location[this.player.currentLocation];
     if (!currentLocation.npcs || currentLocation.npcs.size === 0) {
       this.messageManager.sendMessage(this.player,
         MessageManager.getNoNpcsToLootTemplate(this.player.getName()),
@@ -3135,11 +3136,11 @@ class InventoryManager {
     const lootedItems = new Set();
     const lootedNpcs = new Set();
     currentLocation.npcs.forEach(npcId => {
-      const npc = this.player.server.npcs[npcId];
+      const npc = this.server.npcs[npcId];
       if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory && npc.inventory.size > 0) {
         npc.inventory.forEach(itemId => {
           lootedItems.add(itemId);
-          this.player.inventory.add(this.player.server.items[itemId]);
+          this.player.inventory.add(this.server.items[itemId]);
         });
         lootedNpcs.add(npc.name);
         npc.inventory.clear();
@@ -3162,7 +3163,7 @@ class InventoryManager {
       this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
       return;
     }
-    const currentLocation = this.player.server.location[this.player.currentLocation];
+    const currentLocation = this.server.location[this.player.currentLocation];
     currentLocation.items = currentLocation.items || new Set();
     itemsToDrop.forEach(item => {
       currentLocation.items.add(item.uid);
@@ -3188,16 +3189,16 @@ class InventoryManager {
     return item;
   }
   transferItem(itemId, source, sourceType) {
-    this.player.server.transferItem(itemId, source, sourceType, this.player);
+    this.server.transferItem(itemId, source, sourceType, this.player);
   }
   getNpcIdFromLocation(npcName, npcs) {
-    return Array.from(npcs).find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
+    return Array.from(npcs).find(npcId => this.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
   }
   getItemIdFromLocation(target, items) {
     return Array.from(items).find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
   }
   getItemIdFromContainer(itemName, container) {
-    return Array.from(container.inventory).find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
+    return Array.from(container.inventory).find(itemId => this.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
   }
   itemMatchesType(item, itemType) {
     if (!this.itemTypeMap.has(item.uniqueId)) {
