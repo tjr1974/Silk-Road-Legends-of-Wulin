@@ -63,8 +63,8 @@ List of all classes in 'server.js':
 37. **ItemManager**
 38. **InventoryManager**
 
-## Location and Navigation Management
-39. **Location**
+## Locations and Navigation Management
+39. **Locations**
 40. **LocationCoordinateManager**
 41. **DescribeLocationManager**
 42. **DirectionManager**

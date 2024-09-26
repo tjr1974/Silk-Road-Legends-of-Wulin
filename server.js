@@ -11,7 +11,6 @@ import http from 'http';
 import https from 'https';
 import { exit } from 'process';
 import CONFIG from './config.js';
-// @ todo: implement bcrypt
 import bcrypt from 'bcrypt';
 /**************************************************************************************************
 Logger Interface Class
@@ -842,7 +841,7 @@ class DatabaseManager extends IDatabaseManager {
     }
     const npcData = new Map();
     for (const [id, npc] of Object.entries(data)) {
-      this.logger.debug(`- Validate Npc - ID: ${id}`);
+      this.logger.debug(`- - Validate Npc - ID: ${id}`);
       if (!this.isValidNpc(npc)) {
         this.logger.error(`- ERROR: Invalid Npc Object: ${JSON.stringify(npc)}`);
         continue;
@@ -883,7 +882,7 @@ class DatabaseManager extends IDatabaseManager {
     }
     const itemData = new Map();
     for (const [id, item] of Object.entries(data)) {
-      this.logger.debug(`- Validate Item - ID: ${id}`);
+      this.logger.debug(`- - Validate Item - ID: ${id}`);
       if (!this.isValidItem(item)) {
         this.logger.error(`- ERROR: Invalid Item Object: ${JSON.stringify(item)}`);
         continue;
@@ -966,6 +965,7 @@ class GameDataLoader {
   async createNpcs(npcData) {
     const npcs = new Map();
     const npcPromises = [];
+    this.server.logger.debug(``);
     this.server.logger.debug(`- Creating Npcs From Data:`);
     for (const [id, npcInfo] of npcData) {
       if (this.server.gameManager.npcIds.has(id)) {
@@ -2254,8 +2254,8 @@ class CombatAction {
   }
 }
 /**************************************************************************************************
-Location Class
-The Location class is intended to be used with OLC (online creation system).
+Locations Class
+The Locations class is intended to be used with OLC (online creation system).
 Each location represents a specific area within the game world. It includes properties
 for managing exits, items, Npcs, and players within the location, facilitating interactions
 and navigation.
@@ -2266,7 +2266,7 @@ Key features:
 This class serves as the foundation for all locations within the game, ensuring that
 interactions and navigation are managed effectively.
 ***************************************************************************************************/
-class Location {
+class Locations {
   constructor({ name, description }) {
     this.name = name;
     this.description = description;
