@@ -1,4 +1,3 @@
-```markdown
 ## Instance Classes and Singletons in JavaScript
 
 In JavaScript, **instance classes** and **singletons** represent two different patterns for creating and managing objects and instances. Here's a breakdown of each concept:
