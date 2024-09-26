@@ -457,7 +457,7 @@ class ServerConfigurator extends IBaseManager {
   }
 }
 /**************************************************************************************************
-Event Emitter Class
+SocketEvent Emitter Class
 The SocketEventEmitter class provides a robust implementation of the publish-subscribe pattern,
 facilitating event-driven communication within the game system. It allows components to register
 listeners for specific events and emit events to trigger those listeners. This class serves as
