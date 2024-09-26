@@ -12,6 +12,7 @@ import https from 'https';
 import { exit } from 'process';
 import CONFIG from './config.js';
 import bcrypt from 'bcrypt';
+import { EventEmitter } from 'events';
 /**************************************************************************************************
 Logger Interface Class
 The ILogger class defines an abstract interface for logging operations within the game system.
@@ -46,7 +47,6 @@ Key features:
 By providing a common interface, ISocketEventEmitter ensures that event handling can be consistently
 implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
-
 class ISocketEventEmitter {
   on() {}
   emit() {}
@@ -110,11 +110,18 @@ The Logger class plays a critical role in system diagnostics, error tracking, an
 monitoring, facilitating easier debugging and maintenance of the game system.
 ***************************************************************************************************/
 class Logger extends ILogger {
+  static instance;
+  static getInstance() {
+    if (!Logger.instance) {
+      Logger.instance = new Logger();
+    }
+    return Logger.instance;
+  }
   constructor(config) {
+    super();
     if (Logger.instance) {
       return Logger.instance;
     }
-    super();
     this.CONFIG = config;
     this.logLevel = config.LOG_LEVEL;
     this.logLevels = {
@@ -182,18 +189,18 @@ facilitating easier maintenance and modification of game parameters.
 class ConfigManager {
   static instance;
   static config;
+  static getInstance({ logger }) {
+    if (!ConfigManager.instance) {
+      ConfigManager.instance = new ConfigManager({ logger });
+    }
+    return ConfigManager.instance;
+  }
   constructor({ logger }) {
     if (ConfigManager.instance) {
       return ConfigManager.instance;
     }
     this.logger = logger;
     ConfigManager.instance = this;
-  }
-  static getInstance({ logger }) {
-    if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager({ logger });
-    }
-    return ConfigManager.instance;
   }
   async loadConfig() {
     try {
@@ -239,6 +246,12 @@ multiplayer gameplay and server-side game logic execution.
 ***************************************************************************************************/
 class Server {
   static instance;
+  static getInstance({ logger, configManager }) {
+    if (!Server.instance) {
+      Server.instance = new Server({ logger, configManager });
+    }
+    return Server.instance;
+  }
   constructor({ logger, configManager }) {
     if (Server.instance) {
       return Server.instance;
@@ -260,12 +273,6 @@ class Server {
     this.itemManager = new ItemManager({ logger, configManager });
     Server.instance = this;
   }
-  static getInstance({ logger, configManager }) {
-    if (!Server.instance) {
-      Server.instance = new Server({ logger, configManager });
-    }
-    return Server.instance;
-  }
   async init() {
     try {
       await this.configManager.loadConfig();
@@ -278,7 +285,7 @@ class Server {
       });
       await this.serverConfigurator.configureServer();
       this.SocketEventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this));
-      this.gameManager = new GameManager({ SocketEventEmitter: this.SocketEventEmitter, logger: this.logger, server: this });
+      this.gameManager = GameManager.getInstance({ SocketEventEmitter: this.SocketEventEmitter, logger: this.logger, server: this });
       this.gameComponentInitializer = new GameComponentInitializer({ server: this, logger: this.logger });
       await this.gameComponentInitializer.setupGameComponents();
       if (this.gameManager) {
@@ -372,6 +379,13 @@ the initialization of various subsystems and managers. It handles potential erro
 the initialization process and ensures proper logging of the server's startup sequence.
 ***************************************************************************************************/
 class ServerInitializer {
+  static instance;
+  static getInstance({ config }) {
+    if (!ServerInitializer.instance) {
+      ServerInitializer.instance = new ServerInitializer({ config });
+    }
+    return ServerInitializer.instance;
+  }
   constructor({ config }) {
     if (ServerInitializer.instance) {
       return ServerInitializer.instance;
@@ -413,6 +427,13 @@ The ServerConfigurator plays a crucial role in establishing the server's infrast
 enabling secure and efficient communication between clients and the game server.
 ***************************************************************************************************/
 class ServerConfigurator extends IBaseManager {
+  static instance;
+  static getInstance({ logger, config, server, socketEventManager }) {
+    if (!ServerConfigurator.instance) {
+      ServerConfigurator.instance = new ServerConfigurator({ logger, config, server, socketEventManager });
+    }
+    return ServerConfigurator.instance;
+  }
   constructor({ logger, config, server, socketEventManager }) {
     super({ server, logger });
     this.config = config;
@@ -477,6 +498,13 @@ The SocketEventManager plays a crucial role in facilitating real-time interactio
 clients and the game server, ensuring that all socket-related functionality operates smoothly.
 ***************************************************************************************************/
 class SocketEventManager extends IBaseManager {
+  static instance;
+  static getInstance({ logger, server, gameCommandManager }) {
+    if (!SocketEventManager.instance) {
+      SocketEventManager.instance = new SocketEventManager({ logger, server, gameCommandManager });
+    }
+    return SocketEventManager.instance;
+  }
   constructor({ logger, server, gameCommandManager }) {
     super({ server, logger });
     this.io = null;
@@ -521,23 +549,21 @@ Key features:
 The SocketEventEmitter class enables flexible and scalable communication between game components,
 promoting loose coupling and enhancing the overall modularity of the system.
 ***************************************************************************************************/
-class SocketEventEmitter extends ISocketEventEmitter {
+class SocketEventEmitter extends EventEmitter {
   constructor() {
     super();
-    this.events = {};
+    this.listeners = new Map();
   }
-  on(event, listener) {
-    if (!this.events[event]) this.events[event] = [];
-    this.events[event].push(listener);
-  }
-  emit(event, ...args) {
-    if (this.events[event]) this.events[event].forEach(listener => listener(...args));
-  }
-  off(event, listener) {
-    if (this.events[event]) {
-      this.events[event] = this.events[event].filter(l => l !== listener);
+
+  on(event, callback) {
+    super.on(event, callback);
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
     }
+    this.listeners.get(event).push(callback);
   }
+
+  // ... other methods ...
 }
 /**************************************************************************************************
 Queue Manager Class
@@ -552,6 +578,13 @@ This class works in conjunction with the TaskManager to provide a robust system 
 handling multiple game tasks efficiently, maintaining system stability and performance.
 ***************************************************************************************************/
 class QueueManager {
+  static instance;
+  static getInstance() {
+    if (!QueueManager.instance) {
+      QueueManager.instance = new QueueManager();
+    }
+    return QueueManager.instance;
+  }
   constructor() {
     this.queue = [];
     this.runningTasks = new Set();
@@ -597,6 +630,13 @@ This class allows for better organization and management of game operations, ena
 system to handle complex sequences of actions in a controlled and monitored manner.
 ***************************************************************************************************/
 class TaskManager {
+  static instance;
+  static getInstance() {
+    if (!TaskManager.instance) {
+      TaskManager.instance = new TaskManager();
+    }
+    return TaskManager.instance;
+  }
   constructor({ name, execute }) {
     this.name = name;
     this.execute = execute;
@@ -638,6 +678,13 @@ prioritizing critical messages and ensuring smooth communication between differe
 components of the system.
 ***************************************************************************************************/
 class MessageQueueSystem {
+  static instance;
+  static getInstance({ server }) {
+    if (!MessageQueueSystem.instance) {
+      MessageQueueSystem.instance = new MessageQueueSystem({ server });
+    }
+    return MessageQueueSystem.instance;
+  }
   constructor({ server }) {
     this.server = server;
     this.queues = {
@@ -697,6 +744,13 @@ The DatabaseManager is essential for maintaining the integrity of game data and 
 consistent access to game state information.
 ***************************************************************************************************/
 class DatabaseManager extends IDatabaseManager {
+  static instance;
+  static getInstance({ logger, server }) {
+    if (!DatabaseManager.instance) {
+      DatabaseManager.instance = new DatabaseManager({ logger, server });
+    }
+    return DatabaseManager.instance;
+  }
   constructor({ logger, server }) {
     super({ logger, server });
     this.configManager = server.configManager;
@@ -911,6 +965,13 @@ This class plays a critical role in populating the game world with the necessary
 ensuring that all game data is properly loaded and structured for use by other game systems.
 ***************************************************************************************************/
 class GameDataLoader {
+  static instance;
+  static getInstance({ server }) {
+    if (!GameDataLoader.instance) {
+      GameDataLoader.instance = new GameDataLoader({ server });
+    }
+    return GameDataLoader.instance;
+  }
   constructor({ server }) {
     const { configManager, logger } = server;
     this.server = server;
@@ -1021,6 +1082,13 @@ This class ensures that all game entities have unique identifiers, facilitating 
 management and interaction within the game.
 ***************************************************************************************************/
 class UidGenerator {
+  static instance;
+  static getInstance() {
+    if (!UidGenerator.instance) {
+      UidGenerator.instance = new UidGenerator();
+    }
+    return UidGenerator.instance;
+  }
   static async generateUid() {
     try {
       const { hash } = await import('bcrypt');
@@ -1047,6 +1115,13 @@ The GameManager is crucial for maintaining the flow of the game and ensuring tha
 actions have meaningful impacts on the game world.
 ***************************************************************************************************/
 class GameManager {
+  static instance;
+  static getInstance({ SocketEventEmitter, logger, server }) {
+    if (!GameManager.instance) {
+      GameManager.instance = new GameManager({ SocketEventEmitter, logger, server });
+    }
+    return GameManager.instance;
+  }
   constructor({ SocketEventEmitter, logger, server }) {
     if (GameManager.instance) {
       return GameManager.instance;
@@ -1067,7 +1142,7 @@ class GameManager {
     this.lastTickTime = Date.now();
     this.tickCount = 0;
     this.items = new Set();
-    this.npcMovementManager = new NpcMovementManager({
+    this.npcMovementManager = NpcMovementManager.getInstance({
       gameManager: this,
       logger: logger,
       configManager: server.configManager
@@ -1077,9 +1152,13 @@ class GameManager {
     GameManager.instance = this;
   }
   setupEventListeners() {
-    this.SocketEventEmitter.on("tick", this.gameTick.bind(this));
-    this.SocketEventEmitter.on("newDay", this.newDayHandler.bind(this));
-    this.SocketEventEmitter.on('tick', this.handleTick.bind(this));
+    if (this.SocketEventEmitter) {
+      this.SocketEventEmitter.on("tick", this.gameTick.bind(this));
+      this.SocketEventEmitter.on("newDay", this.newDayHandler.bind(this));
+      this.SocketEventEmitter.on('tick', this.handleTick.bind(this));
+    } else {
+      this.logger.error('SocketEventEmitter is not initialized');
+    }
   }
   startGame() {
     if (this.isGameRunning()) {
@@ -1358,35 +1437,84 @@ are properly set up and ready for use. It handles the sequential initialization 
 components and manages potential errors during the setup process.
 ***************************************************************************************************/
 class GameComponentInitializer extends IBaseManager {
+  static instance;
+  static getInstance({ logger, server }) {
+    if (!GameComponentInitializer.instance) {
+      GameComponentInitializer.instance = new GameComponentInitializer({ logger, server });
+    }
+    return GameComponentInitializer.instance;
+  }
   constructor({ logger, server }) {
     super({ server, logger });
   }
   async setupGameComponents() {
     try {
+      this.logger.debug('Starting setupGameComponents');
       await this.initializeDatabaseManager();
+      this.logger.debug('DatabaseManager initialized');
+      await this.initializeSocketEventEmitter();
+      this.logger.debug('SocketEventEmitter initialized');
       await this.initializeGameManager();
+      this.logger.debug('GameManager initialized');
       await this.initializeGameDataLoader();
+      this.logger.debug('GameDataLoader initialized');
+      await this.finalizeSetup();
+      this.logger.debug('Setup finalized');
     } catch (error) {
       this.handleSetupError(error);
     }
   }
   async initializeDatabaseManager() {
-    this.server.databaseManager = new DatabaseManager({
+    this.server.databaseManager = DatabaseManager.getInstance({
       logger: this.server.logger,
       server: this.server
     });
     await this.server.databaseManager.initialize();
   }
+  async initializeSocketEventEmitter() {
+    try {
+      this.logger.debug('Initializing SocketEventEmitter');
+      this.server.SocketEventEmitter = new SocketEventEmitter(/* pass necessary parameters */);
+      this.logger.debug('SocketEventEmitter created successfully');
+    } catch (error) {
+      this.logger.error(`Error initializing SocketEventEmitter: ${error.message}`);
+      throw error;
+    }
+  }
   async initializeGameManager() {
-    this.server.gameManager = new GameManager({
-      SocketEventEmitter: this.server.SocketEventEmitter,
-      logger: this.server.logger,
-      server: this.server
-    });
+    try {
+      this.logger.debug('Initializing GameManager');
+      if (!this.server.SocketEventEmitter) {
+        throw new Error('SocketEventEmitter not initialized before GameManager');
+      }
+      this.server.gameManager = GameManager.getInstance({
+        SocketEventEmitter: this.server.SocketEventEmitter,
+        logger: this.server.logger,
+        server: this.server
+      });
+      this.logger.debug('GameManager initialized successfully');
+    } catch (error) {
+      this.logger.error(`Error initializing GameManager: ${error.message}`);
+      throw error;
+    }
   }
   async initializeGameDataLoader() {
-    this.server.gameDataLoader = new GameDataLoader({ server: this.server });
+    this.server.gameDataLoader = GameDataLoader.getInstance({ server: this.server });
     await this.server.gameDataLoader.fetchGameData();
+  }
+  async finalizeSetup() {
+    try {
+      this.logger.debug('Finalizing setup');
+      if (this.server.gameManager) {
+        await this.server.gameManager.setupEventListeners();
+        this.logger.debug('GameManager event listeners set up');
+      } else {
+        throw new Error('GameManager not initialized during finalization');
+      }
+    } catch (error) {
+      this.logger.error(`Error in finalizeSetup: ${error.message}`);
+      throw error;
+    }
   }
   handleSetupError(error) {
     this.logger.error(`- ERROR: Setting Up Game Components: ${error.message}`);
@@ -1406,7 +1534,7 @@ entity state and behavior across the game.
 ***************************************************************************************************/
 class Entity {
   constructor(name) {
-    this.name = name; // Ensure name is assigned if needed
+    this.name = name;
     this.currHealth = 0;
     this.status = '';
     this.previousState = { currHealth: 0, status: '' };
@@ -1822,6 +1950,13 @@ This class plays a crucial role in translating player intentions into game world
 as a bridge between the user interface and the game's internal logic.
 ***************************************************************************************************/
 class GameCommandManager {
+  static instance;
+  static getInstance() {
+    if (!GameCommandManager.instance) {
+      GameCommandManager.instance = new GameCommandManager();
+    }
+    return GameCommandManager.instance;
+  }
   constructor({ server }) {
     this.server = server; // Injecting the server instance
   }
@@ -2316,6 +2451,12 @@ GameDataLoader to process and enhance location data.
 ***************************************************************************************************/
 class LocationCoordinateManager {
   static instance;
+  static getInstance({ logger, server, locationData }) {
+    if (!LocationCoordinateManager.instance) {
+      LocationCoordinateManager.instance = new LocationCoordinateManager({ logger, server, locationData });
+    }
+    return LocationCoordinateManager.instance;
+  }
   constructor({ logger, server, locationData }) {
     if (LocationCoordinateManager.instance) {
       return LocationCoordinateManager.instance;
@@ -2326,12 +2467,6 @@ class LocationCoordinateManager {
     this.parsedData = locationData instanceof Map ? locationData : new Map();
     this.checkLocationDataForDuplicateIds(locationData);
     LocationCoordinateManager.instance = this;
-  }
-  static getInstance({ logger, server, locationData }) {
-    if (!LocationCoordinateManager.instance) {
-      LocationCoordinateManager.instance = new LocationCoordinateManager({ logger, server, locationData });
-    }
-    return LocationCoordinateManager.instance;
   }
   checkLocationDataForDuplicateIds(locationData) {
     if (!locationData || typeof locationData !== 'object') {
@@ -2689,6 +2824,12 @@ realistically, contributing to a more immersive gameplay experience.
 ***************************************************************************************************/
 class NpcMovementManager {
   static instance;
+  static getInstance({ gameManager, logger, configManager }) {
+    if (!NpcMovementManager.instance) {
+      NpcMovementManager.instance = new NpcMovementManager({ gameManager, logger, configManager });
+    }
+    return NpcMovementManager.instance;
+  }
   constructor({ gameManager, logger, configManager }) {
     if (NpcMovementManager.instance) {
       return NpcMovementManager.instance;
@@ -2698,12 +2839,6 @@ class NpcMovementManager {
     this.configManager = configManager;
     this.movementInterval = null;
     NpcMovementManager.instance = this;
-  }
-  static getInstance({ gameManager, logger, configManager }) {
-    if (!this.instance) {
-      this.instance = new NpcMovementManager({ gameManager, logger, configManager });
-    }
-    return this.instance;
   }
   startMovement() {
     if (this.movementInterval) {
@@ -2854,10 +2989,21 @@ Key features:
 This class ensures that items are properly managed and identified within the game.
 ***************************************************************************************************/
 class ItemManager {
+  static instance;
+  static getInstance({ logger, configManager }) {
+    if (!ItemManager.instance) {
+      ItemManager.instance = new ItemManager({ logger, configManager });
+    }
+    return ItemManager.instance;
+  }
   constructor({ logger, configManager }) {
+    if (ItemManager.instance) {
+      return ItemManager.instance;
+    }
     this.logger = logger;
     this.configManager = configManager;
     this.items = new Map();
+    ItemManager.instance = this;
   }
   async initialize(itemData) {
     this.checkItemsForDuplicateIds(itemData);
@@ -2916,6 +3062,13 @@ This class ensures that players can effectively manage their inventory, enhancin
 experience through item interactions.
 ***************************************************************************************************/
 class InventoryManager {
+  static instance;
+  static getInstance(player) {
+    if (!InventoryManager.instance) {
+      InventoryManager.instance = new InventoryManager(player);
+    }
+    return InventoryManager.instance;
+  }
   constructor(player) {
     this.player = player;
     this.server = player.server;
@@ -2924,16 +3077,16 @@ class InventoryManager {
   }
   // Create an item instance from the item data
   async createItemFromData(itemId) {
-    const itemData = this.server.items[itemId];
+    const itemData = this.player.server.items[itemId];
     if (!itemData) {
-      this.server.logger.error(`Item with ID ${itemId} not found`);
+      this.player.server.logger.error(`Item with ID ${itemId} not found`);
       return null;
     }
     try {
       const uniqueId = await UidGenerator.generateUid();
-      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.server });
+      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
     } catch (error) {
-      this.server.logger.error(`- ERROR: Creating Item From Data: ${error.message}`);
+      this.player.server.logger.error(`- ERROR: Creating Item From Data: ${error.message}`);
       return null;
     }
   }
@@ -2948,7 +3101,7 @@ class InventoryManager {
       }
     } catch (error) {
       this.messageManager.notifyError(this.player, `- ERROR: Adding item to inventory: ${error.message}`);
-      this.server.logger.error(error.stack);
+      this.player.server.logger.error(error.stack);
     }
   }
   removeFromInventory(item) {
@@ -2962,23 +3115,23 @@ class InventoryManager {
       MessageManager.notifyNoItemsHere(this.player);
       return;
     }
-    const itemsTaken = Array.from(source).map(itemId => this.server.items[itemId]);
+    const itemsTaken = Array.from(source).map(itemId => this.player.server.items[itemId]);
     itemsTaken.forEach(item => this.player.inventory.add(item));
     if (sourceType === 'location') {
-      this.server.location[this.player.currentLocation].items.clear();
+      this.player.server.location[this.player.currentLocation].items.clear();
     } else {
-      this.server.items[containerName].inventory.clear();
+      this.player.server.items[containerName].inventory.clear();
     }
     MessageManager.notifyItemsTaken(this.player, itemsTaken);
   }
   getAllItemsFromLocation() {
-    const currentLocation = this.server.location[this.player.currentLocation];
+    const currentLocation = this.player.server.location[this.player.currentLocation];
     this.getAllItemsFromSource(currentLocation.items, 'location');
   }
   getAllItemsFromContainer(containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const items = new Set(Array.from(container.inventory).filter(i => this.server.items[i]));
+    const items = new Set(Array.from(container.inventory).filter(i => this.player.server.items[i]));
     this.getAllItemsFromSource(items, 'container', container.name);
   }
   getSingleItemFromContainer(itemName, containerName) {
@@ -2992,7 +3145,7 @@ class InventoryManager {
     }
   }
   getSingleItemFromLocation(target) {
-    const currentLocation = this.server.location[this.player.currentLocation];
+    const currentLocation = this.player.server.location[this.player.currentLocation];
     const itemId = this.getItemIdFromLocation(target, currentLocation.items);
     if (itemId) {
       this.transferItem(itemId, currentLocation, 'location');
@@ -3010,7 +3163,7 @@ class InventoryManager {
   dropSingleItem(target) {
     const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === target.toLowerCase());
     if (item) {
-      this.transferItem(item, this.server.location[this.player.currentLocation], 'drop');
+      this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
     } else {
       this.messageManager.notifyNoItemToDrop(this.player, target);
     }
@@ -3053,12 +3206,12 @@ class InventoryManager {
     MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
   }
   getAllSpecificItemsFromLocation(itemType) {
-    const currentLocation = this.server.location[this.player.currentLocation];
+    const currentLocation = this.player.server.location[this.player.currentLocation];
     if (currentLocation.items && currentLocation.items.size > 0) {
-      const itemsTaken = new Set(Array.from(currentLocation.items).filter(itemId => this.itemMatchesType(this.server.items[itemId], itemType)));
+      const itemsTaken = new Set(Array.from(currentLocation.items).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
       if (itemsTaken.size > 0) {
         itemsTaken.forEach(itemId => {
-          this.player.inventory.add(this.server.items[itemId]);
+          this.player.inventory.add(this.player.server.items[itemId]);
           currentLocation.items.delete(itemId);
         });
         MessageManager.notifyItemsTaken(this.player, Array.from(itemsTaken));
@@ -3072,10 +3225,10 @@ class InventoryManager {
   getAllSpecificItemsFromContainer(itemType, containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const itemsTaken = new Set(Array.from(container.inventory).filter(itemId => this.itemMatchesType(this.server.items[itemId], itemType)));
+    const itemsTaken = new Set(Array.from(container.inventory).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
     if (itemsTaken.size > 0) {
       itemsTaken.forEach(itemId => {
-        this.player.inventory.add(this.server.items[itemId]);
+        this.player.inventory.add(this.player.server.items[itemId]);
         container.inventory.delete(itemId);
       });
       MessageManager.notifyItemsTakenFromContainer(this.player, Array.from(itemsTaken), container.name);
@@ -3086,20 +3239,20 @@ class InventoryManager {
   autoLootNpc(npc) {
     if (npc.inventory && npc.inventory.size > 0) {
       const lootedItems = new Set(npc.inventory);
-      lootedItems.forEach(itemId => this.player.inventory.add(this.server.items[itemId]));
+      lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
       npc.inventory.clear();
       return MessageManager.createAutoLootMessage(this.player, npc, Array.from(lootedItems));
     }
     return null;
   }
   lootNpc(target) {
-    const npcId = this.getNpcIdFromLocation(target, this.server.location[this.player.currentLocation].npcs);
+    const npcId = this.getNpcIdFromLocation(target, this.player.server.location[this.player.currentLocation].npcs);
     if (npcId) {
-      const npc = this.server.npcs[npcId];
+      const npc = this.player.server.npcs[npcId];
       if (npc.status === "lying unconscious" || npc.status === "lying dead") {
         if (npc.inventory && npc.inventory.size > 0) {
           const lootedItems = new Set(npc.inventory);
-          lootedItems.forEach(itemId => this.player.inventory.add(this.server.items[itemId]));
+          lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
           npc.inventory.clear();
           this.messageManager.sendMessage(this.player,
             MessageManager.getLootedNpcTemplate(this.player.getName(), npc.getName(), Array.from(lootedItems)),
@@ -3125,7 +3278,7 @@ class InventoryManager {
     }
   }
   lootAllNpcs() {
-    const currentLocation = this.server.location[this.player.currentLocation];
+    const currentLocation = this.player.server.location[this.player.currentLocation];
     if (!currentLocation.npcs || currentLocation.npcs.size === 0) {
       this.messageManager.sendMessage(this.player,
         MessageManager.getNoNpcsToLootTemplate(this.player.getName()),
@@ -3136,11 +3289,11 @@ class InventoryManager {
     const lootedItems = new Set();
     const lootedNpcs = new Set();
     currentLocation.npcs.forEach(npcId => {
-      const npc = this.server.npcs[npcId];
+      const npc = this.player.server.npcs[npcId];
       if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory && npc.inventory.size > 0) {
         npc.inventory.forEach(itemId => {
           lootedItems.add(itemId);
-          this.player.inventory.add(this.server.items[itemId]);
+          this.player.inventory.add(this.player.server.items[itemId]);
         });
         lootedNpcs.add(npc.name);
         npc.inventory.clear();
@@ -3163,7 +3316,7 @@ class InventoryManager {
       this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
       return;
     }
-    const currentLocation = this.server.location[this.player.currentLocation];
+    const currentLocation = this.player.server.location[this.player.currentLocation];
     currentLocation.items = currentLocation.items || new Set();
     itemsToDrop.forEach(item => {
       currentLocation.items.add(item.uid);
@@ -3189,16 +3342,16 @@ class InventoryManager {
     return item;
   }
   transferItem(itemId, source, sourceType) {
-    this.server.transferItem(itemId, source, sourceType, this.player);
+    this.player.server.transferItem(itemId, source, sourceType, this.player);
   }
   getNpcIdFromLocation(npcName, npcs) {
-    return Array.from(npcs).find(npcId => this.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
+    return Array.from(npcs).find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
   }
   getItemIdFromLocation(target, items) {
     return Array.from(items).find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
   }
   getItemIdFromContainer(itemName, container) {
-    return Array.from(container.inventory).find(itemId => this.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
+    return Array.from(container.inventory).find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
   }
   itemMatchesType(item, itemType) {
     if (!this.itemTypeMap.has(item.uniqueId)) {
@@ -3310,12 +3463,11 @@ and styling across the game. It also interacts with the server's logger for erro
 debugging purposes.***************************************************************************************************/
 class MessageManager {
   static instance;
-  // Get the singleton instance of MessageManager
   static getInstance() {
-    if (!this.instance) {
-      this.instance = new MessageManager();
+    if (!MessageManager.instance) {
+      MessageManager.instance = new MessageManager();
     }
-    return this.instance;
+    return MessageManager.instance;
   }
   // Set the socket instance
   static socket;
@@ -3495,5 +3647,5 @@ class MessageManager {
 /**************************************************************************************************
 Start Server Code
 ***************************************************************************************************/
-const serverInitializer = new ServerInitializer({ config: CONFIG });
+const serverInitializer = ServerInitializer.getInstance({ config: CONFIG });
 serverInitializer.initialize();

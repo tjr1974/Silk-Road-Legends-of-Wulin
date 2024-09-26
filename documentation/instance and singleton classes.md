@@ -124,6 +124,33 @@ In this case, `singleton.js` will only be initialized once, and any module that 
 
 ---
 
+### Instance Classes
+
+These classes should be instances because they represent individual entities, handle specific actions, or manage state for particular objects within the game.
+
+1. SocketEventEmitter (one per socket connection)
+2. MoveCommandHandler
+3. LookAtCommandHandler
+4. Entity
+5. Character
+6. CreateNewPlayer
+7. Player
+8. HealthRegenerator
+9. Npc
+10. MobileNpc
+11. QuestNpc
+12. BaseItem
+13. Item
+14. ConsumableItem
+15. ContainerItem
+16. WeaponItem
+17. InventoryManager
+18. Locations
+19. DescribeLocationManager
+20. CombatAction
+
+---
+
 ### Singleton Classes
 
 These classes should be singletons because they manage global state, provide centralized services, or need to maintain consistency across the entire application.
@@ -148,33 +175,6 @@ These classes should be singletons because they manage global state, provide cen
 18. LocationCoordinateManager
 19. CombatManager
 20. MessageManager
-
----
-
-### Instanced Classes
-
-These classes should be instanced because they represent individual entities, handle specific actions, or manage state for particular objects within the game.
-
-1. SocketEventEmitter (one per socket connection)
-2. MoveCommandHandler
-3. LookAtCommandHandler
-4. Entity
-5. Character
-6. CreateNewPlayer
-7. Player
-8. HealthRegenerator
-9. Npc
-10. MobileNpc
-11. QuestNpc
-12. BaseItem
-13. Item
-14. ConsumableItem
-15. ContainerItem
-16. WeaponItem
-17. InventoryManager
-18. Locations
-19. DescribeLocationManager
-20. CombatAction
 
 ---
 
