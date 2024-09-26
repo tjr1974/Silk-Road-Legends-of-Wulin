@@ -1,22 +1,22 @@
 # Classes
-This is a list of all classes in the file 'server.js':
+List of all classes in 'server.js':
 
 ## Interface Classes
-1. **ILogger**
-2. **ISocketEventEmitter**
-3. **IBaseManager**
-4. **IDatabaseManager**
+01. **ILogger**
+02. **ISocketEventEmitter**
+03. **IBaseManager**
+04. **IDatabaseManager**
 
 ## Logging
-5. **Logger**
+05. **Logger**
 
 ## Configuration Management
-6. **ConfigManager**
+06. **ConfigManager**
 
 ## Server Core Components
-7. **Server**
-8. **ServerInitializer**
-9. **ServerConfigurator**
+07. **Server**
+08. **ServerInitializer**
+09. **ServerConfigurator**
 10. **SocketEventManager**
 11. **SocketEventEmitter**
 
@@ -28,51 +28,51 @@ This is a list of all classes in the file 'server.js':
 ## Database and Data Management
 15. **DatabaseManager**
 16. **GameDataLoader**
-46. **UidGenerator**
+17. **UidGenerator**
 
 ## Game Management
-17. **GameManager**
-18. **GameComponentInitializer**
-
-## Entity Management
-22. **Entity**
-23. **Character**
-
-## Player Management
-24. **CreateNewPlayer**
-25. **Player**
-26. **HealthRegenerator**
+18. **GameManager**
+19. **GameComponentInitializer**
 
 ## Command Management
-19. **GameCommandManager**
-20. **MoveCommandHandler**
-21. **LookAtCommandHandler**
+20. **GameCommandManager**
+21. **MoveCommandHandler**
+22. **LookAtCommandHandler**
+
+## Entity Management
+23. **Entity**
+24. **Character**
+
+## Player Management
+25. **CreateNewPlayer**
+26. **Player**
+27. **HealthRegenerator**
+
+## Npc Management
+28. **Npc**
+29. **MobileNpc**
+30. **QuestNpc**
+31. **NpcMovementManager**
+
+## Item Management
+32. **BaseItem**
+33. **Item**
+34. **ConsumableItem**
+35. **ContainerItem**
+36. **WeaponItem**
+37. **ItemManager**
+38. **InventoryManager**
+
+## Location and Navigation Management
+39. **Location**
+40. **LocationCoordinateManager**
+41. **DescribeLocationManager**
+42. **DirectionManager**
 
 ## Combat Management
 43. **CombatManager**
-42. **CombatAction**
-
-## Location and Navigation Management
-38. **Location**
-39. **LocationCoordinateManager**
-40. **DescribeLocationManager**
-41. **DirectionManager**
-
-## Npc Management
-27. **Npc**
-28. **MobileNpc**
-29. **QuestNpc**
-30. **NpcMovementManager**
-
-## Item Management
-31. **BaseItem**
-32. **Item**
-33. **ConsumableItem**
-34. **ContainerItem**
-35. **WeaponItem**
-36. **ItemManager**
-37. **InventoryManager**
+44. **CombatAction**
 
 ## Messaging Management
-44. **FormatMessageManager**
-45. **MessageManager**
+45. **FormatMessageManager**
+46. **MessageManager**

@@ -14,39 +14,6 @@ import CONFIG from './config.js';
 // @ todo: implement bcrypt
 import bcrypt from 'bcrypt';
 /**************************************************************************************************
-Game Command Manager Class
-The GameCommandManager class is responsible for processing and executing player-initiated game commands.
-It utilizes a command pattern to handle various types of actions such as movement, combat, item
-manipulation, and character state changes. This class acts as a central hub for routing player
-inputs to the appropriate handler methods, ensuring proper execution of game mechanics and
-maintaining game state consistency.
-Key features:
-1. Command routing based on action type
-2. Extensible architecture for adding new command types
-3. Integration with the game's core systems (e.g., combat, inventory)
-4. Error handling for invalid or unauthorized commands
-This class plays a crucial role in translating player intentions into game world effects, serving
-as a bridge between the user interface and the game's internal logic.
-***************************************************************************************************/
-class GameCommandManager {
-  constructor({ server }) {
-    this.server = server; // Injecting the server instance
-  }
-  handleCommand(socket, actionType, payload) {
-    const handler = this.commandHandlers[actionType] || this.commandHandlers.simpleAction;
-    handler.execute(socket, payload);
-  }
-}
-// Example command handler class
-class MoveCommandHandler {
-  constructor({ logger }) {
-    this.logger = logger;
-  }
-  execute(socket, { direction }) { // Destructured payload
-    this.logger.debug(`- Player ${socket.id} Moved ${direction}`);
-  }
-}
-/**************************************************************************************************
 Logger Interface Class
 The ILogger class defines an abstract interface for logging operations within the game system.
 It establishes a contract for implementing various logging levels (debug, info, warn, error)
@@ -66,30 +33,6 @@ class ILogger {
   info() {}
   warn() {}
   error() {}
-}
-/**************************************************************************************************
-Database Manager Interface Class
-The IDatabaseManager class defines an abstract interface for database operations within the game
-system. It outlines methods for loading and saving various types of game data (locations, Npcs,
-items) without specifying the underlying database technology. This abstraction allows for
-flexible implementation of data persistence strategies.
-Key features:
-1. Abstract method definitions for data loading and saving operations
-2. Standardized interface for database interactions
-3. Separation of concerns between data access and game logic
-By providing a common interface, IDatabaseManager ensures that database operations can be
-consistently implemented and easily modified or extended across the entire game system.
-***************************************************************************************************/
-class IDatabaseManager {
-  constructor({ logger, server }) {
-    this.server = server;
-    this.logger = logger;
-  }
-  async loadLocationData() {}
-  async loadNpcData() {}
-  async loadItemData() {}
-  async saveData() {}
-  async initialize() {}
 }
 /**************************************************************************************************
 Event Emitter Interface Class
@@ -130,61 +73,28 @@ class IBaseManager {
   }
 }
 /**************************************************************************************************
-Config Manager Class
-The ConfigManager class is responsible for managing the game's configuration settings. It implements
-the Singleton pattern to ensure a single, globally accessible instance of configuration data.
-This class handles loading configuration from external sources, providing access to configuration
-values, and maintaining the integrity of the game's settings.
+Database Manager Interface Class
+The IDatabaseManager class defines an abstract interface for database operations within the game
+system. It outlines methods for loading and saving various types of game data (locations, Npcs,
+items) without specifying the underlying database technology. This abstraction allows for
+flexible implementation of data persistence strategies.
 Key features:
-1. Singleton pattern implementation for global access
-2. Configuration loading from external sources (e.g., JSON files)
-3. Getter methods for accessing specific configuration values
-4. Error handling for configuration loading failures
-The ConfigManager plays a crucial role in centralizing and standardizing access to game settings,
-facilitating easier maintenance and modification of game parameters.
+1. Abstract method definitions for data loading and saving operations
+2. Standardized interface for database interactions
+3. Separation of concerns between data access and game logic
+By providing a common interface, IDatabaseManager ensures that database operations can be
+consistently implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
-class ConfigManager {
-  static instance;
-  static config;
-  constructor({ logger }) {
-    if (ConfigManager.instance) {
-      return ConfigManager.instance;
-    }
+class IDatabaseManager {
+  constructor({ logger, server }) {
+    this.server = server;
     this.logger = logger;
-    ConfigManager.instance = this;
   }
-  static getInstance({ logger }) {
-    if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager({ logger });
-    }
-    return ConfigManager.instance;
-  }
-  async loadConfig() {
-    try {
-      const { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL } = CONFIG;
-      // Validate required configuration values
-      const requiredConfigs = { HOST, PORT, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
-      for (const [key, value] of Object.entries(requiredConfigs)) {
-        if (value === undefined || value === null) {
-          this.logger.error(`- ERROR: Missing Required Configuration: ${key}`);
-          return false;
-        }
-      }
-      // Validate SSL configuration
-      if ((SSL_CERT_PATH && !SSL_KEY_PATH) || (!SSL_CERT_PATH && SSL_KEY_PATH)) {
-        this.logger.warn('- WARNING: Both SSL_CERT_PATH and SSL_KEY_PATH must be provided for SSL configuration');
-        return false;
-      }
-      ConfigManager.config = { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
-      return true;
-    } catch (error) {
-      this.logger.error(`- ERROR: Failed To Load Configuration: ${error.message}`);
-      return false;
-    }
-  }
-  get(key) {
-    return ConfigManager.config[key];
-  }
+  async loadLocationData() {}
+  async loadNpcData() {}
+  async loadItemData() {}
+  async saveData() {}
+  async initialize() {}
 }
 /**************************************************************************************************
 Logger Class
@@ -254,6 +164,63 @@ class Logger extends ILogger {
   }
   error(message) {
     this.log('- ERROR', message);
+  }
+}
+/**************************************************************************************************
+Config Manager Class
+The ConfigManager class is responsible for managing the game's configuration settings. It implements
+the Singleton pattern to ensure a single, globally accessible instance of configuration data.
+This class handles loading configuration from external sources, providing access to configuration
+values, and maintaining the integrity of the game's settings.
+Key features:
+1. Singleton pattern implementation for global access
+2. Configuration loading from external sources (e.g., JSON files)
+3. Getter methods for accessing specific configuration values
+4. Error handling for configuration loading failures
+The ConfigManager plays a crucial role in centralizing and standardizing access to game settings,
+facilitating easier maintenance and modification of game parameters.
+***************************************************************************************************/
+class ConfigManager {
+  static instance;
+  static config;
+  constructor({ logger }) {
+    if (ConfigManager.instance) {
+      return ConfigManager.instance;
+    }
+    this.logger = logger;
+    ConfigManager.instance = this;
+  }
+  static getInstance({ logger }) {
+    if (!ConfigManager.instance) {
+      ConfigManager.instance = new ConfigManager({ logger });
+    }
+    return ConfigManager.instance;
+  }
+  async loadConfig() {
+    try {
+      const { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL } = CONFIG;
+      // Validate required configuration values
+      const requiredConfigs = { HOST, PORT, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
+      for (const [key, value] of Object.entries(requiredConfigs)) {
+        if (value === undefined || value === null) {
+          this.logger.error(`- ERROR: Missing Required Configuration: ${key}`);
+          return false;
+        }
+      }
+      // Validate SSL configuration
+      if ((SSL_CERT_PATH && !SSL_KEY_PATH) || (!SSL_CERT_PATH && SSL_KEY_PATH)) {
+        this.logger.warn('- WARNING: Both SSL_CERT_PATH and SSL_KEY_PATH must be provided for SSL configuration');
+        return false;
+      }
+      ConfigManager.config = { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
+      return true;
+    } catch (error) {
+      this.logger.error(`- ERROR: Failed To Load Configuration: ${error.message}`);
+      return false;
+    }
+  }
+  get(key) {
+    return ConfigManager.config[key];
   }
 }
 /**************************************************************************************************
@@ -392,6 +359,46 @@ class Server {
   }
 }
 /**************************************************************************************************
+Server Initializer Class
+The ServerInitializer class is responsible for initializing and configuring the game server.
+It implements the Singleton pattern to ensure only one instance of the server is created.
+Key features:
+1. Singleton instance management
+2. Logger initialization
+3. Server instance creation
+4. Server configuration
+5. Game component initialization
+This class serves as the entry point for setting up the entire game environment, coordinating
+the initialization of various subsystems and managers. It handles potential errors during
+the initialization process and ensures proper logging of the server's startup sequence.
+***************************************************************************************************/
+class ServerInitializer {
+  constructor({ config }) {
+    if (ServerInitializer.instance) {
+      return ServerInitializer.instance;
+    }
+    const { LOG_LEVEL, ORANGE, MAGENTA, RED, RESET } = config;
+    this.logger = new Logger({ LOG_LEVEL, ORANGE, MAGENTA, RED, RESET });
+    this.configManager = ConfigManager.getInstance({ logger: this.logger }); // Pass the logger here
+    this.server = new Server({ logger: this.logger, configManager: this.configManager });
+    this.serverConfigurator = new ServerConfigurator({
+      logger: this.logger,
+      config: this.server.configManager,
+      server: this.server,
+      socketEventManager: this.server.socketEventManager
+    });
+    this.gameComponentInitializer = new GameComponentInitializer({ logger: this.logger, server: this.server });
+    ServerInitializer.instance = this;
+  }
+  async initialize() {
+    try {
+      await this.server.init();
+    } catch (error) {
+      this.logger.error(`- ERROR: Initializing Server: ${error.message}`);
+    }
+  }
+}
+/**************************************************************************************************
 Server Configurator Class
 The ServerConfigurator class is responsible for setting up and configuring the game server
 environment. It handles the initialization of various server components, including Express
@@ -457,38 +464,6 @@ class ServerConfigurator extends IBaseManager {
   }
 }
 /**************************************************************************************************
-SocketEvent Emitter Class
-The SocketEventEmitter class provides a robust implementation of the publish-subscribe pattern,
-facilitating event-driven communication within the game system. It allows components to register
-listeners for specific events and emit events to trigger those listeners. This class serves as
-a cornerstone for decoupled, event-based interactions between various parts of the game.
-Key features:
-1. Event registration and listener management
-2. Asynchronous event emission with multiple argument support
-3. Listener removal functionality
-4. Support for multiple listeners per event type
-The SocketEventEmitter class enables flexible and scalable communication between game components,
-promoting loose coupling and enhancing the overall modularity of the system.
-***************************************************************************************************/
-class SocketEventEmitter extends ISocketEventEmitter {
-  constructor() {
-    super();
-    this.events = {};
-  }
-  on(event, listener) {
-    if (!this.events[event]) this.events[event] = [];
-    this.events[event].push(listener);
-  }
-  emit(event, ...args) {
-    if (this.events[event]) this.events[event].forEach(listener => listener(...args));
-  }
-  off(event, listener) {
-    if (this.events[event]) {
-      this.events[event] = this.events[event].filter(l => l !== listener);
-    }
-  }
-}
-/**************************************************************************************************
 Socket Event Manager Class
 The SocketEventManager class is responsible for managing socket events and interactions within
 the game server. It handles the setup and configuration of socket.io, including event listeners
@@ -531,6 +506,181 @@ class SocketEventManager extends IBaseManager {
   handleDisconnect(socket) {
     this.logger.info(`Client disconnected: ${socket.id}`);
     // Clean up any necessary game state
+  }
+}
+/**************************************************************************************************
+SocketEvent Emitter Class
+The SocketEventEmitter class provides a robust implementation of the publish-subscribe pattern,
+facilitating event-driven communication within the game system. It allows components to register
+listeners for specific events and emit events to trigger those listeners. This class serves as
+a cornerstone for decoupled, event-based interactions between various parts of the game.
+Key features:
+1. Event registration and listener management
+2. Asynchronous event emission with multiple argument support
+3. Listener removal functionality
+4. Support for multiple listeners per event type
+The SocketEventEmitter class enables flexible and scalable communication between game components,
+promoting loose coupling and enhancing the overall modularity of the system.
+***************************************************************************************************/
+class SocketEventEmitter extends ISocketEventEmitter {
+  constructor() {
+    super();
+    this.events = {};
+  }
+  on(event, listener) {
+    if (!this.events[event]) this.events[event] = [];
+    this.events[event].push(listener);
+  }
+  emit(event, ...args) {
+    if (this.events[event]) this.events[event].forEach(listener => listener(...args));
+  }
+  off(event, listener) {
+    if (this.events[event]) {
+      this.events[event] = this.events[event].filter(l => l !== listener);
+    }
+  }
+}
+/**************************************************************************************************
+Queue Manager Class
+The QueueManager class is responsible for managing a queue of tasks, ensuring orderly
+execution of game operations and preventing system overload.
+Key features:
+1. Task queue management
+2. Concurrent task execution control
+3. Dynamic queue processing
+4. Task cleanup and error handling
+This class works in conjunction with the TaskManager to provide a robust system for
+handling multiple game tasks efficiently, maintaining system stability and performance.
+***************************************************************************************************/
+class QueueManager {
+  constructor() {
+    this.queue = [];
+    this.runningTasks = new Set();
+    this.maxConcurrentTasks = 5;
+  }
+  enqueue(task) {
+    this.queue.push(task);
+    this.processQueue();
+  }
+  dequeue() {
+    return this.queue.shift();
+  }
+  async processQueue() {
+    while (this.queue.length > 0 && this.runningTasks.size < this.maxConcurrentTasks) {
+      const task = this.dequeue();
+      this.runningTasks.add(task);
+      try {
+        await task.run();
+        task.onComplete();
+      } catch (error) {
+        task.onError(error);
+      } finally {
+        this.runningTasks.delete(task);
+      }
+    }
+  }
+  cleanup() {
+    this.queue = [];
+    this.runningTasks.clear();
+  }
+}
+/**************************************************************************************************
+Task Manager Class
+The TaskManager class is responsible for managing individual tasks within the game system.
+It provides a structure for creating, executing, and monitoring the status of various game-related
+tasks.
+Key features:
+1. Task creation and naming
+2. Asynchronous task execution
+3. Task status tracking
+4. Error handling and callback management
+This class allows for better organization and management of game operations, enabling the
+system to handle complex sequences of actions in a controlled and monitored manner.
+***************************************************************************************************/
+class TaskManager {
+  constructor({ name, execute }) {
+    this.name = name;
+    this.execute = execute;
+    this.status = 'pending';
+  }
+  async run() {
+    this.status = 'running';
+    try {
+      await this.execute();
+      this.status = 'completed';
+    } catch (error) {
+      this.status = 'failed';
+      this.logger.error(`- ERROR: Task Execution Failed: ${error.message}`);
+    }
+  }
+  cancel() {
+    if (this.status === 'pending') {
+      this.status = 'canceled';
+    }
+  }
+  onComplete(callback) {
+    this.completeCallback = callback;
+  }
+  onError(callback) {
+    this.errorCallback = callback;
+  }
+}
+/**************************************************************************************************
+Message Queue System Class
+The MessageQueueSystem class is responsible for managing a priority-based queue of messages
+within the game system, ensuring efficient and orderly processing of game communications.
+Key features:
+1. Priority-based message queuing (high, medium, low)
+2. Asynchronous message processing
+3. Integration with server's message manager
+4. Error handling and logging
+This class plays a crucial role in managing the flow of information within the game,
+prioritizing critical messages and ensuring smooth communication between different
+components of the system.
+***************************************************************************************************/
+class MessageQueueSystem {
+  constructor({ server }) {
+    this.server = server;
+    this.queues = {
+      high: [],
+      medium: [],
+      low: []
+    };
+    this.isProcessing = false;
+  }
+  addMessage(message, priority = 'medium') {
+    this.queues[priority].push(message);
+    if (!this.isProcessing) {
+      this.processQueue();
+    }
+  }
+  async processQueue() {
+    this.isProcessing = true;
+    while (this.hasMessages()) {
+      const message = this.getNextMessage();
+      if (message) {
+        await this.processMessage(message);
+      }
+    }
+    this.isProcessing = false;
+  }
+  hasMessages() {
+    return Object.values(this.queues).some(queue => queue.length > 0);
+  }
+  getNextMessage() {
+    for (const priority of ['high', 'medium', 'low']) {
+      if (this.queues[priority].length > 0) {
+        return this.queues[priority].shift();
+      }
+    }
+    return null;
+  }
+  async processMessage(message) {
+    try {
+      await this.server.messageManager.sendMessage(message.recipient, message.content, message.type);
+    } catch (error) {
+      this.server.logger.error(`- ERROR: Processing Message: ${error.message}`);
+    }
   }
 }
 /**************************************************************************************************
@@ -746,6 +896,140 @@ class DatabaseManager extends IDatabaseManager {
   isValidItem(item) {
     return item && typeof item.name === 'string' && typeof item.description === 'string' &&
            Array.isArray(item.aliases) && typeof item.type === 'string';
+  }
+}
+/**************************************************************************************************
+Game Data Loader Class
+The GameDataLoader class is responsible for loading and managing game data from the database.
+It handles the retrieval and initialization of crucial game elements such as locations, Npcs,
+and items.
+Key features:
+1. Asynchronous data fetching
+2. Location data processing and coordinate assignment
+3. Npc and item data loading and instantiation
+4. Error handling and logging during data loading
+This class plays a critical role in populating the game world with the necessary entities and
+ensuring that all game data is properly loaded and structured for use by other game systems.
+***************************************************************************************************/
+class GameDataLoader {
+  constructor({ server }) {
+    const { configManager, logger } = server;
+    this.server = server;
+    this.config = configManager.config;
+    this.logger = logger;
+  }
+  async fetchGameData() {
+    const { logger, databaseManager } = this.server;
+    const DATA_TYPES = { LOCATION: 'Location', NPC: 'Npc', ITEM: 'Item' };
+    try {
+      // Load location data
+      const locationData = await this.loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION);
+      // Assign coordinates to locations
+      if (locationData instanceof Map) {
+        const locationCoordinateManager = LocationCoordinateManager.getInstance({ logger: this.logger, server: this.server, locationData });
+        await locationCoordinateManager.assignCoordinates(locationData);
+        this.server.gameManager.locations = locationData;
+      } else {
+        logger.error(`Invalid Location Data Format: ${JSON.stringify(locationData)}`);
+      }
+      // Load Npc data
+      const npcData = await this.loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC);
+      if (npcData instanceof Map) {
+        this.server.gameManager.npcs = await this.createNpcs(npcData);
+      } else {
+        logger.error(`Invalid Npc Data Format: ${JSON.stringify(npcData)}`);
+      }
+      // Load item data
+      const itemData = await this.loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM);
+      if (itemData instanceof Map) {
+        this.server.items = await this.createItems(itemData);
+      } else {
+        logger.error(`Invalid item data format: ${JSON.stringify(itemData)}`);
+      }
+      logger.info(`LOADING GAME DATA FINISHED.`);
+      return [locationData, npcData, itemData];
+    } catch (error) {
+      logger.error(`Error fetching game data: ${error.message}`);
+      logger.error(error.stack);
+    }
+  }
+  async loadData(loadFunction, type) {
+    const { logger } = this.server;
+    try {
+      const data = await loadFunction();
+      return data;
+    } catch (error) {
+      logger.error(`Error loading ${type} data: ${error.message}`);
+      logger.error(error.stack);
+    }
+  }
+  async createNpcs(npcData) {
+    const npcs = new Map();
+    const npcPromises = [];
+    this.server.logger.debug(`- Creating Npcs From Data:`);
+    for (const [id, npcInfo] of npcData) {
+      if (this.server.gameManager.npcIds.has(id)) {
+        this.server.logger.error(`- ERROR: Duplicate Npc ID Detected: ${id}`);
+        continue;
+      }
+      this.server.gameManager.npcIds.add(id);
+      const npc = this.server.gameManager.createNpc(id, npcInfo);
+      if (npc) {
+        npcs.set(id, npc);
+        this.server.logger.debug(`- - Creating Npc: ${npc.name}`);
+        this.server.logger.debug(`- - - ID: ${id}`);
+        this.server.logger.debug(`- - - Type: ${npc.type}`);
+      }
+    }
+    return Promise.all(npcPromises).then(() => {
+      this.server.logger.debug(`- Total Npcs Created: ${npcs.size}`);
+      this.server.logger.debug(``);
+      return npcs;
+    });
+  }
+  async createItems(itemData) {
+    const items = new Map();
+    const itemPromises = [];
+    for (const [id, itemInfo] of itemData) {
+      let item;
+      switch (itemInfo.type) {
+        case 'consumable':
+          item = new ConsumableItem({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, server: this.server });
+          break;
+        case 'container':
+          item = new ContainerItem({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, server: this.server });
+          break;
+        case 'weapon':
+          item = new WeaponItem({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, damage: itemInfo.damage, server: this.server });
+          break;
+        default:
+          item = new Item({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, type: itemInfo.type, server: this.server });
+      }
+      itemPromises.push(item.initialize().then(() => items.set(item.id, item)));
+    }
+    return Promise.all(itemPromises).then(() => items);
+  }
+}
+/**************************************************************************************************
+UID Generator Class
+The UidGenerator class provides functionality for generating unique identifiers for game
+entities. It includes methods for creating hashed UIDs to ensure uniqueness and security.
+Key features:
+1. Unique identifier generation logic
+2. Hashing for security and uniqueness
+This class ensures that all game entities have unique identifiers, facilitating proper
+management and interaction within the game.
+***************************************************************************************************/
+class UidGenerator {
+  static async generateUid() {
+    try {
+      const { hash } = await import('bcrypt');
+      const uniqueValue = Date.now() + Math.random();
+      return hash(uniqueValue.toString(), 5);
+    } catch (error) {
+      this.logger.error(`- ERROR: Generating UID - ${error.message}`);
+      return null;
+    }
   }
 }
 /**************************************************************************************************
@@ -1106,606 +1390,6 @@ class GameComponentInitializer extends IBaseManager {
   }
   handleSetupError(error) {
     this.logger.error(`- ERROR: Setting Up Game Components: ${error.message}`);
-  }
-}
-/**************************************************************************************************
-Game Data Loader Class
-The GameDataLoader class is responsible for loading and managing game data from the database.
-It handles the retrieval and initialization of crucial game elements such as locations, Npcs,
-and items.
-Key features:
-1. Asynchronous data fetching
-2. Location data processing and coordinate assignment
-3. Npc and item data loading and instantiation
-4. Error handling and logging during data loading
-This class plays a critical role in populating the game world with the necessary entities and
-ensuring that all game data is properly loaded and structured for use by other game systems.
-***************************************************************************************************/
-class GameDataLoader {
-  constructor({ server }) {
-    const { configManager, logger } = server;
-    this.server = server;
-    this.config = configManager.config;
-    this.logger = logger;
-  }
-  async fetchGameData() {
-    const { logger, databaseManager } = this.server;
-    const DATA_TYPES = { LOCATION: 'Location', NPC: 'Npc', ITEM: 'Item' };
-    try {
-      // Load location data
-      const locationData = await this.loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION);
-      // Assign coordinates to locations
-      if (locationData instanceof Map) {
-        const locationCoordinateManager = LocationCoordinateManager.getInstance({ logger: this.logger, server: this.server, locationData });
-        await locationCoordinateManager.assignCoordinates(locationData);
-        this.server.gameManager.locations = locationData;
-      } else {
-        logger.error(`Invalid Location Data Format: ${JSON.stringify(locationData)}`);
-      }
-      // Load Npc data
-      const npcData = await this.loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC);
-      if (npcData instanceof Map) {
-        this.server.gameManager.npcs = await this.createNpcs(npcData);
-      } else {
-        logger.error(`Invalid Npc Data Format: ${JSON.stringify(npcData)}`);
-      }
-      // Load item data
-      const itemData = await this.loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM);
-      if (itemData instanceof Map) {
-        this.server.items = await this.createItems(itemData);
-      } else {
-        logger.error(`Invalid item data format: ${JSON.stringify(itemData)}`);
-      }
-      logger.info(`LOADING GAME DATA FINISHED.`);
-      return [locationData, npcData, itemData];
-    } catch (error) {
-      logger.error(`Error fetching game data: ${error.message}`);
-      logger.error(error.stack);
-    }
-  }
-  async loadData(loadFunction, type) {
-    const { logger } = this.server;
-    try {
-      const data = await loadFunction();
-      return data;
-    } catch (error) {
-      logger.error(`Error loading ${type} data: ${error.message}`);
-      logger.error(error.stack);
-    }
-  }
-  async createNpcs(npcData) {
-    const npcs = new Map();
-    const npcPromises = [];
-    this.server.logger.debug(`- Creating Npcs From Data:`);
-    for (const [id, npcInfo] of npcData) {
-      if (this.server.gameManager.npcIds.has(id)) {
-        this.server.logger.error(`- ERROR: Duplicate Npc ID Detected: ${id}`);
-        continue;
-      }
-      this.server.gameManager.npcIds.add(id);
-      const npc = this.server.gameManager.createNpc(id, npcInfo);
-      if (npc) {
-        npcs.set(id, npc);
-        this.server.logger.debug(`- - Creating Npc: ${npc.name}`);
-        this.server.logger.debug(`- - - ID: ${id}`);
-        this.server.logger.debug(`- - - Type: ${npc.type}`);
-      }
-    }
-    return Promise.all(npcPromises).then(() => {
-      this.server.logger.debug(`- Total Npcs Created: ${npcs.size}`);
-      this.server.logger.debug(``);
-      return npcs;
-    });
-  }
-  async createItems(itemData) {
-    const items = new Map();
-    const itemPromises = [];
-    for (const [id, itemInfo] of itemData) {
-      let item;
-      switch (itemInfo.type) {
-        case 'consumable':
-          item = new ConsumableItem({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, server: this.server });
-          break;
-        case 'container':
-          item = new ContainerItem({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, server: this.server });
-          break;
-        case 'weapon':
-          item = new WeaponItem({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, damage: itemInfo.damage, server: this.server });
-          break;
-        default:
-          item = new Item({ id, name: itemInfo.name, description: itemInfo.description, aliases: itemInfo.aliases, type: itemInfo.type, server: this.server });
-      }
-      itemPromises.push(item.initialize().then(() => items.set(item.id, item)));
-    }
-    return Promise.all(itemPromises).then(() => items);
-  }
-}
-/**************************************************************************************************
-Location Coordinate Manager Class
-The LocationCoordinateManager class is responsible for managing and assigning coordinates
-to game locations, creating a spatial representation of the game world.
-Key features:
-1. Coordinate assignment algorithms
-2. Recursive coordinate calculation
-3. Location data validation and processing
-4. Logging of coordinate assignment process
-This class ensures that each location in the game has a unique set of coordinates, facilitating
-spatial relationships between different areas of the game world. It works closely with the
-GameDataLoader to process and enhance location data.
-***************************************************************************************************/
-class LocationCoordinateManager {
-  static instance;
-  constructor({ logger, server, locationData }) {
-    if (LocationCoordinateManager.instance) {
-      return LocationCoordinateManager.instance;
-    }
-    this.server = server;
-    this.logger = logger;
-    this.locations = new Map();
-    this.parsedData = locationData instanceof Map ? locationData : new Map();
-    this.checkLocationDataForDuplicateIds(locationData);
-    LocationCoordinateManager.instance = this;
-  }
-  static getInstance({ logger, server, locationData }) {
-    if (!LocationCoordinateManager.instance) {
-      LocationCoordinateManager.instance = new LocationCoordinateManager({ logger, server, locationData });
-    }
-    return LocationCoordinateManager.instance;
-  }
-  checkLocationDataForDuplicateIds(locationData) {
-    this.logger.debug(`- Process Location Data`);
-    if (!locationData || typeof locationData !== 'object') {
-      this.logger.error(`- ERROR: Invalid Or Missing Location Data`);
-      return;
-    }
-    const topLevelKeys = Object.keys(locationData);
-    const uniqueKeys = new Set(topLevelKeys);
-    if (topLevelKeys.length !== uniqueKeys.size) {
-      for (const key of topLevelKeys) {
-        if (topLevelKeys.indexOf(key) !== topLevelKeys.lastIndexOf(key)) {
-          this.logger.error(`- ERROR: Duplicate Key Detected: ${key}`);
-        }
-      }
-      this.logger.error(`- ERROR: Duplicate Location IDs Detected`);
-    } else {
-      for (const [id, location] of Object.entries(locationData)) {
-        this.locations.set(id, location);
-      }
-      this.logger.debug(`- Total Locations Processed: ${this.locations.size}`);
-    }
-  }
-  async assignCoordinates(locationData) {
-    if (!(locationData instanceof Map)) {
-      this.logger.error(`- ERROR: Invalid Location Data Format: Expected Map.`);
-      return;
-    }
-    this.locations = locationData;
-    this.logLocationLoadStatus();
-    const coordinates = this.initializeCoordinates();
-    this._assignCoordinatesRecursively("100", coordinates);
-    this.logCoordinateAssignmentStatus(coordinates);
-    this._updateLocationsWithCoordinates(coordinates);
-  }
-  logLocationLoadStatus() {
-    this.logger.debug(``);
-    this.logger.debug(`- Assign Coordinates:`);
-  }
-  initializeCoordinates() {
-    const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
-    return coordinates;
-  }
-  logCoordinateAssignmentStatus(coordinates) {
-    this.logger.debug(``);
-    this.logger.debug(`- Assign Coordinates Recursively:`);
-    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
-  }
-  _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
-    this.logger.debug(`- Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
-    const location = this.locations.get(locationId);
-    if (!location) {
-      this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: ${locationId}`);
-      return;
-    }
-    location.coordinates = { x, y, z };
-    if (!location.exits) {
-      this.logger.debug(`- No Exits Found For Location: ${locationId}`);
-      return;
-    }
-    for (const [direction, exitId] of Object.entries(location.exits)) {
-      let newX = x, newY = y, newZ = z;
-      switch (direction) {
-        case 'north': newY += 1; break;
-        case 'south': newY -= 1; break;
-        case 'east': newX += 1; break;
-        case 'west': newX -= 1; break;
-        case 'up': newZ += 1; break;
-        case 'down': newZ -= 1; break;
-      }
-      if (!coordinates.has(exitId)) {
-        this.logger.debug(`- Assign Coordinates To Exit: ${exitId} in direction ${direction}`);
-        coordinates.set(exitId, { x: newX, y: newY, z: newZ });
-        this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ);
-      } else {
-        this.logger.debug(`- Coordinates Already Assigned To Exit: ${exitId}`);
-      }
-    }
-  }
-  _updateLocationsWithCoordinates(coordinates) {
-    this.logger.debug(``);
-    this.logger.debug('- Update Location Coordinates:');
-    for (const [id, coord] of coordinates) {
-      const location = this.locations.get(id);
-      if (location) {
-        location.coordinates = coord;
-        this.logger.debug(`- Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
-      } else {
-        this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: 101`);
-      }
-    }
-    this.logger.debug(`- Total Locations Updated: ${coordinates.size}`);
-    this.logger.debug(``)
-  }
-  validateAndParseLocationData(data) {
-    if (typeof data !== 'object' || Array.isArray(data)) {
-      this.logger.error('- ERROR: Locations Data Must Be An Object');
-      return new Map();
-    }
-    const locationData = new Map();
-    for (const [id, location] of Object.entries(data)) {
-      if (!this.isValidLocation(location)) {
-        this.logger.error(`- ERROR:Invalid Locations Object: ${JSON.stringify(location)}`);
-        continue;
-      }
-      locationData.set(id, location);
-    }
-    return locationData;
-  }
-  isValidLocation(location) {
-    return (
-      typeof location === 'object' &&
-      typeof location.name === 'string' &&
-      typeof location.description === 'string' &&
-      typeof location.exits === 'object' &&
-      !Array.isArray(location.exits)
-    );
-  }
-}
-/**************************************************************************************************
-Task Manager Class
-The TaskManager class is responsible for managing individual tasks within the game system.
-It provides a structure for creating, executing, and monitoring the status of various game-related
-tasks.
-Key features:
-1. Task creation and naming
-2. Asynchronous task execution
-3. Task status tracking
-4. Error handling and callback management
-This class allows for better organization and management of game operations, enabling the
-system to handle complex sequences of actions in a controlled and monitored manner.
-***************************************************************************************************/
-class TaskManager {
-  constructor({ name, execute }) {
-    this.name = name;
-    this.execute = execute;
-    this.status = 'pending';
-  }
-  async run() {
-    this.status = 'running';
-    try {
-      await this.execute();
-      this.status = 'completed';
-    } catch (error) {
-      this.status = 'failed';
-      this.logger.error(`- ERROR: Task Execution Failed: ${error.message}`);
-    }
-  }
-  cancel() {
-    if (this.status === 'pending') {
-      this.status = 'canceled';
-    }
-  }
-  onComplete(callback) {
-    this.completeCallback = callback;
-  }
-  onError(callback) {
-    this.errorCallback = callback;
-  }
-}
-/**************************************************************************************************
-Queue Manager Class
-The QueueManager class is responsible for managing a queue of tasks, ensuring orderly
-execution of game operations and preventing system overload.
-Key features:
-1. Task queue management
-2. Concurrent task execution control
-3. Dynamic queue processing
-4. Task cleanup and error handling
-This class works in conjunction with the TaskManager to provide a robust system for
-handling multiple game tasks efficiently, maintaining system stability and performance.
-***************************************************************************************************/
-class QueueManager {
-  constructor() {
-    this.queue = [];
-    this.runningTasks = new Set();
-    this.maxConcurrentTasks = 5;
-  }
-  enqueue(task) {
-    this.queue.push(task);
-    this.processQueue();
-  }
-  dequeue() {
-    return this.queue.shift();
-  }
-  async processQueue() {
-    while (this.queue.length > 0 && this.runningTasks.size < this.maxConcurrentTasks) {
-      const task = this.dequeue();
-      this.runningTasks.add(task);
-      try {
-        await task.run();
-        task.onComplete();
-      } catch (error) {
-        task.onError(error);
-      } finally {
-        this.runningTasks.delete(task);
-      }
-    }
-  }
-  cleanup() {
-    this.queue = [];
-    this.runningTasks.clear();
-  }
-}
-/**************************************************************************************************
-Message Queue System Class
-The MessageQueueSystem class is responsible for managing a priority-based queue of messages
-within the game system, ensuring efficient and orderly processing of game communications.
-Key features:
-1. Priority-based message queuing (high, medium, low)
-2. Asynchronous message processing
-3. Integration with server's message manager
-4. Error handling and logging
-This class plays a crucial role in managing the flow of information within the game,
-prioritizing critical messages and ensuring smooth communication between different
-components of the system.
-***************************************************************************************************/
-class MessageQueueSystem {
-  constructor({ server }) {
-    this.server = server;
-    this.queues = {
-      high: [],
-      medium: [],
-      low: []
-    };
-    this.isProcessing = false;
-  }
-  addMessage(message, priority = 'medium') {
-    this.queues[priority].push(message);
-    if (!this.isProcessing) {
-      this.processQueue();
-    }
-  }
-  async processQueue() {
-    this.isProcessing = true;
-    while (this.hasMessages()) {
-      const message = this.getNextMessage();
-      if (message) {
-        await this.processMessage(message);
-      }
-    }
-    this.isProcessing = false;
-  }
-  hasMessages() {
-    return Object.values(this.queues).some(queue => queue.length > 0);
-  }
-  getNextMessage() {
-    for (const priority of ['high', 'medium', 'low']) {
-      if (this.queues[priority].length > 0) {
-        return this.queues[priority].shift();
-      }
-    }
-    return null;
-  }
-  async processMessage(message) {
-    try {
-      await this.server.messageManager.sendMessage(message.recipient, message.content, message.type);
-    } catch (error) {
-      this.server.logger.error(`- ERROR: Processing Message: ${error.message}`);
-    }
-  }
-}
-/**************************************************************************************************
-Server Initializer Class
-The ServerInitializer class is responsible for initializing and configuring the game server.
-It implements the Singleton pattern to ensure only one instance of the server is created.
-Key features:
-1. Singleton instance management
-2. Logger initialization
-3. Server instance creation
-4. Server configuration
-5. Game component initialization
-This class serves as the entry point for setting up the entire game environment, coordinating
-the initialization of various subsystems and managers. It handles potential errors during
-the initialization process and ensures proper logging of the server's startup sequence.
-***************************************************************************************************/
-class ServerInitializer {
-  constructor({ config }) {
-    if (ServerInitializer.instance) {
-      return ServerInitializer.instance;
-    }
-    const { LOG_LEVEL, ORANGE, MAGENTA, RED, RESET } = config;
-    this.logger = new Logger({ LOG_LEVEL, ORANGE, MAGENTA, RED, RESET });
-    this.configManager = ConfigManager.getInstance({ logger: this.logger }); // Pass the logger here
-    this.server = new Server({ logger: this.logger, configManager: this.configManager });
-    this.serverConfigurator = new ServerConfigurator({
-      logger: this.logger,
-      config: this.server.configManager,
-      server: this.server,
-      socketEventManager: this.server.socketEventManager
-    });
-    this.gameComponentInitializer = new GameComponentInitializer({ logger: this.logger, server: this.server });
-    ServerInitializer.instance = this;
-  }
-  async initialize() {
-    try {
-      await this.server.init();
-    } catch (error) {
-      this.logger.error(`- ERROR: Initializing Server: ${error.message}`);
-    }
-  }
-}
-/**************************************************************************************************
-Base Item Class
-The BaseItem class serves as a foundational class for all item types within the game,
-providing common properties and methods for item management. It includes functionality for
-describing items and managing aliases.
-Key features:
-1. Common properties for all items (name, description, aliases)
-2. Base functionality for derived item classes
-This class provides a foundation for all item types, ensuring consistent management of
-item properties and behavior across the game.
-***************************************************************************************************/
-class BaseItem {
-  constructor({ name, description, aliases }) {
-    this.name = name;
-    this.description = description;
-    this.aliases = aliases;
-  }
-}
-/**************************************************************************************************
-Item Class
-The Item class is a concrete implementation of the BaseItem class, representing a generic
-item within the game. It includes properties specific to items, such as type and server
-reference, and provides methods for item initialization.
-Key features:
-1. Specific properties for items (type, server reference)
-2. Initialization logic for item instances
-3. Integration with the server for item management
-This class serves as the base for all item types, ensuring that items are properly initialized
-and managed within the game.
-***************************************************************************************************/
-class Item extends BaseItem {
-  constructor({ id, name, description, aliases, type, server }) {
-    super({ name, description, aliases });
-    this.id = id;
-    this.type = type;
-    this.server = server;
-  }
-  async initialize() {
-    // Any additional initialization logic can go here
-  }
-}
-/**************************************************************************************************
-Consumable Item Class
-The ConsumableItem class is a concrete implementation of the Item class, representing items
-that can be consumed by players. It includes methods for using consumable items and managing
-their effects.
-Key features:
-1. Specific properties and behavior for consumable items
-2. Logic for item usage and effect management
-This class provides functionality for consumable items, ensuring that they can be used
-effectively within the game.
-***************************************************************************************************/
-class ConsumableItem extends Item {
-  constructor({ id, name, description, aliases, server }) {
-    super({ id, name, description, aliases, type: 'consumable', server });
-  }
-  use(player) {
-    // Implement consumable item usage logic here
-  }
-}
-/**************************************************************************************************
-Container Item Class
-The ContainerItem class is a concrete implementation of the Item class, representing items
-that can hold other items. It includes functionality for managing the inventory of contained
-items.
-Key features:
-1. Specific properties and behavior for container items
-2. Inventory management for contained items
-This class provides functionality for container items, ensuring that they can hold and manage
-other items effectively within the game.
-***************************************************************************************************/
-class ContainerItem extends Item {
-  constructor({ id, name, description, aliases, server }) {
-    super({ id, name, description, aliases, type: 'container', server });
-    this.inventory = new Set();
-  }
-}
-/**************************************************************************************************
-Weapon Item Class
-The WeaponItem class is a concrete implementation of the Item class, representing weapons
-that can be used by characters in the game. It includes properties specific to weapons,
-such as damage, and provides methods for weapon actions and interactions.
-Key features:
-1. Specific properties for weapon items (damage)
-2. Methods for weapon actions (attack, defense)
-3. Integration with game systems for weapon management
-This class serves as the base for all weapon types, ensuring that weapons are properly
-***************************************************************************************************/
-class WeaponItem extends Item {
-  constructor({ id, name, description, aliases, damage, server }) {
-    super({ id, name, description, aliases, type: 'weapon', server });
-    this.damage = damage;
-  }
-}
-/**************************************************************************************************
-Item Manager Class
-The ItemManager class is responsible for managing items within the game. It includes functionality
-for checking for duplicate IDs, assigning UIDs to items, and retrieving items by UID.
-Key features:
-1. Duplicate ID checking
-2. UID assignment to items
-3. Item retrieval by UID
-This class ensures that items are properly managed and identified within the game.
-***************************************************************************************************/
-class ItemManager {
-  constructor({ logger, configManager }) {
-    this.logger = logger;
-    this.configManager = configManager;
-    this.items = new Map();
-  }
-  async initialize(itemData) {
-    this.checkItemsForDuplicateIds(itemData);
-    await this.assignUidsToItems(itemData);
-  }
-  checkItemsForDuplicateIds(itemData) {
-    this.logger.debug(`- Process Item Data`);
-    if (!itemData || typeof itemData !== 'object') {
-      this.logger.error(`- ERROR: Invalid Or Missing Item Data`);
-      return;
-    }
-    const itemIds = Object.keys(itemData);
-    const uniqueIds = new Set(itemIds);
-    if (itemIds.length !== uniqueIds.size) {
-      for (const id of itemIds) {
-        if (itemIds.indexOf(id) !== itemIds.lastIndexOf(id)) {
-          this.logger.error(`- ERROR: Duplicate Item ID Detected: ${id}`);
-        }
-      }
-      this.logger.error(`- ERROR: Duplicate Item IDs Detected`);
-    } else {
-      this.logger.debug(`- Total Items Processed: ${itemIds.length}`);
-    }
-  }
-  async assignUidsToItems(itemData) {
-    this.logger.debug(`- Assigning UIDs to Items`);
-    const SALT_ROUNDS = 1;
-    for (const [id, item] of Object.entries(itemData)) {
-      try {
-        const uid = await bcrypt.hash(id, SALT_ROUNDS);
-        item.uid = uid;
-        this.items.set(uid, item);
-        this.logger.debug(`- Assigned UID to Item: ${id} -> ${uid}`);
-      } catch (error) {
-        this.logger.error(`- ERROR: Assigning UID to Item ${id}: ${error.message}`);
-      }
-    }
-    this.logger.debug(`- Total Items with UIDs: ${this.items.size}`);
-  }
-  getItem(uid) {
-    return this.items.get(uid);
-  }
-  getAllItems() {
-    return Array.from(this.items.values());
   }
 }
 /**************************************************************************************************
@@ -2123,7 +1807,50 @@ class HealthRegenerator {
   }
 }
 /**************************************************************************************************
-Look At Class
+Game Command Manager Class
+The GameCommandManager class is responsible for processing and executing player-initiated game commands.
+It utilizes a command pattern to handle various types of actions such as movement, combat, item
+manipulation, and character state changes. This class acts as a central hub for routing player
+inputs to the appropriate handler methods, ensuring proper execution of game mechanics and
+maintaining game state consistency.
+Key features:
+1. Command routing based on action type
+2. Extensible architecture for adding new command types
+3. Integration with the game's core systems (e.g., combat, inventory)
+4. Error handling for invalid or unauthorized commands
+This class plays a crucial role in translating player intentions into game world effects, serving
+as a bridge between the user interface and the game's internal logic.
+***************************************************************************************************/
+class GameCommandManager {
+  constructor({ server }) {
+    this.server = server; // Injecting the server instance
+  }
+  handleCommand(socket, actionType, payload) {
+    const handler = this.commandHandlers[actionType] || this.commandHandlers.simpleAction;
+    handler.execute(socket, payload);
+  }
+}
+/**************************************************************************************************
+Move Command Handler Class
+The MoveCommandHandler class is responsible for handling player movement commands. It processes
+the direction input from the player and updates the player's position accordingly.
+Key features:
+1. Command execution for player movement
+2. Integration with game state for location updates
+3. Error handling for invalid movement inputs
+This class ensures that player movement is processed correctly, maintaining the game's spatial
+integrity and player experience.
+***************************************************************************************************/
+class MoveCommandHandler {
+  constructor({ logger }) {
+    this.logger = logger;
+  }
+  execute(socket, { direction }) { // Destructured payload
+    this.logger.debug(`- Player ${socket.id} Moved ${direction}`);
+  }
+}
+/**************************************************************************************************
+Look At Command HandlerClass
 The LookAtCommandHandler class provides functionality for players to examine their surroundings and
 interact with objects and entities within the game world. It includes methods for looking
 at specific targets and determining their properties.
@@ -2176,647 +1903,6 @@ class LookAtCommandHandler {
   }
   lookAtSelfCommandHandler() {
     this.server.messageManager.notifyLookAtSelfCommandHandler(this.player);
-  }
-}
-/**************************************************************************************************
-UID Generator Class
-The UidGenerator class provides functionality for generating unique identifiers for game
-entities. It includes methods for creating hashed UIDs to ensure uniqueness and security.
-Key features:
-1. Unique identifier generation logic
-2. Hashing for security and uniqueness
-This class ensures that all game entities have unique identifiers, facilitating proper
-management and interaction within the game.
-***************************************************************************************************/
-class UidGenerator {
-  static async generateUid() {
-    try {
-      const { hash } = await import('bcrypt');
-      const uniqueValue = Date.now() + Math.random();
-      return hash(uniqueValue.toString(), 5);
-    } catch (error) {
-      this.logger.error(`- ERROR: Generating UID - ${error.message}`);
-      return null;
-    }
-  }
-}
-/**************************************************************************************************
-Direction Manager Class
-The DirectionManager class provides utility methods for managing directional movements
-within the game world. It includes mappings for directions and methods for determining
-movement directions based on location.
-Key features:
-1. Direction mappings for movement
-2. Utility methods for determining movement direction
-This class enhances navigation within the game by providing consistent direction management
-for entities and players.
-***************************************************************************************************/
-class DirectionManager {
-  static getDirectionTo(newLocationId) {
-    const directionMap = { 'north': 'northward', 'east': 'eastward', 'west': 'westward', 'south': 'southward', 'up': 'upward', 'down': 'downward' };
-    return directionMap[newLocationId] || 'unknown direction';
-  }
-  static getDirectionFrom(oldLocationId) {
-    const directionMap = { 'north': 'from the north', 'east': 'from the east', 'west': 'from the west', 'south': 'from the south', 'up': 'from above', 'down': 'from below' };
-    return directionMap[oldLocationId] || 'from an unknown direction';
-  }
-}
-/**************************************************************************************************
-Location Class
-The Location class is intended to be used with OLC (online creation system).
-Each location represents a specific area within the game world. It includes properties
-for managing exits, items, Npcs, and players within the location, facilitating interactions
-and navigation.
-Key features:
-1. Properties for managing exits, items, and Npcs
-2. Methods for adding and removing entities from the location
-3. Description management for the location
-This class serves as the foundation for all locations within the game, ensuring that
-interactions and navigation are managed effectively.
-***************************************************************************************************/
-class Location {
-  constructor({ name, description }) {
-    this.name = name;
-    this.description = description;
-    this.exits = new Map();
-    this.items = new Set();
-    this.npcs = new Set();
-    this.playersInLocation = new Set();
-    this.zone = [];
-  }
-  addExit(direction, linkedLocation) {
-    this.exits.set(direction, linkedLocation);
-  }
-  addItem(item) {
-    this.items.add(item);
-  }
-  addNpc(npc) {
-    this.npcs.add(npc.id);
-  }
-  addPlayer(player) {
-    this.playersInLocation.add(player);
-  }
-  removePlayer(player) {
-    this.playersInLocation.delete(player);
-  }
-  getDescription() {
-    return this.description;
-  }
-  getName() {
-    return this.name;
-  }
-  getNpcs() {
-    return Array.from(this.npcs).map(npcId => this.gameManager.getNpc(npcId));
-  }
-}
-/**************************************************************************************************
-Npc Class
-The Npc class represents non-player characters within the game. It includes properties and
-methods specific to Npc behavior, interactions, and state management.
-Key features:
-1. Properties for managing Npc attributes (health, status, location)
-2. Methods for Npc actions and interactions
-This class provides a foundation for all Npc types, ensuring that their behavior and
-interactions are managed consistently within the game.
-***************************************************************************************************/
-class Npc extends Character {
-  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server }) {
-    super({ name, health: currHealth });
-    this.id = id;
-    this.sex = sex;
-    this.currHealth = currHealth;
-    this.maxHealth = maxHealth;
-    this.attackPower = attackPower;
-    this.csml = csml;
-    this.aggro = aggro;
-    this.assist = assist;
-    this.status = status;
-    this.currentLocation = String(currentLocation);
-    this.aliases = aliases;
-    this.type = type;
-    this.server = server;
-    this.previousState = { currHealth, status };
-  }
-  async initialize() {
-    // Any additional initialization logic can go here
-  }
-  hasChangedState() {
-    const hasChanged = this.currHealth !== this.previousState.currHealth || this.status !== this.previousState.status;
-    if (hasChanged) {
-      this.previousState = { currHealth: this.currHealth, status: this.status };
-    }
-    return hasChanged;
-  }
-}
-/**************************************************************************************************
-Mobile Npc Class
-The MobileNpc class is a concrete implementation of the Npc class, representing Npcs that
-can move within the game world. It includes logic for determining movement behavior and
-interactions with the environment.
-Key features:
-1. Movement logic for mobile Npcs
-2. Direction management for movement actions
-This class enhances the game world by providing dynamic Npcs that can interact with players
-and the environment through movement.
-***************************************************************************************************/
-class MobileNpc extends Npc {
-  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server }) {
-    super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'mobile', server });
-    this.zones = zones;
-    this.config = config;
-    this.logger = server.logger;
-  }
-  canMove() {
-    return !["engaged in combat", "lying dead", "lying unconscious"].includes(this.status);
-  }
-  moveRandomly() {
-    if (!this.canMove()) return;
-    const location = this.server.gameManager.getLocation(this.currentLocation);
-    if (!location) {
-      this.logger.debug(`- Invalid Location For:`);
-      this.logger.debug(`- Mobile: ${this.name} - ID: ${this.id} - Current Location: ${this.currentLocation}`);
-      return;
-    }
-    const validDirections = this.getValidDirections(location);
-    if (validDirections.length > 0) {
-      const randomDirection = this.getRandomDirection(validDirections);
-      this.moveToNewLocation(location, randomDirection);
-    } else {
-      this.logger.debug(`- - No Valid Directions For:`);
-      this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - At Location: ${this.currentLocation}`);
-    }
-  }
-  getValidDirections(location) {
-    const validDirections = Object.keys(location.exits || {}).filter(direction => {
-      const exitLocationId = location.exits[direction];
-      const exitLocation = this.server.gameManager.getLocation(exitLocationId);
-      const isValidZone = exitLocation && (this.zones.length === 0 || this.zones.includes(exitLocation.zone[0]));
-      this.logger.debug(`- - Checking Directions: ${direction} - Exit Location - ID: ${exitLocationId} - Valid Zone: ${isValidZone}`);
-      return isValidZone;
-    });
-    this.logger.debug(`- - Valid Directions For:`);
-    this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - ${validDirections.join(', ')}`);
-    return validDirections;
-  }
-  getRandomDirection(validDirections) {
-    return validDirections[Math.floor(Math.random() * validDirections.length)];
-  }
-  moveToNewLocation(location, direction) {
-    const newLocationId = location.exits[direction];
-    const newLocation = this.server.gameManager.getLocation(newLocationId);
-    if (this.zones.length > 0 && !this.zones.includes(newLocation.zone[0])) {
-      this.logger.debug(`- Mobile:${this.name} Cannot Move To:`);
-      this.logger.debug(`- ${newLocation.name} - Due To Zone Restrictions.`);
-      return; // Prevent movement if the zone is not allowed
-    }
-    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
-    this.currentLocation = newLocationId;
-    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionFrom(direction), true);
-  }
-}
-/**************************************************************************************************
-Npc Movement Manager Class
-The NpcMovementManager class is responsible for managing the movement of mobile Npcs within
-the game world. It includes logic for determining movement intervals and executing movement
-actions for all mobile Npcs.
-Key features:
-1. Movement interval management for Npcs
-2. Logic for executing movement actions
-This class enhances the game world by ensuring that mobile Npcs behave dynamically and
-realistically, contributing to a more immersive gameplay experience.
-***************************************************************************************************/
-class NpcMovementManager {
-  static instance;
-  constructor({ gameManager, logger, configManager }) {
-    if (NpcMovementManager.instance) {
-      return NpcMovementManager.instance;
-    }
-    this.gameManager = gameManager;
-    this.logger = logger;
-    this.configManager = configManager;
-    this.movementInterval = null;
-    NpcMovementManager.instance = this;
-  }
-  static getInstance({ gameManager, logger, configManager }) {
-    if (!this.instance) {
-      this.instance = new NpcMovementManager({ gameManager, logger, configManager });
-    }
-    return this.instance;
-  }
-  startMovement() {
-    if (this.movementInterval) {
-      this.logger.debug('NPC movement is already running.');
-      return;
-    }
-    const NPC_MOVEMENT_INTERVAL = CONFIG.NPC_MOVEMENT_INTERVAL;
-    this.logger.debug(`- Starting Npc Movement With Interval: ${NPC_MOVEMENT_INTERVAL}ms`);
-    this.movementInterval = setInterval(() => {
-      this.moveAllNpcs();
-    }, NPC_MOVEMENT_INTERVAL);
-    this.logger.debug('- Npc Movement Started Successfully');
-  }
-  moveAllNpcs() {
-    let movedNpcs = 0;
-    let totalMobileNpcs = this.gameManager.mobileNpcs.size;
-    this.gameManager.mobileNpcs.forEach((npc, id) => {
-      this.logger.debug(`- Checking Mobile:`);
-      this.logger.debug(`- - ${npc.name} - ID: ${id}`);
-      if (npc.canMove()) {
-        try {
-          npc.moveRandomly();
-          movedNpcs++;
-          this.logger.debug(`- - Mobile: ${npc.name} - ID: ${id} - Moved Successfully`);
-        } catch (error) {
-          this.logger.error(`- - ERROR: Moving Mobile: ${npc.name} - ID: ${id}: ${error.message}`, { error });
-        }
-      } else {
-        this.logger.debug(`- - Mobile: ${npc.name} - ID: ${id} - Cannot Move`);
-      }
-    });
-    this.logger.debug(`- Moved: ${movedNpcs} of ${totalMobileNpcs} Total Mobiles`);
-    const now = new Date();
-    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-    this.logger.debug(`- Mobiles Moved - [${timestamp}]`);
-    this.logger.debug(``);
-  }
-  stopMovement() {
-    if (this.movementInterval) {
-      clearInterval(this.movementInterval);
-      this.movementInterval = null;
-      this.logger.debug('- Stopped Npc movement');
-    }
-  }
-}
-/**************************************************************************************************
-Quest Npc Class
-The QuestNpc class is a concrete implementation of the Npc class, representing Npcs that
-offer quests to players. It includes logic for managing quest interactions and completions.
-Key features:
-1. Quest management for Npcs
-2. Interaction logic for providing and completing quests
-This class enriches the gameplay experience by providing players with quests and objectives
-through Npc interactions.
-***************************************************************************************************/
-class QuestNpc extends Npc {
-  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, questId, zones = [], aliases, server }) {
-    super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'quest', server });
-    this.questId = questId;
-    this.zones = zones;
-  }
-  provideQuest() {
-    // Logic to provide the quest to the player
-    this.server.messageManager.sendMessage(this, `${this.getName()} has received a quest: ${this.quest.title}`, 'questMessage');
-  }
-  completeQuest(player) {
-    // Logic to complete the quest
-    if (this.quest.isCompleted(player)) {
-      this.server.messageManager.sendMessage(player, `${player.getName()} has completed the quest: ${this.quest.title}`, 'questMessage');
-      // Additional logic for rewards
-    } else {
-      this.server.messageManager.sendMessage(player, `${player.getName()} has not completed the quest: ${this.quest.title}`, 'questMessage');
-    }
-  }
-}
-/**************************************************************************************************
-Inventory Manager Class
-The InventoryManager class is responsible for managing a player's inventory within the game.
-It includes methods for adding, removing, and interacting with items in the inventory.
-Key features:
-1. Inventory management for player items
-2. Logic for adding and removing items
-3. Interaction with game items and containers
-This class ensures that players can effectively manage their inventory, enhancing the gameplay
-experience through item interactions.
-***************************************************************************************************/
-class InventoryManager {
-  constructor({ player }) {
-    this.player = player;
-    this.messageManager = MessageManager.getInstance();
-    this.itemTypeMap = new Map();
-  }
-  // Create an item instance from the item data
-  async createItemFromData(itemId) {
-    const itemData = this.player.server.items[itemId];
-    if (!itemData) {
-      this.player.server.logger.error(`Item with ID ${itemId} not found`);
-      return null;
-    }
-    try {
-      const uniqueId = await UidGenerator.generateUid();
-      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
-    } catch (error) {
-      this.player.server.logger.error(`- ERROR: Creating Item From Data: ${error.message}`);
-      return null;
-    }
-  }
-  addToInventory(item) {
-    try {
-      if (item instanceof Item) {
-        this.player.inventory.add(item);
-        this.messageManager.notifyPickupItem(this.player, item.name);
-        if (item.type === 'weapon') {
-          this.player.weapons.add(item);
-        }
-      }
-    } catch (error) {
-      this.messageManager.notifyError(this.player, `- ERROR: Adding item to inventory: ${error.message}`);
-      this.player.server.logger.error(error.stack);
-    }
-  }
-  removeFromInventory(item) {
-    this.player.inventory.delete(item);
-    if (item.type === 'weapon') {
-      this.player.weapons.delete(item);
-    }
-  }
-  getAllItemsFromSource(source, sourceType, containerName) {
-    if (!source || source.size === 0) {
-      MessageManager.notifyNoItemsHere(this.player);
-      return;
-    }
-    const itemsTaken = Array.from(source).map(itemId => this.player.server.items[itemId]);
-    itemsTaken.forEach(item => this.player.inventory.add(item));
-    if (sourceType === 'location') {
-      this.player.server.location[this.player.currentLocation].items.clear();
-    } else {
-      this.player.server.items[containerName].inventory.clear();
-    }
-    MessageManager.notifyItemsTaken(this.player, itemsTaken);
-  }
-  getAllItemsFromLocation() {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    this.getAllItemsFromSource(currentLocation.items, 'location');
-  }
-  getAllItemsFromContainer(containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const items = new Set(Array.from(container.inventory).filter(i => this.player.server.items[i]));
-    this.getAllItemsFromSource(items, 'container', container.name);
-  }
-  getSingleItemFromContainer(itemName, containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemId = this.getItemIdFromContainer(itemName, container);
-    if (itemId) {
-      this.transferItem(itemId, container, 'container');
-    } else {
-      MessageManager.notifyNoItemInContainer(this.player, itemName, container.name);
-    }
-  }
-  getSingleItemFromLocation(target) {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    const itemId = this.getItemIdFromLocation(target, currentLocation.items);
-    if (itemId) {
-      this.transferItem(itemId, currentLocation, 'location');
-    } else {
-      MessageManager.notifyNoItemHere(this.player, target);
-    }
-  }
-  dropAllItems() {
-    this.dropItems(this.player.inventory, 'all');
-  }
-  dropAllSpecificItems(itemType) {
-    const itemsToDrop = new Set(Array.from(this.player.inventory).filter(item => this.itemMatchesType(item, itemType)));
-    this.dropItems(itemsToDrop, 'specific', itemType);
-  }
-  dropSingleItem(target) {
-    const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === target.toLowerCase());
-    if (item) {
-      this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
-    } else {
-      this.messageManager.notifyNoItemToDrop(this.player, target);
-    }
-  }
-  putSingleItem(itemName, containerName) {
-    const item = this.getItemFromInventory(itemName);
-    if (!item) return;
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    container.inventory.add(item.uid);
-    this.player.inventory.delete(item);
-    MessageManager.notifyItemPutInContainer(this.player, item.name, container.name);
-  }
-  putAllItems(containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemsToPut = new Set(Array.from(this.player.inventory).filter(item => item !== container));
-    if (itemsToPut.size === 0) {
-      MessageManager.notifyNoItemsToPut(this.player, container.name);
-      return;
-    }
-    itemsToPut.forEach(item => {
-      container.inventory.add(item.uid);
-      this.player.inventory.delete(item);
-    });
-    MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
-  }
-  putAllSpecificItemsIntoContainer(itemType, containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemsToPut = new Set(Array.from(this.player.inventory).filter(item => item !== container && this.itemMatchesType(item, itemType)));
-    if (itemsToPut.size === 0) {
-      MessageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name);
-      return;
-    }
-    itemsToPut.forEach(item => {
-      container.inventory.add(item.uid);
-      this.player.inventory.delete(item);
-    });
-    MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
-  }
-  getAllSpecificItemsFromLocation(itemType) {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    if (currentLocation.items && currentLocation.items.size > 0) {
-      const itemsTaken = new Set(Array.from(currentLocation.items).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
-      if (itemsTaken.size > 0) {
-        itemsTaken.forEach(itemId => {
-          this.player.inventory.add(this.player.server.items[itemId]);
-          currentLocation.items.delete(itemId);
-        });
-        MessageManager.notifyItemsTaken(this.player, Array.from(itemsTaken));
-      } else {
-        MessageManager.notifyNoSpecificItemsHere(this.player, itemType);
-      }
-    } else {
-      MessageManager.notifyNoItemsHere(this.player);
-    }
-  }
-  getAllSpecificItemsFromContainer(itemType, containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemsTaken = new Set(Array.from(container.inventory).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
-    if (itemsTaken.size > 0) {
-      itemsTaken.forEach(itemId => {
-        this.player.inventory.add(this.player.server.items[itemId]);
-        container.inventory.delete(itemId);
-      });
-      MessageManager.notifyItemsTakenFromContainer(this.player, Array.from(itemsTaken), container.name);
-    } else {
-      MessageManager.notifyNoSpecificItemsInContainer(this.player, itemType, container.name);
-    }
-  }
-  autoLootNpc(npc) {
-    if (npc.inventory && npc.inventory.size > 0) {
-      const lootedItems = new Set(npc.inventory);
-      lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
-      npc.inventory.clear();
-      return MessageManager.createAutoLootMessage(this.player, npc, Array.from(lootedItems));
-    }
-    return null;
-  }
-  lootNpc(target) {
-    const npcId = this.getNpcIdFromLocation(target, this.player.server.location[this.player.currentLocation].npcs);
-    if (npcId) {
-      const npc = this.player.server.npcs[npcId];
-      if (npc.status === "lying unconscious" || npc.status === "lying dead") {
-        if (npc.inventory && npc.inventory.size > 0) {
-          const lootedItems = new Set(npc.inventory);
-          lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
-          npc.inventory.clear();
-          this.messageManager.sendMessage(this.player,
-            MessageManager.getLootedNpcTemplate(this.player.getName(), npc.getName(), Array.from(lootedItems)),
-            'lootMessage'
-          );
-        } else {
-          this.messageManager.sendMessage(this.player,
-            MessageManager.getNoLootTemplate(this.player.getName(), npc.getName()),
-            'lootMessage'
-          );
-        }
-      } else {
-        this.messageManager.sendMessage(this.player,
-          MessageManager.getCannotLootNpcTemplate(this.player.getName(), npc.getName()),
-          'errorMessage'
-        );
-      }
-    } else {
-      this.messageManager.sendMessage(this.player,
-        MessageManager.getNoNpcToLootTemplate(this.player.getName(), target),
-        'errorMessage'
-      );
-    }
-  }
-  lootAllNpcs() {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    if (!currentLocation.npcs || currentLocation.npcs.size === 0) {
-      this.messageManager.sendMessage(this.player,
-        MessageManager.getNoNpcsToLootTemplate(this.player.getName()),
-        'errorMessage'
-      );
-      return;
-    }
-    const lootedItems = new Set();
-    const lootedNpcs = new Set();
-    currentLocation.npcs.forEach(npcId => {
-      const npc = this.player.server.npcs[npcId];
-      if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory && npc.inventory.size > 0) {
-        npc.inventory.forEach(itemId => {
-          lootedItems.add(itemId);
-          this.player.inventory.add(this.player.server.items[itemId]);
-        });
-        lootedNpcs.add(npc.name);
-        npc.inventory.clear();
-      }
-    });
-    if (lootedItems.size > 0) {
-      this.messageManager.sendMessage(this.player,
-        MessageManager.getLootedAllNpcsTemplate(this.player.getName(), Array.from(lootedNpcs), Array.from(lootedItems)),
-        'lootMessage'
-      );
-    } else {
-      this.messageManager.sendMessage(this.player,
-        MessageManager.getNothingToLootFromNpcsTemplate(this.player.getName()),
-        'lootMessage'
-      );
-    }
-  }
-  dropItems(itemsToDrop, type, itemType) {
-    if (itemsToDrop.size === 0) {
-      this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
-      return;
-    }
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    currentLocation.items = currentLocation.items || new Set();
-    itemsToDrop.forEach(item => {
-      currentLocation.items.add(item.uid);
-      this.player.inventory.delete(item);
-    });
-    this.messageManager.notifyItemsDropped(this.player, Array.from(itemsToDrop));
-  }
-  getContainer(containerName) {
-    const container = Array.from(this.player.inventory).find(item =>
-      item.name.toLowerCase() === containerName.toLowerCase() && item.inventory
-    );
-    if (!container) {
-      MessageManager.notifyNoContainer(this.player, containerName);
-      return null;
-    }
-    return container;
-  }
-  getItemFromInventory(itemName) {
-    const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === itemName.toLowerCase());
-    if (!item) {
-      MessageManager.notifyItemNotInInventory(this.player, itemName);
-    }
-    return item;
-  }
-  transferItem(itemId, source, sourceType) {
-    this.player.server.transferItem(itemId, source, sourceType, this.player);
-  }
-  getNpcIdFromLocation(npcName, npcs) {
-    return Array.from(npcs).find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
-  }
-  getItemIdFromLocation(target, items) {
-    return Array.from(items).find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
-  }
-  getItemIdFromContainer(itemName, container) {
-    return Array.from(container.inventory).find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
-  }
-  itemMatchesType(item, itemType) {
-    if (!this.itemTypeMap.has(item.uniqueId)) {
-      this.itemTypeMap.set(item.uniqueId, item.type);
-    }
-    return this.itemTypeMap.get(item.uniqueId) === itemType;
-  }
-}
-/**************************************************************************************************
-Combat Action Class
-The CombatAction class encapsulates the logic for executing combat actions between characters
-within the game. It calculates damage, handles combat notifications, and manages the state
-of combat interactions. This class serves as a fundamental component of the combat system.
-Key features:
-1. Damage calculation based on attacker and defender attributes
-2. Notification management for combat results
-3. Handling of character defeat and status changes
-This class plays a critical role in facilitating combat interactions, ensuring that combat
-mechanics are executed consistently and effectively.
-***************************************************************************************************/
-class CombatAction {
-  constructor({ logger }) {
-    this.logger = logger;
-  }
-  perform({ attacker, defender }) {
-    try {
-      const damage = this.calculateDamage(attacker, defender);
-      defender.health = Math.max(0, defender.health - damage);
-      this.notifyCombatResult(attacker, defender, damage);
-      if (defender.health <= 0) {
-        this.handleDefeat(defender);
-      }
-    } catch (error) {
-      this.logger.error(`- ERROR: During Combat Action: ${error.message}`, { error });
-    }
-  }
-  calculateDamage(attacker, defender) {
-    return Math.max(attacker.attackPower - defender.defensePower, 0);
-  }
-  notifyCombatResult(attacker, defender, damage) {
-    this.logger.info(`${attacker.getName()} attacks ${defender.getName()} for ${damage} damage.`);
-  }
-  handleDefeat(defender) {
-    this.logger.info(`${defender.getName()} has been defeated!`);
-    defender.status = "lying unconscious";
-    // Additional logic for handling defeat (e.g., removing from game, notifying players)
   }
 }
 /**************************************************************************************************
@@ -3128,6 +2214,244 @@ class CombatManager {
   }
 }
 /**************************************************************************************************
+Combat Action Class
+The CombatAction class encapsulates the logic for executing combat actions between characters
+within the game. It calculates damage, handles combat notifications, and manages the state
+of combat interactions. This class serves as a fundamental component of the combat system.
+Key features:
+1. Damage calculation based on attacker and defender attributes
+2. Notification management for combat results
+3. Handling of character defeat and status changes
+This class plays a critical role in facilitating combat interactions, ensuring that combat
+mechanics are executed consistently and effectively.
+***************************************************************************************************/
+class CombatAction {
+  constructor({ logger }) {
+    this.logger = logger;
+  }
+  perform({ attacker, defender }) {
+    try {
+      const damage = this.calculateDamage(attacker, defender);
+      defender.health = Math.max(0, defender.health - damage);
+      this.notifyCombatResult(attacker, defender, damage);
+      if (defender.health <= 0) {
+        this.handleDefeat(defender);
+      }
+    } catch (error) {
+      this.logger.error(`- ERROR: During Combat Action: ${error.message}`, { error });
+    }
+  }
+  calculateDamage(attacker, defender) {
+    return Math.max(attacker.attackPower - defender.defensePower, 0);
+  }
+  notifyCombatResult(attacker, defender, damage) {
+    this.logger.info(`${attacker.getName()} attacks ${defender.getName()} for ${damage} damage.`);
+  }
+  handleDefeat(defender) {
+    this.logger.info(`${defender.getName()} has been defeated!`);
+    defender.status = "lying unconscious";
+    // Additional logic for handling defeat (e.g., removing from game, notifying players)
+  }
+}
+/**************************************************************************************************
+Location Class
+The Location class is intended to be used with OLC (online creation system).
+Each location represents a specific area within the game world. It includes properties
+for managing exits, items, Npcs, and players within the location, facilitating interactions
+and navigation.
+Key features:
+1. Properties for managing exits, items, and Npcs
+2. Methods for adding and removing entities from the location
+3. Description management for the location
+This class serves as the foundation for all locations within the game, ensuring that
+interactions and navigation are managed effectively.
+***************************************************************************************************/
+class Location {
+  constructor({ name, description }) {
+    this.name = name;
+    this.description = description;
+    this.exits = new Map();
+    this.items = new Set();
+    this.npcs = new Set();
+    this.playersInLocation = new Set();
+    this.zone = [];
+  }
+  addExit(direction, linkedLocation) {
+    this.exits.set(direction, linkedLocation);
+  }
+  addItem(item) {
+    this.items.add(item);
+  }
+  addNpc(npc) {
+    this.npcs.add(npc.id);
+  }
+  addPlayer(player) {
+    this.playersInLocation.add(player);
+  }
+  removePlayer(player) {
+    this.playersInLocation.delete(player);
+  }
+  getDescription() {
+    return this.description;
+  }
+  getName() {
+    return this.name;
+  }
+  getNpcs() {
+    return Array.from(this.npcs).map(npcId => this.gameManager.getNpc(npcId));
+  }
+}
+/**************************************************************************************************
+Location Coordinate Manager Class
+The LocationCoordinateManager class is responsible for managing and assigning coordinates
+to game locations, creating a spatial representation of the game world.
+Key features:
+1. Coordinate assignment algorithms
+2. Recursive coordinate calculation
+3. Location data validation and processing
+4. Logging of coordinate assignment process
+This class ensures that each location in the game has a unique set of coordinates, facilitating
+spatial relationships between different areas of the game world. It works closely with the
+GameDataLoader to process and enhance location data.
+***************************************************************************************************/
+class LocationCoordinateManager {
+  static instance;
+  constructor({ logger, server, locationData }) {
+    if (LocationCoordinateManager.instance) {
+      return LocationCoordinateManager.instance;
+    }
+    this.server = server;
+    this.logger = logger;
+    this.locations = new Map();
+    this.parsedData = locationData instanceof Map ? locationData : new Map();
+    this.checkLocationDataForDuplicateIds(locationData);
+    LocationCoordinateManager.instance = this;
+  }
+  static getInstance({ logger, server, locationData }) {
+    if (!LocationCoordinateManager.instance) {
+      LocationCoordinateManager.instance = new LocationCoordinateManager({ logger, server, locationData });
+    }
+    return LocationCoordinateManager.instance;
+  }
+  checkLocationDataForDuplicateIds(locationData) {
+    this.logger.debug(`- Process Location Data`);
+    if (!locationData || typeof locationData !== 'object') {
+      this.logger.error(`- ERROR: Invalid Or Missing Location Data`);
+      return;
+    }
+    const topLevelKeys = Object.keys(locationData);
+    const uniqueKeys = new Set(topLevelKeys);
+    if (topLevelKeys.length !== uniqueKeys.size) {
+      for (const key of topLevelKeys) {
+        if (topLevelKeys.indexOf(key) !== topLevelKeys.lastIndexOf(key)) {
+          this.logger.error(`- ERROR: Duplicate Key Detected: ${key}`);
+        }
+      }
+      this.logger.error(`- ERROR: Duplicate Location IDs Detected`);
+    } else {
+      for (const [id, location] of Object.entries(locationData)) {
+        this.locations.set(id, location);
+      }
+      this.logger.debug(`- Total Locations Processed: ${this.locations.size}`);
+    }
+  }
+  async assignCoordinates(locationData) {
+    if (!(locationData instanceof Map)) {
+      this.logger.error(`- ERROR: Invalid Location Data Format: Expected Map.`);
+      return;
+    }
+    this.locations = locationData;
+    this.logLocationLoadStatus();
+    const coordinates = this.initializeCoordinates();
+    this._assignCoordinatesRecursively("100", coordinates);
+    this.logCoordinateAssignmentStatus(coordinates);
+    this._updateLocationsWithCoordinates(coordinates);
+  }
+  logLocationLoadStatus() {
+    this.logger.debug(``);
+    this.logger.debug(`- Assign Coordinates:`);
+  }
+  initializeCoordinates() {
+    const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
+    return coordinates;
+  }
+  logCoordinateAssignmentStatus(coordinates) {
+    this.logger.debug(``);
+    this.logger.debug(`- Assign Coordinates Recursively:`);
+    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
+  }
+  _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
+    this.logger.debug(`- Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
+    const location = this.locations.get(locationId);
+    if (!location) {
+      this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: ${locationId}`);
+      return;
+    }
+    location.coordinates = { x, y, z };
+    if (!location.exits) {
+      this.logger.debug(`- No Exits Found For Location: ${locationId}`);
+      return;
+    }
+    for (const [direction, exitId] of Object.entries(location.exits)) {
+      let newX = x, newY = y, newZ = z;
+      switch (direction) {
+        case 'north': newY += 1; break;
+        case 'south': newY -= 1; break;
+        case 'east': newX += 1; break;
+        case 'west': newX -= 1; break;
+        case 'up': newZ += 1; break;
+        case 'down': newZ -= 1; break;
+      }
+      if (!coordinates.has(exitId)) {
+        this.logger.debug(`- Assign Coordinates To Exit: ${exitId} in direction ${direction}`);
+        coordinates.set(exitId, { x: newX, y: newY, z: newZ });
+        this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ);
+      } else {
+        this.logger.debug(`- Coordinates Already Assigned To Exit: ${exitId}`);
+      }
+    }
+  }
+  _updateLocationsWithCoordinates(coordinates) {
+    this.logger.debug(``);
+    this.logger.debug('- Update Location Coordinates:');
+    for (const [id, coord] of coordinates) {
+      const location = this.locations.get(id);
+      if (location) {
+        location.coordinates = coord;
+        this.logger.debug(`- Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
+      } else {
+        this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: 101`);
+      }
+    }
+    this.logger.debug(`- Total Locations Updated: ${coordinates.size}`);
+    this.logger.debug(``)
+  }
+  validateAndParseLocationData(data) {
+    if (typeof data !== 'object' || Array.isArray(data)) {
+      this.logger.error('- ERROR: Locations Data Must Be An Object');
+      return new Map();
+    }
+    const locationData = new Map();
+    for (const [id, location] of Object.entries(data)) {
+      if (!this.isValidLocation(location)) {
+        this.logger.error(`- ERROR:Invalid Locations Object: ${JSON.stringify(location)}`);
+        continue;
+      }
+      locationData.set(id, location);
+    }
+    return locationData;
+  }
+  isValidLocation(location) {
+    return (
+      typeof location === 'object' &&
+      typeof location.name === 'string' &&
+      typeof location.description === 'string' &&
+      typeof location.exits === 'object' &&
+      !Array.isArray(location.exits)
+    );
+  }
+}
+/**************************************************************************************************
 Describe Location Manager Class
 The DescribeLocationManager class is responsible for providing detailed descriptions of
 locations within the game world. It formats and sends location information to players,
@@ -3196,6 +2520,692 @@ class DescribeLocationManager {
       cssid: `player`,
       text: `${otherPlayer.getName()} is ${otherPlayer.getStatus()} here.`,
     }));
+  }
+}
+/**************************************************************************************************
+Direction Manager Class
+The DirectionManager class provides utility methods for managing directional movements
+within the game world. It includes mappings for directions and methods for determining
+movement directions based on location.
+Key features:
+1. Direction mappings for movement
+2. Utility methods for determining movement direction
+This class enhances navigation within the game by providing consistent direction management
+for entities and players.
+***************************************************************************************************/
+class DirectionManager {
+  static getDirectionTo(newLocationId) {
+    const directionMap = { 'north': 'northward', 'east': 'eastward', 'west': 'westward', 'south': 'southward', 'up': 'upward', 'down': 'downward' };
+    return directionMap[newLocationId] || 'unknown direction';
+  }
+  static getDirectionFrom(oldLocationId) {
+    const directionMap = { 'north': 'from the north', 'east': 'from the east', 'west': 'from the west', 'south': 'from the south', 'up': 'from above', 'down': 'from below' };
+    return directionMap[oldLocationId] || 'from an unknown direction';
+  }
+}
+/**************************************************************************************************
+Npc Class
+The Npc class represents non-player characters within the game. It includes properties and
+methods specific to Npc behavior, interactions, and state management.
+Key features:
+1. Properties for managing Npc attributes (health, status, location)
+2. Methods for Npc actions and interactions
+This class provides a foundation for all Npc types, ensuring that their behavior and
+interactions are managed consistently within the game.
+***************************************************************************************************/
+class Npc extends Character {
+  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server }) {
+    super({ name, health: currHealth });
+    this.id = id;
+    this.sex = sex;
+    this.currHealth = currHealth;
+    this.maxHealth = maxHealth;
+    this.attackPower = attackPower;
+    this.csml = csml;
+    this.aggro = aggro;
+    this.assist = assist;
+    this.status = status;
+    this.currentLocation = String(currentLocation);
+    this.aliases = aliases;
+    this.type = type;
+    this.server = server;
+    this.previousState = { currHealth, status };
+  }
+  async initialize() {
+    // Any additional initialization logic can go here
+  }
+  hasChangedState() {
+    const hasChanged = this.currHealth !== this.previousState.currHealth || this.status !== this.previousState.status;
+    if (hasChanged) {
+      this.previousState = { currHealth: this.currHealth, status: this.status };
+    }
+    return hasChanged;
+  }
+}
+/**************************************************************************************************
+Mobile Npc Class
+The MobileNpc class is a concrete implementation of the Npc class, representing Npcs that
+can move within the game world. It includes logic for determining movement behavior and
+interactions with the environment.
+Key features:
+1. Movement logic for mobile Npcs
+2. Direction management for movement actions
+This class enhances the game world by providing dynamic Npcs that can interact with players
+and the environment through movement.
+***************************************************************************************************/
+class MobileNpc extends Npc {
+  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server }) {
+    super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'mobile', server });
+    this.zones = zones;
+    this.config = config;
+    this.logger = server.logger;
+  }
+  canMove() {
+    return !["engaged in combat", "lying dead", "lying unconscious"].includes(this.status);
+  }
+  moveRandomly() {
+    if (!this.canMove()) return;
+    const location = this.server.gameManager.getLocation(this.currentLocation);
+    if (!location) {
+      this.logger.debug(`- Invalid Location For:`);
+      this.logger.debug(`- Mobile: ${this.name} - ID: ${this.id} - Current Location: ${this.currentLocation}`);
+      return;
+    }
+    const validDirections = this.getValidDirections(location);
+    if (validDirections.length > 0) {
+      const randomDirection = this.getRandomDirection(validDirections);
+      this.moveToNewLocation(location, randomDirection);
+    } else {
+      this.logger.debug(`- - No Valid Directions For:`);
+      this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - At Location: ${this.currentLocation}`);
+    }
+  }
+  getValidDirections(location) {
+    const validDirections = Object.keys(location.exits || {}).filter(direction => {
+      const exitLocationId = location.exits[direction];
+      const exitLocation = this.server.gameManager.getLocation(exitLocationId);
+      const isValidZone = exitLocation && (this.zones.length === 0 || this.zones.includes(exitLocation.zone[0]));
+      this.logger.debug(`- - Checking Directions: ${direction} - Exit Location - ID: ${exitLocationId} - Valid Zone: ${isValidZone}`);
+      return isValidZone;
+    });
+    this.logger.debug(`- - Valid Directions For:`);
+    this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - ${validDirections.join(', ')}`);
+    return validDirections;
+  }
+  getRandomDirection(validDirections) {
+    return validDirections[Math.floor(Math.random() * validDirections.length)];
+  }
+  moveToNewLocation(location, direction) {
+    const newLocationId = location.exits[direction];
+    const newLocation = this.server.gameManager.getLocation(newLocationId);
+    if (this.zones.length > 0 && !this.zones.includes(newLocation.zone[0])) {
+      this.logger.debug(`- Mobile:${this.name} Cannot Move To:`);
+      this.logger.debug(`- ${newLocation.name} - Due To Zone Restrictions.`);
+      return; // Prevent movement if the zone is not allowed
+    }
+    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
+    this.currentLocation = newLocationId;
+    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionFrom(direction), true);
+  }
+}
+/**************************************************************************************************
+Quest Npc Class
+The QuestNpc class is a concrete implementation of the Npc class, representing Npcs that
+offer quests to players. It includes logic for managing quest interactions and completions.
+Key features:
+1. Quest management for Npcs
+2. Interaction logic for providing and completing quests
+This class enriches the gameplay experience by providing players with quests and objectives
+through Npc interactions.
+***************************************************************************************************/
+class QuestNpc extends Npc {
+  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, questId, zones = [], aliases, server }) {
+    super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'quest', server });
+    this.questId = questId;
+    this.zones = zones;
+  }
+  provideQuest() {
+    // Logic to provide the quest to the player
+    this.server.messageManager.sendMessage(this, `${this.getName()} has received a quest: ${this.quest.title}`, 'questMessage');
+  }
+  completeQuest(player) {
+    // Logic to complete the quest
+    if (this.quest.isCompleted(player)) {
+      this.server.messageManager.sendMessage(player, `${player.getName()} has completed the quest: ${this.quest.title}`, 'questMessage');
+      // Additional logic for rewards
+    } else {
+      this.server.messageManager.sendMessage(player, `${player.getName()} has not completed the quest: ${this.quest.title}`, 'questMessage');
+    }
+  }
+}
+/**************************************************************************************************
+Npc Movement Manager Class
+The NpcMovementManager class is responsible for managing the movement of mobile Npcs within
+the game world. It includes logic for determining movement intervals and executing movement
+actions for all mobile Npcs.
+Key features:
+1. Movement interval management for Npcs
+2. Logic for executing movement actions
+This class enhances the game world by ensuring that mobile Npcs behave dynamically and
+realistically, contributing to a more immersive gameplay experience.
+***************************************************************************************************/
+class NpcMovementManager {
+  static instance;
+  constructor({ gameManager, logger, configManager }) {
+    if (NpcMovementManager.instance) {
+      return NpcMovementManager.instance;
+    }
+    this.gameManager = gameManager;
+    this.logger = logger;
+    this.configManager = configManager;
+    this.movementInterval = null;
+    NpcMovementManager.instance = this;
+  }
+  static getInstance({ gameManager, logger, configManager }) {
+    if (!this.instance) {
+      this.instance = new NpcMovementManager({ gameManager, logger, configManager });
+    }
+    return this.instance;
+  }
+  startMovement() {
+    if (this.movementInterval) {
+      this.logger.debug('NPC movement is already running.');
+      return;
+    }
+    const NPC_MOVEMENT_INTERVAL = CONFIG.NPC_MOVEMENT_INTERVAL;
+    this.logger.debug(`- Starting Npc Movement With Interval: ${NPC_MOVEMENT_INTERVAL}ms`);
+    this.movementInterval = setInterval(() => {
+      this.moveAllNpcs();
+    }, NPC_MOVEMENT_INTERVAL);
+    this.logger.debug('- Npc Movement Started Successfully');
+  }
+  moveAllNpcs() {
+    let movedNpcs = 0;
+    let totalMobileNpcs = this.gameManager.mobileNpcs.size;
+    this.gameManager.mobileNpcs.forEach((npc, id) => {
+      this.logger.debug(`- Checking Mobile:`);
+      this.logger.debug(`- - ${npc.name} - ID: ${id}`);
+      if (npc.canMove()) {
+        try {
+          npc.moveRandomly();
+          movedNpcs++;
+          this.logger.debug(`- - Mobile: ${npc.name} - ID: ${id} - Moved Successfully`);
+        } catch (error) {
+          this.logger.error(`- - ERROR: Moving Mobile: ${npc.name} - ID: ${id}: ${error.message}`, { error });
+        }
+      } else {
+        this.logger.debug(`- - Mobile: ${npc.name} - ID: ${id} - Cannot Move`);
+      }
+    });
+    this.logger.debug(`- Moved: ${movedNpcs} of ${totalMobileNpcs} Total Mobiles`);
+    const now = new Date();
+    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    this.logger.debug(`- Mobiles Moved - [${timestamp}]`);
+    this.logger.debug(``);
+  }
+  stopMovement() {
+    if (this.movementInterval) {
+      clearInterval(this.movementInterval);
+      this.movementInterval = null;
+      this.logger.debug('- Stopped Npc movement');
+    }
+  }
+}
+/**************************************************************************************************
+Base Item Class
+The BaseItem class serves as a foundational class for all item types within the game,
+providing common properties and methods for item management. It includes functionality for
+describing items and managing aliases.
+Key features:
+1. Common properties for all items (name, description, aliases)
+2. Base functionality for derived item classes
+This class provides a foundation for all item types, ensuring consistent management of
+item properties and behavior across the game.
+***************************************************************************************************/
+class BaseItem {
+  constructor({ name, description, aliases }) {
+    this.name = name;
+    this.description = description;
+    this.aliases = aliases;
+  }
+}
+/**************************************************************************************************
+Item Class
+The Item class is a concrete implementation of the BaseItem class, representing a generic
+item within the game. It includes properties specific to items, such as type and server
+reference, and provides methods for item initialization.
+Key features:
+1. Specific properties for items (type, server reference)
+2. Initialization logic for item instances
+3. Integration with the server for item management
+This class serves as the base for all item types, ensuring that items are properly initialized
+and managed within the game.
+***************************************************************************************************/
+class Item extends BaseItem {
+  constructor({ id, name, description, aliases, type, server }) {
+    super({ name, description, aliases });
+    this.id = id;
+    this.type = type;
+    this.server = server;
+  }
+  async initialize() {
+    // Any additional initialization logic can go here
+  }
+}
+/**************************************************************************************************
+Consumable Item Class
+The ConsumableItem class is a concrete implementation of the Item class, representing items
+that can be consumed by players. It includes methods for using consumable items and managing
+their effects.
+Key features:
+1. Specific properties and behavior for consumable items
+2. Logic for item usage and effect management
+This class provides functionality for consumable items, ensuring that they can be used
+effectively within the game.
+***************************************************************************************************/
+class ConsumableItem extends Item {
+  constructor({ id, name, description, aliases, server }) {
+    super({ id, name, description, aliases, type: 'consumable', server });
+  }
+  use(player) {
+    // Implement consumable item usage logic here
+  }
+}
+/**************************************************************************************************
+Container Item Class
+The ContainerItem class is a concrete implementation of the Item class, representing items
+that can hold other items. It includes functionality for managing the inventory of contained
+items.
+Key features:
+1. Specific properties and behavior for container items
+2. Inventory management for contained items
+This class provides functionality for container items, ensuring that they can hold and manage
+other items effectively within the game.
+***************************************************************************************************/
+class ContainerItem extends Item {
+  constructor({ id, name, description, aliases, server }) {
+    super({ id, name, description, aliases, type: 'container', server });
+    this.inventory = new Set();
+  }
+}
+/**************************************************************************************************
+Weapon Item Class
+The WeaponItem class is a concrete implementation of the Item class, representing weapons
+that can be used by characters in the game. It includes properties specific to weapons,
+such as damage, and provides methods for weapon actions and interactions.
+Key features:
+1. Specific properties for weapon items (damage)
+2. Methods for weapon actions (attack, defense)
+3. Integration with game systems for weapon management
+This class serves as the base for all weapon types, ensuring that weapons are properly
+***************************************************************************************************/
+class WeaponItem extends Item {
+  constructor({ id, name, description, aliases, damage, server }) {
+    super({ id, name, description, aliases, type: 'weapon', server });
+    this.damage = damage;
+  }
+}
+/**************************************************************************************************
+Item Manager Class
+The ItemManager class is responsible for managing items within the game. It includes functionality
+for checking for duplicate IDs, assigning UIDs to items, and retrieving items by UID.
+Key features:
+1. Duplicate ID checking
+2. UID assignment to items
+3. Item retrieval by UID
+This class ensures that items are properly managed and identified within the game.
+***************************************************************************************************/
+class ItemManager {
+  constructor({ logger, configManager }) {
+    this.logger = logger;
+    this.configManager = configManager;
+    this.items = new Map();
+  }
+  async initialize(itemData) {
+    this.checkItemsForDuplicateIds(itemData);
+    await this.assignUidsToItems(itemData);
+  }
+  checkItemsForDuplicateIds(itemData) {
+    this.logger.debug(`- Process Item Data`);
+    if (!itemData || typeof itemData !== 'object') {
+      this.logger.error(`- ERROR: Invalid Or Missing Item Data`);
+      return;
+    }
+    const itemIds = Object.keys(itemData);
+    const uniqueIds = new Set(itemIds);
+    if (itemIds.length !== uniqueIds.size) {
+      for (const id of itemIds) {
+        if (itemIds.indexOf(id) !== itemIds.lastIndexOf(id)) {
+          this.logger.error(`- ERROR: Duplicate Item ID Detected: ${id}`);
+        }
+      }
+      this.logger.error(`- ERROR: Duplicate Item IDs Detected`);
+    } else {
+      this.logger.debug(`- Total Items Processed: ${itemIds.length}`);
+    }
+  }
+  async assignUidsToItems(itemData) {
+    this.logger.debug(`- Assigning UIDs to Items`);
+    const SALT_ROUNDS = 1;
+    for (const [id, item] of Object.entries(itemData)) {
+      try {
+        const uid = await bcrypt.hash(id, SALT_ROUNDS);
+        item.uid = uid;
+        this.items.set(uid, item);
+        this.logger.debug(`- Assigned UID to Item: ${id} -> ${uid}`);
+      } catch (error) {
+        this.logger.error(`- ERROR: Assigning UID to Item ${id}: ${error.message}`);
+      }
+    }
+    this.logger.debug(`- Total Items with UIDs: ${this.items.size}`);
+  }
+  getItem(uid) {
+    return this.items.get(uid);
+  }
+  getAllItems() {
+    return Array.from(this.items.values());
+  }
+}
+/**************************************************************************************************
+Inventory Manager Class
+The InventoryManager class is responsible for managing a player's inventory within the game.
+It includes methods for adding, removing, and interacting with items in the inventory.
+Key features:
+1. Inventory management for player items
+2. Logic for adding and removing items
+3. Interaction with game items and containers
+This class ensures that players can effectively manage their inventory, enhancing the gameplay
+experience through item interactions.
+***************************************************************************************************/
+class InventoryManager {
+  constructor({ player }) {
+    this.player = player;
+    this.messageManager = MessageManager.getInstance();
+    this.itemTypeMap = new Map();
+  }
+  // Create an item instance from the item data
+  async createItemFromData(itemId) {
+    const itemData = this.player.server.items[itemId];
+    if (!itemData) {
+      this.player.server.logger.error(`Item with ID ${itemId} not found`);
+      return null;
+    }
+    try {
+      const uniqueId = await UidGenerator.generateUid();
+      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
+    } catch (error) {
+      this.player.server.logger.error(`- ERROR: Creating Item From Data: ${error.message}`);
+      return null;
+    }
+  }
+  addToInventory(item) {
+    try {
+      if (item instanceof Item) {
+        this.player.inventory.add(item);
+        this.messageManager.notifyPickupItem(this.player, item.name);
+        if (item.type === 'weapon') {
+          this.player.weapons.add(item);
+        }
+      }
+    } catch (error) {
+      this.messageManager.notifyError(this.player, `- ERROR: Adding item to inventory: ${error.message}`);
+      this.player.server.logger.error(error.stack);
+    }
+  }
+  removeFromInventory(item) {
+    this.player.inventory.delete(item);
+    if (item.type === 'weapon') {
+      this.player.weapons.delete(item);
+    }
+  }
+  getAllItemsFromSource(source, sourceType, containerName) {
+    if (!source || source.size === 0) {
+      MessageManager.notifyNoItemsHere(this.player);
+      return;
+    }
+    const itemsTaken = Array.from(source).map(itemId => this.player.server.items[itemId]);
+    itemsTaken.forEach(item => this.player.inventory.add(item));
+    if (sourceType === 'location') {
+      this.player.server.location[this.player.currentLocation].items.clear();
+    } else {
+      this.player.server.items[containerName].inventory.clear();
+    }
+    MessageManager.notifyItemsTaken(this.player, itemsTaken);
+  }
+  getAllItemsFromLocation() {
+    const currentLocation = this.player.server.location[this.player.currentLocation];
+    this.getAllItemsFromSource(currentLocation.items, 'location');
+  }
+  getAllItemsFromContainer(containerName) {
+    const container = this.getContainer(containerName);
+    if (!container) return;
+    const items = new Set(Array.from(container.inventory).filter(i => this.player.server.items[i]));
+    this.getAllItemsFromSource(items, 'container', container.name);
+  }
+  getSingleItemFromContainer(itemName, containerName) {
+    const container = this.getContainer(containerName);
+    if (!container) return;
+    const itemId = this.getItemIdFromContainer(itemName, container);
+    if (itemId) {
+      this.transferItem(itemId, container, 'container');
+    } else {
+      MessageManager.notifyNoItemInContainer(this.player, itemName, container.name);
+    }
+  }
+  getSingleItemFromLocation(target) {
+    const currentLocation = this.player.server.location[this.player.currentLocation];
+    const itemId = this.getItemIdFromLocation(target, currentLocation.items);
+    if (itemId) {
+      this.transferItem(itemId, currentLocation, 'location');
+    } else {
+      MessageManager.notifyNoItemHere(this.player, target);
+    }
+  }
+  dropAllItems() {
+    this.dropItems(this.player.inventory, 'all');
+  }
+  dropAllSpecificItems(itemType) {
+    const itemsToDrop = new Set(Array.from(this.player.inventory).filter(item => this.itemMatchesType(item, itemType)));
+    this.dropItems(itemsToDrop, 'specific', itemType);
+  }
+  dropSingleItem(target) {
+    const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === target.toLowerCase());
+    if (item) {
+      this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
+    } else {
+      this.messageManager.notifyNoItemToDrop(this.player, target);
+    }
+  }
+  putSingleItem(itemName, containerName) {
+    const item = this.getItemFromInventory(itemName);
+    if (!item) return;
+    const container = this.getContainer(containerName);
+    if (!container) return;
+    container.inventory.add(item.uid);
+    this.player.inventory.delete(item);
+    MessageManager.notifyItemPutInContainer(this.player, item.name, container.name);
+  }
+  putAllItems(containerName) {
+    const container = this.getContainer(containerName);
+    if (!container) return;
+    const itemsToPut = new Set(Array.from(this.player.inventory).filter(item => item !== container));
+    if (itemsToPut.size === 0) {
+      MessageManager.notifyNoItemsToPut(this.player, container.name);
+      return;
+    }
+    itemsToPut.forEach(item => {
+      container.inventory.add(item.uid);
+      this.player.inventory.delete(item);
+    });
+    MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
+  }
+  putAllSpecificItemsIntoContainer(itemType, containerName) {
+    const container = this.getContainer(containerName);
+    if (!container) return;
+    const itemsToPut = new Set(Array.from(this.player.inventory).filter(item => item !== container && this.itemMatchesType(item, itemType)));
+    if (itemsToPut.size === 0) {
+      MessageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name);
+      return;
+    }
+    itemsToPut.forEach(item => {
+      container.inventory.add(item.uid);
+      this.player.inventory.delete(item);
+    });
+    MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
+  }
+  getAllSpecificItemsFromLocation(itemType) {
+    const currentLocation = this.player.server.location[this.player.currentLocation];
+    if (currentLocation.items && currentLocation.items.size > 0) {
+      const itemsTaken = new Set(Array.from(currentLocation.items).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
+      if (itemsTaken.size > 0) {
+        itemsTaken.forEach(itemId => {
+          this.player.inventory.add(this.player.server.items[itemId]);
+          currentLocation.items.delete(itemId);
+        });
+        MessageManager.notifyItemsTaken(this.player, Array.from(itemsTaken));
+      } else {
+        MessageManager.notifyNoSpecificItemsHere(this.player, itemType);
+      }
+    } else {
+      MessageManager.notifyNoItemsHere(this.player);
+    }
+  }
+  getAllSpecificItemsFromContainer(itemType, containerName) {
+    const container = this.getContainer(containerName);
+    if (!container) return;
+    const itemsTaken = new Set(Array.from(container.inventory).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
+    if (itemsTaken.size > 0) {
+      itemsTaken.forEach(itemId => {
+        this.player.inventory.add(this.player.server.items[itemId]);
+        container.inventory.delete(itemId);
+      });
+      MessageManager.notifyItemsTakenFromContainer(this.player, Array.from(itemsTaken), container.name);
+    } else {
+      MessageManager.notifyNoSpecificItemsInContainer(this.player, itemType, container.name);
+    }
+  }
+  autoLootNpc(npc) {
+    if (npc.inventory && npc.inventory.size > 0) {
+      const lootedItems = new Set(npc.inventory);
+      lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
+      npc.inventory.clear();
+      return MessageManager.createAutoLootMessage(this.player, npc, Array.from(lootedItems));
+    }
+    return null;
+  }
+  lootNpc(target) {
+    const npcId = this.getNpcIdFromLocation(target, this.player.server.location[this.player.currentLocation].npcs);
+    if (npcId) {
+      const npc = this.player.server.npcs[npcId];
+      if (npc.status === "lying unconscious" || npc.status === "lying dead") {
+        if (npc.inventory && npc.inventory.size > 0) {
+          const lootedItems = new Set(npc.inventory);
+          lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
+          npc.inventory.clear();
+          this.messageManager.sendMessage(this.player,
+            MessageManager.getLootedNpcTemplate(this.player.getName(), npc.getName(), Array.from(lootedItems)),
+            'lootMessage'
+          );
+        } else {
+          this.messageManager.sendMessage(this.player,
+            MessageManager.getNoLootTemplate(this.player.getName(), npc.getName()),
+            'lootMessage'
+          );
+        }
+      } else {
+        this.messageManager.sendMessage(this.player,
+          MessageManager.getCannotLootNpcTemplate(this.player.getName(), npc.getName()),
+          'errorMessage'
+        );
+      }
+    } else {
+      this.messageManager.sendMessage(this.player,
+        MessageManager.getNoNpcToLootTemplate(this.player.getName(), target),
+        'errorMessage'
+      );
+    }
+  }
+  lootAllNpcs() {
+    const currentLocation = this.player.server.location[this.player.currentLocation];
+    if (!currentLocation.npcs || currentLocation.npcs.size === 0) {
+      this.messageManager.sendMessage(this.player,
+        MessageManager.getNoNpcsToLootTemplate(this.player.getName()),
+        'errorMessage'
+      );
+      return;
+    }
+    const lootedItems = new Set();
+    const lootedNpcs = new Set();
+    currentLocation.npcs.forEach(npcId => {
+      const npc = this.player.server.npcs[npcId];
+      if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory && npc.inventory.size > 0) {
+        npc.inventory.forEach(itemId => {
+          lootedItems.add(itemId);
+          this.player.inventory.add(this.player.server.items[itemId]);
+        });
+        lootedNpcs.add(npc.name);
+        npc.inventory.clear();
+      }
+    });
+    if (lootedItems.size > 0) {
+      this.messageManager.sendMessage(this.player,
+        MessageManager.getLootedAllNpcsTemplate(this.player.getName(), Array.from(lootedNpcs), Array.from(lootedItems)),
+        'lootMessage'
+      );
+    } else {
+      this.messageManager.sendMessage(this.player,
+        MessageManager.getNothingToLootFromNpcsTemplate(this.player.getName()),
+        'lootMessage'
+      );
+    }
+  }
+  dropItems(itemsToDrop, type, itemType) {
+    if (itemsToDrop.size === 0) {
+      this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
+      return;
+    }
+    const currentLocation = this.player.server.location[this.player.currentLocation];
+    currentLocation.items = currentLocation.items || new Set();
+    itemsToDrop.forEach(item => {
+      currentLocation.items.add(item.uid);
+      this.player.inventory.delete(item);
+    });
+    this.messageManager.notifyItemsDropped(this.player, Array.from(itemsToDrop));
+  }
+  getContainer(containerName) {
+    const container = Array.from(this.player.inventory).find(item =>
+      item.name.toLowerCase() === containerName.toLowerCase() && item.inventory
+    );
+    if (!container) {
+      MessageManager.notifyNoContainer(this.player, containerName);
+      return null;
+    }
+    return container;
+  }
+  getItemFromInventory(itemName) {
+    const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    if (!item) {
+      MessageManager.notifyItemNotInInventory(this.player, itemName);
+    }
+    return item;
+  }
+  transferItem(itemId, source, sourceType) {
+    this.player.server.transferItem(itemId, source, sourceType, this.player);
+  }
+  getNpcIdFromLocation(npcName, npcs) {
+    return Array.from(npcs).find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
+  }
+  getItemIdFromLocation(target, items) {
+    return Array.from(items).find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
+  }
+  getItemIdFromContainer(itemName, container) {
+    return Array.from(container.inventory).find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
+  }
+  itemMatchesType(item, itemType) {
+    if (!this.itemTypeMap.has(item.uniqueId)) {
+      this.itemTypeMap.set(item.uniqueId, item.type);
+    }
+    return this.itemTypeMap.get(item.uniqueId) === itemType;
   }
 }
 /**************************************************************************************************
