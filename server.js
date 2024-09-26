@@ -783,7 +783,7 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseLocationData(data) {
-    this.logger.debug('- Validate Locations Data');
+    this.logger.debug('- Validate Locations Data:');
     if (typeof data !== 'object' || Array.isArray(data)) {
       this.logger.error('- ERROR: Locations Data Must Be An Object');
       return new Map();
@@ -791,7 +791,7 @@ class DatabaseManager extends IDatabaseManager {
     const locationData = new Map();
     const referencedLocations = new Set();
     for (const [id, location] of Object.entries(data)) {
-      this.logger.debug(`- Validate Location - ID: ${id}`);
+      this.logger.debug(`- - Validate Location - ID: ${id}`);
       //this.logger.debug(`- Locations Data:`);
       //this.logger.debug(`${JSON.stringify(location, null, 2)}`);
       //this.logger.debug(``);
@@ -808,7 +808,7 @@ class DatabaseManager extends IDatabaseManager {
     // Check for missing referenced locations
     referencedLocations.forEach(refId => {
       if (!locationData.has(refId)) {
-        this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: ${refId} `);
+        this.logger.error(`- ERROR: Validating Locations Data - Referenced Location Is Missing - ID: ${refId} `);
       }
     });
     this.logger.debug(`- Total Locations Validated: ${locationData.size}`);
@@ -834,7 +834,7 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseNpcData(data) {
-    this.logger.debug('- Validate Npcs Data');
+    this.logger.debug('- Validate Npcs Data:');
     if (typeof data !== 'object' || Array.isArray(data)) {
       this.logger.error('- ERROR: Npcs Data Must Be An Object');
       return new Map();
@@ -875,7 +875,7 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseItemData(data) {
-    this.logger.debug('- Validate Items Data');
+    this.logger.debug('- Validate Items Data:');
     if (typeof data !== 'object' || Array.isArray(data)) {
       this.logger.error('- ERROR: Items Data Must Be An Object');
       return new Map();
@@ -2334,7 +2334,6 @@ class LocationCoordinateManager {
     return LocationCoordinateManager.instance;
   }
   checkLocationDataForDuplicateIds(locationData) {
-    this.logger.debug(`- Process Location Data`);
     if (!locationData || typeof locationData !== 'object') {
       this.logger.error(`- ERROR: Invalid Or Missing Location Data`);
       return;
@@ -2352,7 +2351,6 @@ class LocationCoordinateManager {
       for (const [id, location] of Object.entries(locationData)) {
         this.locations.set(id, location);
       }
-      this.logger.debug(`- Total Locations Processed: ${this.locations.size}`);
     }
   }
   async assignCoordinates(locationData) {
@@ -2381,10 +2379,10 @@ class LocationCoordinateManager {
     this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
   }
   _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
-    this.logger.debug(`- Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
+    this.logger.debug(`- - Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
     const location = this.locations.get(locationId);
     if (!location) {
-      this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: ${locationId}`);
+      this.logger.error(`- ERROR: Assigning Coordinates To Location - Referenced Location Is Missing - ID: ${locationId}`);
       return;
     }
     location.coordinates = { x, y, z };
@@ -2403,11 +2401,11 @@ class LocationCoordinateManager {
         case 'down': newZ -= 1; break;
       }
       if (!coordinates.has(exitId)) {
-        this.logger.debug(`- Assign Coordinates To Exit: ${exitId} in direction ${direction}`);
+        this.logger.debug(`- - Assign Coordinates To Exit: ${exitId} in direction ${direction}`);
         coordinates.set(exitId, { x: newX, y: newY, z: newZ });
         this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ);
       } else {
-        this.logger.debug(`- Coordinates Already Assigned To Exit: ${exitId}`);
+        this.logger.debug(`- - Coordinates Already Assigned To Exit: ${exitId}`);
       }
     }
   }
@@ -2418,9 +2416,9 @@ class LocationCoordinateManager {
       const location = this.locations.get(id);
       if (location) {
         location.coordinates = coord;
-        this.logger.debug(`- Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
+        this.logger.debug(`- - Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
       } else {
-        this.logger.error(`- ERROR: Referenced Location Is Missing From Location Data - ID: 101`);
+        this.logger.error(`- ERROR: Updating Location Coordinates - Referenced Location Is Missing - ID: ${id}`);
       }
     }
     this.logger.debug(`- Total Locations Updated: ${coordinates.size}`);
