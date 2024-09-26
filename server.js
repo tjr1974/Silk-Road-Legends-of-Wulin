@@ -91,12 +91,39 @@ class IDatabaseManager {
   async saveData() {}
   async initialize() {}
 }
-class IEventEmitter {
+/**************************************************************************************************
+Event Emitter Interface Class
+The ISocketEventEmitter class defines an abstract interface for event emission and handling within the game
+system. It outlines methods for registering listeners, emitting events, and removing listeners
+without specifying the underlying implementation. This abstraction allows for flexible
+implementation of event handling strategies across different parts of the application.
+Key features:
+1. Abstract method definitions for event emission and handling
+2. Standardized interface for event management
+3. Separation of concerns between event emission and handling
+By providing a common interface, ISocketEventEmitter ensures that event handling can be consistently
+implemented and easily modified or extended across the entire game system.
+***************************************************************************************************/
+
+class ISocketEventEmitter {
   on() {}
   emit() {}
   off() {}
 }
-class BaseManager {
+/**************************************************************************************************
+Base Manager Interface Class
+The IBaseManager class is an abstract base class that provides a common interface for managing
+various components of the game server. It outlines methods for initializing and managing
+components without specifying the underlying implementation. This abstraction allows for
+flexible implementation of component management strategies.
+Key features:
+1. Abstract method definitions for component initialization and management
+2. Standardized interface for component management
+3. Separation of concerns between component management and game logic
+By providing a common interface, IBaseManager ensures that component management can be consistently
+implemented and easily modified or extended across the entire game system.
+***************************************************************************************************/
+class IBaseManager {
   constructor({ logger, server }) {
     this.server = server;
     this.logger = logger;
@@ -250,7 +277,7 @@ class Server {
     if (Server.instance) {
       return Server.instance;
     }
-    this.eventEmitter = new EventEmitter();
+    this.SocketEventEmitter = new SocketEventEmitter();
     this.configManager = configManager || ConfigManager.getInstance();
     this.logger = logger;
     this.databaseManager = null;
@@ -264,6 +291,7 @@ class Server {
     this.messageManager = new MessageManager();
     this.messageQueueSystem = new MessageQueueSystem(this);
     this.gameComponentInitializer = null;
+    this.itemManager = new ItemManager({ logger, configManager });
     Server.instance = this;
   }
   static getInstance({ logger, configManager }) {
@@ -283,17 +311,17 @@ class Server {
         config: this.configManager
       });
       await this.serverConfigurator.configureServer();
-      this.eventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this));
-      this.gameManager = new GameManager({ eventEmitter: this.eventEmitter, logger: this.logger, server: this });
+      this.SocketEventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this));
+      this.gameManager = new GameManager({ SocketEventEmitter: this.SocketEventEmitter, logger: this.logger, server: this });
       this.gameComponentInitializer = new GameComponentInitializer({ server: this, logger: this.logger });
       await this.gameComponentInitializer.setupGameComponents();
       if (this.gameManager) {
         this.gameManager.startGame();
       } else {
-        throw new Error('GameManager not initialized. Check GameManager initialization in Server.init()');
+        this.logger.error('- ERROR: GameManager Not Initialized. Check GameManager Initialization In Server.init()');
       }
     } catch (error) {
-      throw error;
+      this.logger.error(`- ERROR: Initializing Server: ${error.message}`);
     }
   }
   handlePlayerConnected(player) {
@@ -309,7 +337,6 @@ class Server {
       return this.server;
     } catch (error) {
       this.logger.error(`- ERROR: During Http Server Configuration: ${error.message}`, { error });
-
     }
   }
   async loadSslOptions() {
@@ -379,7 +406,7 @@ Key features:
 The ServerConfigurator plays a crucial role in establishing the server's infrastructure,
 enabling secure and efficient communication between clients and the game server.
 ***************************************************************************************************/
-class ServerConfigurator extends BaseManager {
+class ServerConfigurator extends IBaseManager {
   constructor({ logger, config, server, socketEventManager }) {
     super({ server, logger });
     this.config = config;
@@ -431,7 +458,7 @@ class ServerConfigurator extends BaseManager {
 }
 /**************************************************************************************************
 Event Emitter Class
-The EventEmitter class provides a robust implementation of the publish-subscribe pattern,
+The SocketEventEmitter class provides a robust implementation of the publish-subscribe pattern,
 facilitating event-driven communication within the game system. It allows components to register
 listeners for specific events and emit events to trigger those listeners. This class serves as
 a cornerstone for decoupled, event-based interactions between various parts of the game.
@@ -440,10 +467,10 @@ Key features:
 2. Asynchronous event emission with multiple argument support
 3. Listener removal functionality
 4. Support for multiple listeners per event type
-The EventEmitter class enables flexible and scalable communication between game components,
+The SocketEventEmitter class enables flexible and scalable communication between game components,
 promoting loose coupling and enhancing the overall modularity of the system.
 ***************************************************************************************************/
-class EventEmitter extends IEventEmitter {
+class SocketEventEmitter extends ISocketEventEmitter {
   constructor() {
     super();
     this.events = {};
@@ -461,7 +488,21 @@ class EventEmitter extends IEventEmitter {
     }
   }
 }
-class SocketEventManager extends BaseManager {
+/**************************************************************************************************
+Socket Event Manager Class
+The SocketEventManager class is responsible for managing socket events and interactions within
+the game server. It handles the setup and configuration of socket.io, including event listeners
+and dispatchers for various socket events. This class ensures that all socket-related
+interactions are properly managed and executed.
+Key features:
+1. Socket.io setup and configuration
+2. Event listener setup for socket events
+3. Socket event dispatching and handling
+4. Integration with the GameCommandManager for command processing
+The SocketEventManager plays a crucial role in facilitating real-time interactions between
+clients and the game server, ensuring that all socket-related functionality operates smoothly.
+***************************************************************************************************/
+class SocketEventManager extends IBaseManager {
   constructor({ logger, server, gameCommandManager }) {
     super({ server, logger });
     this.io = null;
@@ -564,7 +605,7 @@ class DatabaseManager extends IDatabaseManager {
         return fileContents.reduce((acc, content) => ({ ...acc, ...content }), {});
       }
     } catch (error) {
-      throw error;
+      this.logger.error(`- ERROR: Loading Data From: ${folderPath} - ${error.message}`);
     }
   }
   customJsonParse(jsonString, duplicateIds, allData, fileName, dataType) {
@@ -717,19 +758,21 @@ Key features:
 1. Management of active players and Npcs
 2. Game loop execution and event handling
 3. Coordination of game state updates and notifications
-4. Integration with the EventEmitter for event-driven architecture
+4. Integration with the SocketEventEmitter for event-driven architecture
 The GameManager is crucial for maintaining the flow of the game and ensuring that player
 actions have meaningful impacts on the game world.
 ***************************************************************************************************/
 class GameManager {
-  constructor({ eventEmitter, logger, server }) {
+  constructor({ SocketEventEmitter, logger, server }) {
     if (GameManager.instance) {
       return GameManager.instance;
     }
     this.players = new Map();
     this.locations = new Map();
     this.npcs = new Map();
-    this.eventEmitter = eventEmitter;
+    this.mobileNpcs = new Map();
+    this.questNpcs = new Map();
+    this.SocketEventEmitter = SocketEventEmitter;
     this.logger = logger;
     this.server = server;
     this.gameLoopInterval = null;
@@ -750,9 +793,9 @@ class GameManager {
     GameManager.instance = this;
   }
   setupEventListeners() {
-    this.eventEmitter.on("tick", this.gameTick.bind(this));
-    this.eventEmitter.on("newDay", this.newDayHandler.bind(this));
-    this.eventEmitter.on('tick', this.handleTick.bind(this));
+    this.SocketEventEmitter.on("tick", this.gameTick.bind(this));
+    this.SocketEventEmitter.on("newDay", this.newDayHandler.bind(this));
+    this.SocketEventEmitter.on('tick', this.handleTick.bind(this));
   }
   startGame() {
     if (this.isGameRunning()) {
@@ -798,7 +841,7 @@ class GameManager {
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      throw error;
+      this.logger.error(`- ERROR: Shutting Down Game: ${error.message}`);
     }
   }
   async shutdownServer() {
@@ -814,7 +857,7 @@ class GameManager {
     const TICK_RATE = this.configManager.get('TICK_RATE');
     this.gameLoopInterval = setInterval(() => {
       try {
-        this.eventEmitter.emit('tick');
+        this.SocketEventEmitter.emit('tick');
       } catch (error) {
         this.logger.error(`- ERROR: Game Tick: ${error.message}`);
       }
@@ -847,7 +890,7 @@ class GameManager {
     this.gameTime += elapsedSeconds;
     if (this.gameTime >= 1440) {
       this.gameTime %= 1440;
-      this.eventEmitter.emit("newDay");
+      this.SocketEventEmitter.emit("newDay");
     }
   }
   moveEntity(entity, newLocationId) {
@@ -930,7 +973,6 @@ class GameManager {
     try {
       const { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type } = npcData;
       let npc;
-
       if (type === 'mobile') {
         npc = new MobileNpc({
           id,
@@ -949,6 +991,7 @@ class GameManager {
           config: this.server.configManager,
           server: this.server
         });
+        this.mobileNpcs.set(id, npc);
       } else if (type === 'quest') {
         npc = new QuestNpc({
           id,
@@ -967,6 +1010,7 @@ class GameManager {
           aliases,
           server: this.server
         });
+        this.questNpcs.set(id, npc);
       } else {
         npc = new Npc({
           id,
@@ -985,7 +1029,7 @@ class GameManager {
           server: this.server
         });
       }
-
+      this.npcs.set(id, npc);
       return npc;
     } catch (error) {
       this.logger.error(`- ERROR: Creating Npc With ID ${id}: ${error.message}`, { error });
@@ -1012,6 +1056,8 @@ class GameManager {
   }
   cleanup() {
     this.npcs.clear();
+    this.mobileNpcs.clear();
+    this.questNpcs.clear();
   }
 }
 /**************************************************************************************************
@@ -1027,7 +1073,7 @@ This class works closely with the ServerInitializer to ensure all game-specific 
 are properly set up and ready for use. It handles the sequential initialization of interdependent
 components and manages potential errors during the setup process.
 ***************************************************************************************************/
-class GameComponentInitializer extends BaseManager {
+class GameComponentInitializer extends IBaseManager {
   constructor({ logger, server }) {
     super({ server, logger });
   }
@@ -1049,7 +1095,7 @@ class GameComponentInitializer extends BaseManager {
   }
   async initializeGameManager() {
     this.server.gameManager = new GameManager({
-      eventEmitter: this.server.eventEmitter,
+      SocketEventEmitter: this.server.SocketEventEmitter,
       logger: this.server.logger,
       server: this.server
     });
@@ -1350,7 +1396,7 @@ class TaskManager {
       this.status = 'completed';
     } catch (error) {
       this.status = 'failed';
-      throw error;
+      this.logger.error(`- ERROR: Task Execution Failed: ${error.message}`);
     }
   }
   cancel() {
@@ -1463,7 +1509,7 @@ class MessageQueueSystem {
     try {
       await this.server.messageManager.sendMessage(message.recipient, message.content, message.type);
     } catch (error) {
-      this.server.logger.error(`Error processing message: ${error.message}`, { error });
+      this.server.logger.error(`- ERROR: Processing Message: ${error.message}`);
     }
   }
 }
@@ -1585,11 +1631,81 @@ class ContainerItem extends Item {
   }
 }
 /**************************************************************************************************
+Weapon Item Class
+The WeaponItem class is a concrete implementation of the Item class, representing weapons
+that can be used by characters in the game. It includes properties specific to weapons,
+such as damage, and provides methods for weapon actions and interactions.
+Key features:
+1. Specific properties for weapon items (damage)
+2. Methods for weapon actions (attack, defense)
+3. Integration with game systems for weapon management
+This class serves as the base for all weapon types, ensuring that weapons are properly
 ***************************************************************************************************/
 class WeaponItem extends Item {
   constructor({ id, name, description, aliases, damage, server }) {
     super({ id, name, description, aliases, type: 'weapon', server });
     this.damage = damage;
+  }
+}
+/**************************************************************************************************
+Item Manager Class
+The ItemManager class is responsible for managing items within the game. It includes functionality
+for checking for duplicate IDs, assigning UIDs to items, and retrieving items by UID.
+Key features:
+1. Duplicate ID checking
+2. UID assignment to items
+3. Item retrieval by UID
+This class ensures that items are properly managed and identified within the game.
+***************************************************************************************************/
+class ItemManager {
+  constructor({ logger, configManager }) {
+    this.logger = logger;
+    this.configManager = configManager;
+    this.items = new Map();
+  }
+  async initialize(itemData) {
+    this.checkItemsForDuplicateIds(itemData);
+    await this.assignUidsToItems(itemData);
+  }
+  checkItemsForDuplicateIds(itemData) {
+    this.logger.debug(`- Process Item Data`);
+    if (!itemData || typeof itemData !== 'object') {
+      this.logger.error(`- ERROR: Invalid Or Missing Item Data`);
+      return;
+    }
+    const itemIds = Object.keys(itemData);
+    const uniqueIds = new Set(itemIds);
+    if (itemIds.length !== uniqueIds.size) {
+      for (const id of itemIds) {
+        if (itemIds.indexOf(id) !== itemIds.lastIndexOf(id)) {
+          this.logger.error(`- ERROR: Duplicate Item ID Detected: ${id}`);
+        }
+      }
+      this.logger.error(`- ERROR: Duplicate Item IDs Detected`);
+    } else {
+      this.logger.debug(`- Total Items Processed: ${itemIds.length}`);
+    }
+  }
+  async assignUidsToItems(itemData) {
+    this.logger.debug(`- Assigning UIDs to Items`);
+    const SALT_ROUNDS = 1;
+    for (const [id, item] of Object.entries(itemData)) {
+      try {
+        const uid = await bcrypt.hash(id, SALT_ROUNDS);
+        item.uid = uid;
+        this.items.set(uid, item);
+        this.logger.debug(`- Assigned UID to Item: ${id} -> ${uid}`);
+      } catch (error) {
+        this.logger.error(`- ERROR: Assigning UID to Item ${id}: ${error.message}`);
+      }
+    }
+    this.logger.debug(`- Total Items with UIDs: ${this.items.size}`);
+  }
+  getItem(uid) {
+    return this.items.get(uid);
+  }
+  getAllItems() {
+    return Array.from(this.items.values());
   }
 }
 /**************************************************************************************************
@@ -1932,8 +2048,8 @@ class Player extends Character {
   describeCurrentLocation() {
     new DescribeLocationManager(this).describe();
   }
-  lookAt(target) {
-    new LookAt({ player: this }).look(target);
+  LookAtCommandHandler(target) {
+    new LookAtCommandHandler({ player: this }).look(target);
   }
   addWeapon(weapon) {
     if (weapon instanceof WeaponItem) {
@@ -2008,7 +2124,7 @@ class HealthRegenerator {
 }
 /**************************************************************************************************
 Look At Class
-The LookAt class provides functionality for players to examine their surroundings and
+The LookAtCommandHandler class provides functionality for players to examine their surroundings and
 interact with objects and entities within the game world. It includes methods for looking
 at specific targets and determining their properties.
 Key features:
@@ -2018,7 +2134,7 @@ Key features:
 This class enhances player immersion by allowing them to interact meaningfully with the
 game world through examination and observation.
 ***************************************************************************************************/
-class LookAt {
+class LookAtCommandHandler {
   constructor({ player }) {
     this.player = player;
     this.server = player.server; // Add this line to access the server
@@ -2030,14 +2146,14 @@ class LookAt {
     const targetLower = target.toLowerCase();
     const playerNameLower = this.player.getName().toLowerCase(); // Change this line
     if (this.isSelfLook(targetLower, playerNameLower)) {
-      this.lookAtSelf();
+      this.lookAtSelfCommandHandler();
       return;
     }
     const lookTargets = [
-      { check: () => this.player.inventory.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtItemInInventory },
-      { check: () => location.items.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtItemInLocation },
-      { check: () => this.findNpc(location, targetLower), notify: this.server.messageManager.notifyLookAtNpc },
-      { check: () => location.playersInLocation.find(p => p.name.toLowerCase() === targetLower), notify: this.server.messageManager.notifyLookAtOtherPlayer }
+      { check: () => this.player.inventory.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtCommandHandlerItemInInventory },
+      { check: () => location.items.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtCommandHandlerItemInLocation },
+      { check: () => this.findNpc(location, targetLower), notify: this.server.messageManager.notifyLookAtCommandHandlerNpc },
+      { check: () => location.playersInLocation.find(p => p.name.toLowerCase() === targetLower), notify: this.server.messageManager.notifyLookAtCommandHandlerOtherPlayer }
     ];
     for (const { check, notify } of lookTargets) {
       const result = check();
@@ -2058,8 +2174,8 @@ class LookAt {
     });
     return npcId ? this.server.gameManager.getNpc(npcId) : null;
   }
-  lookAtSelf() {
-    this.server.messageManager.notifyLookAtSelf(this.player);
+  lookAtSelfCommandHandler() {
+    this.server.messageManager.notifyLookAtSelfCommandHandler(this.player);
   }
 }
 /**************************************************************************************************
@@ -2074,9 +2190,14 @@ management and interaction within the game.
 ***************************************************************************************************/
 class UidGenerator {
   static async generateUid() {
-    const { hash } = await import('bcrypt');
-    const uniqueValue = Date.now() + Math.random();
-    return hash(uniqueValue.toString(), 5);
+    try {
+      const { hash } = await import('bcrypt');
+      const uniqueValue = Date.now() + Math.random();
+      return hash(uniqueValue.toString(), 5);
+    } catch (error) {
+      this.logger.error(`- ERROR: Generating UID - ${error.message}`);
+      return null;
+    }
   }
 }
 /**************************************************************************************************
@@ -2213,7 +2334,7 @@ class MobileNpc extends Npc {
     const location = this.server.gameManager.getLocation(this.currentLocation);
     if (!location) {
       this.logger.debug(`- Invalid Location For:`);
-      this.logger.debug(`- Mobile: ${this.name} (ID: ${this.id}) - Current Location: ${this.currentLocation}`);
+      this.logger.debug(`- Mobile: ${this.name} - ID: ${this.id} - Current Location: ${this.currentLocation}`);
       return;
     }
     const validDirections = this.getValidDirections(location);
@@ -2222,7 +2343,7 @@ class MobileNpc extends Npc {
       this.moveToNewLocation(location, randomDirection);
     } else {
       this.logger.debug(`- - No Valid Directions For:`);
-      this.logger.debug(`- - Mobile: ${this.name} - (ID: ${this.id}) - At Location: ${this.currentLocation}`);
+      this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - At Location: ${this.currentLocation}`);
     }
   }
   getValidDirections(location) {
@@ -2230,11 +2351,11 @@ class MobileNpc extends Npc {
       const exitLocationId = location.exits[direction];
       const exitLocation = this.server.gameManager.getLocation(exitLocationId);
       const isValidZone = exitLocation && (this.zones.length === 0 || this.zones.includes(exitLocation.zone[0]));
-      this.logger.debug(`- - Checking Direction: ${direction} - Exit Location ID: ${exitLocationId} - Valid Zone: ${isValidZone}`);
+      this.logger.debug(`- - Checking Directions: ${direction} - Exit Location - ID: ${exitLocationId} - Valid Zone: ${isValidZone}`);
       return isValidZone;
     });
     this.logger.debug(`- - Valid Directions For:`);
-    this.logger.debug(`- - Mobile: ${this.name} - (ID: ${this.id}): ${validDirections.join(', ')}`);
+    this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - ${validDirections.join(', ')}`);
     return validDirections;
   }
   getRandomDirection(validDirections) {
@@ -2296,26 +2417,23 @@ class NpcMovementManager {
   }
   moveAllNpcs() {
     let movedNpcs = 0;
-    let totalNpcs = 0;
-    let mobileNpcs = 0;
-    this.gameManager.npcs.forEach((npc, id) => {
-      totalNpcs++;
+    let totalMobileNpcs = this.gameManager.mobileNpcs.size;
+    this.gameManager.mobileNpcs.forEach((npc, id) => {
       this.logger.debug(`- Checking Mobile:`);
-      this.logger.debug(`- - ${npc.name} - (ID: ${id}) - Type: ${npc.type}`);
-      if (npc instanceof MobileNpc && npc.canMove()) {
-        mobileNpcs++;
+      this.logger.debug(`- - ${npc.name} - ID: ${id}`);
+      if (npc.canMove()) {
         try {
           npc.moveRandomly();
           movedNpcs++;
-          this.logger.debug(`- - Mobile: ${npc.name} - (ID: ${id}) - Moved Successfully`);
+          this.logger.debug(`- - Mobile: ${npc.name} - ID: ${id} - Moved Successfully`);
         } catch (error) {
-          this.logger.error(`- - ERROR: Moving Mobile: ${npc.name} - (ID: ${id}): ${error.message}`, { error });
+          this.logger.error(`- - ERROR: Moving Mobile: ${npc.name} - ID: ${id}: ${error.message}`, { error });
         }
       } else {
-        this.logger.debug(`- - Mobile: ${npc.name} - (ID: ${id}) - Cannot Move`);
+        this.logger.debug(`- - Mobile: ${npc.name} - ID: ${id} - Cannot Move`);
       }
     });
-    this.logger.debug(`- Moved: ${movedNpcs} of ${mobileNpcs} Total Mobiles`);
+    this.logger.debug(`- Moved: ${movedNpcs} of ${totalMobileNpcs} Total Mobiles`);
     const now = new Date();
     const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
     this.logger.debug(`- Mobiles Moved - [${timestamp}]`);
@@ -2383,8 +2501,13 @@ class InventoryManager {
       this.player.server.logger.error(`Item with ID ${itemId} not found`);
       return null;
     }
-    const uniqueId = await UidGenerator.generateUid();
-    return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
+    try {
+      const uniqueId = await UidGenerator.generateUid();
+      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
+    } catch (error) {
+      this.player.server.logger.error(`- ERROR: Creating Item From Data: ${error.message}`);
+      return null;
+    }
   }
   addToInventory(item) {
     try {
@@ -3365,4 +3488,3 @@ Start Server Code
 ***************************************************************************************************/
 const serverInitializer = new ServerInitializer({ config: CONFIG });
 serverInitializer.initialize();
-
