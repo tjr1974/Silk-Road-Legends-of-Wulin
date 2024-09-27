@@ -129,7 +129,7 @@ class Logger extends ILogger {
       'FLOW': 1,
       'INFO': 1,
       'WARN': 2,
-      '- ERROR': 4
+      'ERROR': 4
     };
     Logger.instance = this;
   }
@@ -146,8 +146,8 @@ class Logger extends ILogger {
         case 'WARN':
           coloredMessage = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
           break;
-        case '- ERROR':
-          coloredMessage = `${this.CONFIG.RED}${message}${this.CONFIG.RESET}`;
+        case 'ERROR':
+          coloredMessage = `${this.CONFIG.RED}ERROR: ${message}${this.CONFIG.RESET}`;
           break;
       }
       this.writeToConsole(coloredMessage);
@@ -169,7 +169,7 @@ class Logger extends ILogger {
     this.log('WARN', message);
   }
   error(message) {
-    this.log('- ERROR', message);
+    this.log('ERROR', message);
   }
 }
 /**************************************************************************************************
@@ -209,7 +209,7 @@ class ConfigManager {
       const requiredConfigs = { HOST, PORT, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
       for (const [key, value] of Object.entries(requiredConfigs)) {
         if (value === undefined || value === null) {
-          this.logger.error(`- ERROR: Missing Required Configuration: ${key}`);
+          this.logger.error(`Missing Required Configuration: ${key}`);
           return false;
         }
       }
@@ -221,7 +221,7 @@ class ConfigManager {
       ConfigManager.config = { HOST, PORT, SSL_CERT_PATH, SSL_KEY_PATH, LOG_LEVEL, LOCATIONS_DATA_PATH, NPCS_DATA_PATH, ITEMS_DATA_PATH, TICK_RATE, NPC_MOVEMENT_INTERVAL, WORLD_EVENT_INTERVAL };
       return true;
     } catch (error) {
-      this.logger.error(`- ERROR: Failed To Load Configuration: ${error.message}`);
+      this.logger.error(`Failed To Load Configuration: ${error.message}`);
       return false;
     }
   }
@@ -296,11 +296,11 @@ class Server {
       if (this.gameManager) {
         this.gameManager.startGame();
       } else {
-        this.logger.error('ERROR: Game Manager Not Initialized. Check Game Manager Initialization In Server.init()');
+        this.logger.error(`Game Manager Not Initialized. Check Game Manager Initialization In Server.init()`);
       }
       this.logger.info("- CONFIGURE SERVER COMPONENTS FINISHED");
     } catch (error) {
-      this.logger.error(`ERROR: Initializing Server: ${error.message}`);
+      this.logger.error(`Initializing Server: ${error.message}`);
     }
   }
   handlePlayerConnected(player) {
@@ -315,7 +315,7 @@ class Server {
       this.logger.info(`- - Configure Server As - ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
       return this.server;
     } catch (error) {
-      this.logger.error(`ERROR: During Http Server Configuration: ${error.message}`, { error });
+      this.logger.error(`During Http Server Configuration: ${error.message}`, { error });
     }
   }
   async loadSslOptions() {
@@ -327,7 +327,7 @@ class Server {
         sslOptions.cert = await fs.readFile(SSL_CERT_PATH);
         sslOptions.key = await fs.readFile(SSL_KEY_PATH);
       } else if (SSL_CERT_PATH || SSL_KEY_PATH) {
-        this.logger.error('ERROR: Both SSL_CERT_PATH & SSL_KEY_PATH Must Be Provided For SSL Configuration');
+        this.logger.error(`Both SSL_CERT_PATH & SSL_KEY_PATH Must Be Provided For SSL Configuration`);
       }
     } catch (error) {
       this.logger.warn(`- - WARNING: Failed To Load SSL Options: ${error.message}`, { error });
@@ -349,7 +349,7 @@ class Server {
       this.gameManager.startGameLoop();
       this.isRunning = true;
     } catch (error) {
-      this.logger.error(`ERROR: Starting Game Manager: ${error.message}`);
+      this.logger.error(`Starting Game Manager: ${error.message}`);
     }
   }
   logServerRunningMessage() {
@@ -417,7 +417,7 @@ class ServerInitializer {
       this.logger.info("INITIALIZE SERVER FINISHED");
       this.server.logServerRunningMessage();
     } catch (error) {
-      this.logger.error(`ERROR: Initializing Server: ${error.message}`);
+      this.logger.error(`Initializing Server: ${error.message}`);
     }
   }
 }
@@ -455,24 +455,24 @@ class ServerConfigurator extends IBaseManager {
     try {
       await this.setupExpress();
     } catch (error) {
-      logger.error(`ERROR: During Express Configuration: ${error.message}`, { error });
+      logger.error(`During Express Configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
     try {
       await server.setupHttpServer();
     } catch (error) {
-      logger.error(`ERROR: During Http Server Configuration: ${error.message}`, { error });
+      logger.error(`During Http Server Configuration: ${error.message}`, { error });
     }
     try {
       this.configureMiddleware();
     } catch (error) {
-      logger.error(`ERROR: During Middleware Configuration: ${error.message}`, { error });
+      logger.error(`During Middleware Configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
     try {
       server.queueManager = new QueueManager();
     } catch (error) {
-      logger.error(`ERROR: During Queue Manager Configuration: ${error.message}`, { error });
+      logger.error(`During Queue Manager Configuration: ${error.message}`, { error });
     }
   }
   async setupExpress() {
@@ -650,7 +650,7 @@ class TaskManager {
       this.status = 'completed';
     } catch (error) {
       this.status = 'failed';
-      this.logger.error(`ERROR: Task Execution Failed: ${error.message}`);
+      this.logger.error(`Task Execution Failed: ${error.message}`);
     }
   }
   cancel() {
@@ -726,7 +726,7 @@ class MessageQueueSystem {
     try {
       await this.server.messageManager.sendMessage(message.recipient, message.content, message.type);
     } catch (error) {
-      this.server.logger.error(`ERROR: Processing Message: ${error.message}`);
+      this.server.logger.error(`Processing Message: ${error.message}`);
     }
   }
 }
@@ -764,14 +764,14 @@ class DatabaseManager extends IDatabaseManager {
   async initialize() {
     for (const [key, path] of Object.entries(this.DATA_PATHS)) {
       if (!path) {
-        this.logger.error(`ERROR: ${key}_DATA_PATH Is Not Defined In The Configuration`);
+        this.logger.error(`${key}_DATA_PATH is not defined in the configuration`);
       }
     }
   }
   async loadLocationData() {
     const locationDataPath = this.DATA_PATHS.LOCATIONS;
     if (!locationDataPath) {
-      this.logger.error('ERROR: LOCATIONS_DATA_PATH Is Not Defined In The Configuration');
+      this.logger.error(`LOCATIONS_DATA_PATH is not defined in the configuration`);
       return;
     }
     try {
@@ -781,7 +781,7 @@ class DatabaseManager extends IDatabaseManager {
       const allLocationData = await this.loadData(locationDataPath, 'locations');
       return this.validateAndParseLocationData(allLocationData);
     } catch (error) {
-      this.logger.error(`ERROR: Failed To Load Locations Data: ${error.message}`);
+      this.logger.error(`Failed to load locations data: ${error.message}`);
     }
   }
   async loadData(folderPath, dataType = 'default') {
@@ -808,7 +808,7 @@ class DatabaseManager extends IDatabaseManager {
         return fileContents.reduce((acc, content) => ({ ...acc, ...content }), {});
       }
     } catch (error) {
-      this.logger.error(`ERROR: Loading Data From: ${folderPath} - ${error.message}`);
+      this.logger.error(`Loading data from: ${folderPath} - ${error.message}`);
     }
   }
   customJsonParse(jsonString, duplicateIds, allData, fileName, dataType) {
@@ -818,13 +818,13 @@ class DatabaseManager extends IDatabaseManager {
       const [, id, data] = match;
       if (id in allData) {
         duplicateIds.add(id);
-        this.logger.error(`ERROR: Duplicate ${this.getEntityType(dataType)} Detected - ID: ${id}`);
-        this.logger.error(`- Detected In File: ${fileName}`);
+        this.logger.error(`Duplicate ${this.getEntityType(dataType)} detected - ID: ${id}`);
+        this.logger.error(`- Detected in file: ${fileName}`);
       } else {
         try {
           allData[id] = JSON.parse(data);
         } catch (error) {
-          this.logger.error(`ERROR: Parsing ${this.getEntityType(dataType)} Data - ID: ${id} in file ${fileName}: ${error.message}`);
+          this.logger.error(`Parsing ${this.getEntityType(dataType)} data - ID: ${id} in file ${fileName}: ${error.message}`);
         }
       }
     }
@@ -839,7 +839,7 @@ class DatabaseManager extends IDatabaseManager {
   validateAndParseLocationData(data) {
     this.logger.info('- - - Validate Locations Data');
     if (typeof data !== 'object' || Array.isArray(data)) {
-      this.logger.error('ERROR: Locations Data Must Be An Object');
+      this.logger.error(`Locations data must be an object`);
       return new Map();
     }
     const locationData = new Map();
@@ -849,7 +849,7 @@ class DatabaseManager extends IDatabaseManager {
       //this.logger.debug(`- Locations Data:`);
       //this.logger.debug(`${JSON.stringify(location, null, 2)}`);
       if (!this.isValidLocation(location)) {
-        this.logger.error(`ERROR: Invalid Locations Object${JSON.stringify(location)}`);
+        this.logger.error(`Invalid locations object${JSON.stringify(location)}`);
         continue;
       }
       locationData.set(id, location);
@@ -861,10 +861,10 @@ class DatabaseManager extends IDatabaseManager {
     // Check for missing referenced locations
     referencedLocations.forEach(refId => {
       if (!locationData.has(refId)) {
-        this.logger.error(`ERROR: Validating Locations Data - Referenced Location Is Missing - ID: ${refId} `);
+        this.logger.error(`Validating locations data - referenced location is missing - ID: ${refId} `);
       }
     });
-    this.logger.debug(`- Total Locations Validated: ${locationData.size}`);
+    this.logger.debug(`- Total locations validated: ${locationData.size}`);
     return locationData;
   }
   isValidLocation(location) {
@@ -874,7 +874,7 @@ class DatabaseManager extends IDatabaseManager {
   async loadNpcData() {
     const npcDataPath = this.DATA_PATHS.NPCS;
     if (!npcDataPath) {
-      this.logger.error('ERROR: NPCS_DATA_PATH Is Not Defined In The Configuration');
+      this.logger.error(`NPCS_DATA_PATH is not defined in the configuration`);
       return;
     }
     try {
@@ -883,25 +883,25 @@ class DatabaseManager extends IDatabaseManager {
       const allNpcData = await this.loadData(npcDataPath, 'npcs');
       return this.validateAndParseNpcData(allNpcData);
     } catch (error) {
-      this.logger.error(`ERROR: Failed To Load Npcs Data: ${error.message}`);
+      this.logger.error(`Failed to load npcs data: ${error.message}`);
     }
   }
   validateAndParseNpcData(data) {
     this.logger.info('- - - Validate Npcs Data');
     if (typeof data !== 'object' || Array.isArray(data)) {
-      this.logger.error('ERROR: Npcs Data Must Be An Object');
+      this.logger.error(`Npcs data must be an object`);
       return new Map();
     }
     const npcData = new Map();
     for (const [id, npc] of Object.entries(data)) {
       this.logger.debug(`- - Validate Npc - ID: ${id}`);
       if (!this.isValidNpc(npc)) {
-        this.logger.error(`ERROR: Invalid Npc Object: ${JSON.stringify(npc)}`);
+        this.logger.error(`Invalid npc object: ${JSON.stringify(npc)}`);
         continue;
       }
       npcData.set(id, npc);
     }
-    this.logger.debug(`- Total Npcs Validated: ${npcData.size}`);
+    this.logger.debug(`- Total npcs validated: ${npcData.size}`);
     return npcData;
   }
   isValidNpc(npc) {
@@ -915,7 +915,7 @@ class DatabaseManager extends IDatabaseManager {
   async loadItemData() {
     const itemDataPath = this.DATA_PATHS.ITEMS;
     if (!itemDataPath) {
-      this.logger.error('ERROR: ITEMS_DATA_PATH Is Not Defined In The Configuration');
+      this.logger.error(`ITEMS_DATA_PATH is not defined in the configuration`);
       return;
     }
     try {
@@ -924,25 +924,25 @@ class DatabaseManager extends IDatabaseManager {
       const allItemData = await this.loadData(itemDataPath, 'items');
       return this.validateAndParseItemData(allItemData);
     } catch (error) {
-      this.logger.error(`ERROR: Failed To Load Items Data: ${error.message}`);
+      this.logger.error(`Failed to load items data: ${error.message}`);
     }
   }
   validateAndParseItemData(data) {
     this.logger.debug('- Validate Items Data:');
     if (typeof data !== 'object' || Array.isArray(data)) {
-      this.logger.error('ERROR: Items Data Must Be An Object');
+      this.logger.error(`Items data must be an object`);
       return new Map();
     }
     const itemData = new Map();
     for (const [id, item] of Object.entries(data)) {
       this.logger.debug(`- - Validate Item - ID: ${id}`);
       if (!this.isValidItem(item)) {
-        this.logger.error(`ERROR: Invalid Item Object: ${JSON.stringify(item)}`);
+        this.logger.error(`Invalid item object: ${JSON.stringify(item)}`);
         continue;
       }
       itemData.set(id, item);
     }
-    this.logger.debug(`- Total Items Validated: ${itemData.size}`);
+    this.logger.debug(`- Total items validated: ${itemData.size}`);
     return itemData;
   }
   isValidItem(item) {
@@ -989,14 +989,14 @@ class GameDataLoader {
         await locationCoordinateManager.assignCoordinates(locationData);
         this.server.gameManager.locations = locationData;
       } else {
-        logger.error(`Invalid Location Data Format: ${JSON.stringify(locationData)}`);
+        logger.error(`Invalid location data format: ${JSON.stringify(locationData)}`);
       }
       // Load Npc data
       const npcData = await this.loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC);
       if (npcData instanceof Map) {
         this.server.gameManager.npcs = await this.createNpcs(npcData);
       } else {
-        logger.error(`Invalid Npc Data Format: ${JSON.stringify(npcData)}`);
+        logger.error(`Invalid npc data format: ${JSON.stringify(npcData)}`);
       }
       // Load item data
       const itemData = await this.loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM);
@@ -1007,7 +1007,7 @@ class GameDataLoader {
       }
       return [locationData, npcData, itemData];
     } catch (error) {
-      logger.error(`ERROR: Error fetching game data: ${error.message}`);
+      logger.error(`Error fetching game data: ${error.message}`);
       logger.error(error.stack);
     }
   }
@@ -1017,7 +1017,7 @@ class GameDataLoader {
       const data = await loadFunction();
       return data;
     } catch (error) {
-      logger.error(`ERROR: Error loading ${type} data: ${error.message}`);
+      logger.error(`Error loading ${type} data: ${error.message}`);
       logger.error(error.stack);
     }
   }
@@ -1027,7 +1027,7 @@ class GameDataLoader {
     this.server.logger.info(`- - - Create Npcs From Data`);
     for (const [id, npcInfo] of npcData) {
       if (this.server.gameManager.npcIds.has(id)) {
-        this.server.logger.error(`ERROR: Duplicate Npc ID Detected: ${id}`);
+        this.server.logger.error(`Duplicate npc ID detected: ${id}`);
         continue;
       }
       this.server.gameManager.npcIds.add(id);
@@ -1040,7 +1040,7 @@ class GameDataLoader {
       }
     }
     return Promise.all(npcPromises).then(() => {
-      this.server.logger.debug(`- Total Npcs Created: ${npcs.size}`);
+      this.server.logger.debug(`- Total npcs created: ${npcs.size}`);
       return npcs;
     });
   }
@@ -1091,7 +1091,7 @@ class UidGenerator {
       const uniqueValue = Date.now() + Math.random();
       return hash(uniqueValue.toString(), 5);
     } catch (error) {
-      this.logger.error(`ERROR: Generating UID - ${error.message}`);
+      this.logger.error(`Generating UID - ${error.message}`);
       return null;
     }
   }
@@ -1158,7 +1158,7 @@ class GameManager {
   }
   startGame() {
     if (this.isGameRunning()) {
-      this.logger.debug('Game Is Already Running');
+      this.logger.debug('Game is already running');
       return;
     }
     try {
@@ -1167,7 +1167,7 @@ class GameManager {
       this.npcMovementManager.startMovement();
       this.isRunning = true;
     } catch (error) {
-      this.logger.error(`ERROR: Starting Game: ${error.message}`);
+      this.logger.error(`Starting game: ${error.message}`);
     }
   }
   isGameRunning() {
@@ -1189,7 +1189,7 @@ class GameManager {
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      this.logger.error(`ERROR: Shutting Down Game: ${error.message}`);
+      this.logger.error(`Shutting down game: ${error.message}`);
     }
   }
   async shutdownServer() {
@@ -1198,7 +1198,7 @@ class GameManager {
       this.logger.info('All socket connections closed.');
       exit(0);
     } catch (error) {
-      this.logger.error(`ERROR: Shutting Down Server: ${error.message}`, { error });
+      this.logger.error(`Shutting down server: ${error.message}`, { error });
     }
   }
   startGameLoop() {
@@ -1207,7 +1207,7 @@ class GameManager {
       try {
         this.SocketEventEmitter.emit('tick');
       } catch (error) {
-        this.logger.error(`ERROR: Game Tick: ${error.message}`);
+        this.logger.error(`Game tick: ${error.message}`);
       }
     }, TICK_RATE);
   }
@@ -1276,7 +1276,7 @@ class GameManager {
       const direction = DirectionManager.getDirectionFrom(oldLocationId);
       MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
     } else {
-      this.logger.debug(`ERROR: Cannot Notify Entering - Location: ${newLocationId} - Not Found.`);
+      this.logger.debug(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`);
     }
   }
   updateNpcs() {
@@ -1312,9 +1312,9 @@ class GameManager {
     if (player) {
       player.status = "disconnected";
       this.players.delete(uid);
-      this.logger.info(`Player ${uid} Disconnected.`);
+      this.logger.info(`Player ${uid} disconnected.`);
     } else {
-      this.logger.debug(`ERROR: Player: ${uid} - Not Found For Disconnection.`);
+      this.logger.debug(`ERROR: Player: ${uid} - not found for disconnection.`);
     }
   }
   createNpc(id, npcData) {
@@ -1380,7 +1380,7 @@ class GameManager {
       this.npcs.set(id, npc);
       return npc;
     } catch (error) {
-      this.logger.error(`ERROR: Creating Npc With ID ${id}: ${error.message}`, { error });
+      this.logger.error(`Creating npc with ID ${id}: ${error.message}`, { error });
       return null;
     }
   }
@@ -1390,7 +1390,7 @@ class GameManager {
   getLocation(locationId) {
     const location = this.locations.get(locationId);
     if (!location) {
-      this.logger.error(`ERROR: Location Not Found - ID : ${locationId}`);
+      this.logger.error(`Location not found - ID : ${locationId}`);
       return null;
     }
     return location;
@@ -1398,7 +1398,7 @@ class GameManager {
   handlePlayerAction(action) {
     const task = new TaskManager({ name: 'PlayerAction', execute: () => {
       // Logic for handling player action
-      this.logger.debug(`- Handling Action: ${action}`);
+      this.logger.debug(`- Handling action: ${action}`);
     }});
     this.server.addTask(task);
   }
@@ -1459,7 +1459,7 @@ class GameComponentInitializer extends IBaseManager {
       this.server.SocketEventEmitter = new SocketEventEmitter(/* pass necessary parameters */);
       this.logger.debug('- Initialize Socket Event Emitter Finished');
     } catch (error) {
-      this.logger.error(`ERROR: Initialize Socket Event Emitter: ${error.message}`);
+      this.logger.error(`Initialize Socket Event Emitter: ${error.message}`);
       throw error;
     }
   }
@@ -1476,7 +1476,7 @@ class GameComponentInitializer extends IBaseManager {
       });
       this.logger.debug('- Initialize Game Manager Finished');
     } catch (error) {
-      this.logger.error(`ERROR: Error Initialize Game Manager: ${error.message}`);
+      this.logger.error(`Error Initialize Game Manager: ${error.message}`);
       throw error;
     }
   }
@@ -1491,15 +1491,15 @@ class GameComponentInitializer extends IBaseManager {
         await this.server.gameManager.setupEventListeners();
         this.logger.debug('- Initialize Game Manager Event Listeners Finished');
       } else {
-        throw new Error('ERROR: Game Manager Not Initialized');
+        throw new error(`Game Manager Not Initialized`);
       }
     } catch (error) {
-      this.logger.error(`ERROR: Initialize Game Manager Event Listeners: ${error.message}`);
+      this.logger.error(`Initialize Game Manager Event Listeners: ${error.message}`);
       throw error;
     }
   }
   handleSetupError(error) {
-    this.logger.error(`ERROR: Setting Up Game Components: ${error.message}`);
+    this.logger.error(`Setting up game components: ${error.message}`);
   }
 }
 /**************************************************************************************************
@@ -1696,7 +1696,7 @@ class Player extends Character {
         this.server.messageManager.sendMessage(this, message, 'movementMessage');
       }
     } catch (error) {
-      this.server.logger.error(`ERROR: Moving to location: ${error.message}`, { error });
+      this.server.logger.error(`Moving to location: ${error.message}`, { error });
       this.server.logger.error(error.stack);
     }
   }
@@ -2093,7 +2093,7 @@ class CombatManager {
       this.logger.debug(`- Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}`);
       this.startCombat({ npcId, player, playerInitiated });
     } catch (error) {
-      this.logger.error(`- ERROR: Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}:`, error);
+      this.logger.error(`Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}:`, error);
     }
   }
   endCombatForPlayer({ player }) {
@@ -2113,7 +2113,7 @@ class CombatManager {
         : this.notifyCombatJoin({ npc, player });
       npc.status = "engaged in combat";
     } catch (error) {
-      this.logger.error(`- ERROR: Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npcId}:`, error);
+      this.logger.error(`Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npcId}:`, error);
     }
   }
   initiateCombat({ player, npc, playerInitiated }) {
@@ -2355,7 +2355,7 @@ class CombatAction {
         this.handleDefeat(defender);
       }
     } catch (error) {
-      this.logger.error(`- ERROR: During Combat Action: ${error.message}`, { error });
+      this.logger.error(`During Combat Action: ${error.message}`, { error });
     }
   }
   calculateDamage(attacker, defender) {
@@ -2452,7 +2452,7 @@ class LocationCoordinateManager {
   }
   checkLocationDataForDuplicateIds(locationData) {
     if (!locationData || typeof locationData !== 'object') {
-      this.logger.error(`- ERROR: Invalid Or Missing Location Data`);
+      this.logger.error(`Invalid Or Missing Location Data`);
       return;
     }
     const topLevelKeys = Object.keys(locationData);
@@ -2460,10 +2460,10 @@ class LocationCoordinateManager {
     if (topLevelKeys.length !== uniqueKeys.size) {
       for (const key of topLevelKeys) {
         if (topLevelKeys.indexOf(key) !== topLevelKeys.lastIndexOf(key)) {
-          this.logger.error(`- ERROR: Duplicate Key Detected: ${key}`);
+          this.logger.error(`Duplicate Key Detected: ${key}`);
         }
       }
-      this.logger.error(`- ERROR: Duplicate Location IDs Detected`);
+      this.logger.error(`Duplicate Location IDs Detected`);
     } else {
       for (const [id, location] of Object.entries(locationData)) {
         this.locations.set(id, location);
@@ -2472,7 +2472,7 @@ class LocationCoordinateManager {
   }
   async assignCoordinates(locationData) {
     if (!(locationData instanceof Map)) {
-      this.logger.error(`- ERROR: Invalid Location Data Format: Expected Map.`);
+      this.logger.error(`Invalid Location Data Format: Expected Map.`);
       return;
     }
     this.logger.info(`- - - Assign Coordinates`);
@@ -2494,7 +2494,7 @@ class LocationCoordinateManager {
     this.logger.debug(`- - Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
     const location = this.locations.get(locationId);
     if (!location) {
-      this.logger.error(`- ERROR: Assigning Coordinates To Location - Referenced Location Is Missing - ID: ${locationId}`);
+      this.logger.error(`Assigning Coordinates To Location - Referenced Location Is Missing - ID: ${locationId}`);
       return;
     }
     location.coordinates = { x, y, z };
@@ -2529,7 +2529,7 @@ class LocationCoordinateManager {
         location.coordinates = coord;
         this.logger.debug(`- - Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
       } else {
-        this.logger.error(`- ERROR: Updating Location Coordinates - Referenced Location Is Missing - ID: ${id}`);
+        this.logger.error(`Updating Location Coordinates - Referenced Location Is Missing - ID: ${id}`);
       }
     }
     this.logger.debug(`- Total Locations Updated: ${coordinates.size}`);
@@ -2591,7 +2591,7 @@ class DescribeLocationManager {
       this.description = this.formatDescription(location);
       this.server.messageManager.sendMessage(this.player, this.description, 'locationDescription');
     } catch (error) {
-      this.logger.error(`- ERROR: Describing Location For - Player: ${this.player.getName()}:`, error);
+      this.logger.error(`Describing Location For - Player: ${this.player.getName()}:`, error);
     }
   }
   formatDescription(location) {
@@ -2840,7 +2840,7 @@ class NpcMovementManager {
           movedNpcs++;
           this.logger.debug(`Mobile: ${npc.name} - ID: ${id} - Moved`);
         } catch (error) {
-          this.logger.error(`ERROR: Moving Mobile: ${npc.name} - ID: ${id}: ${error.message}`, { error });
+          this.logger.error(`Moving Mobile: ${npc.name} - ID: ${id}: ${error.message}`, { error });
         }
       } else {
         this.logger.debug(`Mobile: ${npc.name} - ID: ${id} - Cannot Move`);
@@ -2987,7 +2987,7 @@ class ItemManager {
   checkItemsForDuplicateIds(itemData) {
     this.logger.debug(`Processing Item Data`);
     if (!itemData || typeof itemData !== 'object') {
-      this.logger.error(`ERROR: Invalid Or Missing Item Data`);
+      this.logger.error(`Invalid Or Missing Item Data`);
       return;
     }
     const itemIds = Object.keys(itemData);
@@ -2995,10 +2995,10 @@ class ItemManager {
     if (itemIds.length !== uniqueIds.size) {
       for (const id of itemIds) {
         if (itemIds.indexOf(id) !== itemIds.lastIndexOf(id)) {
-          this.logger.error(`ERROR: Duplicate Item ID Detected: ${id}`);
+          this.logger.error(`Duplicate Item ID Detected: ${id}`);
         }
       }
-      this.logger.error(`ERROR: Duplicate Item IDs Detected`);
+      this.logger.error(`Duplicate Item IDs Detected`);
     } else {
       this.logger.debug(`Total Items Processed: ${itemIds.length}`);
     }
@@ -3013,7 +3013,7 @@ class ItemManager {
         this.items.set(uid, item);
         this.logger.debug(`Assigned UID to Item: ${id} -> ${uid}`);
       } catch (error) {
-        this.logger.error(`ERROR: Assigning UID to Item ${id}: ${error.message}`);
+        this.logger.error(`Assigning UID to Item ${id}: ${error.message}`);
       }
     }
     this.logger.debug(`Total Items with UIDs: ${this.items.size}`);
@@ -3061,7 +3061,7 @@ class InventoryManager {
       const uniqueId = await UidGenerator.generateUid();
       return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
     } catch (error) {
-      this.player.server.logger.error(`ERROR: Creating Item From Data: ${error.message}`);
+      this.player.server.logger.error(`Creating Item From Data: ${error.message}`);
       return null;
     }
   }
@@ -3460,7 +3460,7 @@ class MessageManager {
       }
       return messageData;
     } catch (error) {
-      player.server.logger.error(`ERROR: Notifying player ${player.getName()}:`, error, error.stack);
+      player.server.logger.error(`Notifying player ${player.getName()}:`, error, error.stack);
     }
   }
   // Notify all players in a specific location with a message
