@@ -7,28 +7,37 @@ An **instance class** refers to a class in JavaScript that can be used to create
 
 #### Example
 ```javascript
-class Car {
-    constructor(brand, model) {
-        this.brand = brand;
-        this.model = model;
+class Player {
+    constructor(name, characterClass) {
+        this.name = name;
+        this.characterClass = characterClass;
+        this.level = 1;
+        this.health = 100;
+        this.inventory = [];
     }
 
-    drive() {
-        console.log(`${this.brand} ${this.model} is driving.`);
+    attack(target) {
+        console.log(`${this.name} attacks ${target.name}!`);
+        // Attack logic here
+    }
+
+    addItem(item) {
+        this.inventory.push(item);
+        console.log(`${this.name} picked up ${item}.`);
     }
 }
 
-const car1 = new Car('Toyota', 'Camry');
-const car2 = new Car('Honda', 'Civic');
+const player1 = new Player('Alice', 'Warrior');
+const player2 = new Player('Bob', 'Mage');
 
-car1.drive(); // Output: Toyota Camry is driving.
-car2.drive(); // Output: Honda Civic is driving.
+player1.attack(player2); // Output: Alice attacks Bob!
+player2.addItem('Magic Staff'); // Output: Bob picked up Magic Staff.
 ```
 
 In this example:
-- `Car` is an instance class.
-- `car1` and `car2` are two distinct instances of the `Car` class, each with its own state (`brand` and `model`).
-- The instances can have different data, and they do not affect each other.
+- `Player` is an instance class.
+- `player1` and `player2` are two distinct instances of the `Player` class, each with its own state (name, class, level, health, and inventory).
+- The instances can have different data and perform actions independently.
 
 #### Characteristics of Instance Classes:
 - **Multiple instances**: You can create many different objects from the same class.
@@ -80,7 +89,7 @@ In this example:
 
 ### Key Differences:
 
-| Feature                 | Instance Class                        | Singleton                          |
+| Feature                 | Instance                              | Singleton                          |
 |-------------------------|---------------------------------------|------------------------------------|
 | **Number of Instances**  | Multiple independent instances        | Only one instance is created and shared |
 | **State**               | Each instance has its own state       | Shared state across the application |
@@ -174,7 +183,24 @@ These classes should be singletons because they manage global state, provide cen
 17. NpcMovementManager
 18. LocationCoordinateManager
 19. CombatManager
-20. MessageManager
+
+---
+
+### Other Classes
+
+These classes are designed to be instantiated as needed or to serve as base classes or interfaces for other classes to implement or extend. They are not implemented as singletons or global instances, allowing for multiple instances to be created as required by the game logic.
+
+Interface and abstract base classes, are not meant to be instantiated directly but rather to be implemented or extended by other classes in the system.
+
+These include:
+
+1. ILogger: An interface class for logging operations.
+2. ISocketEventEmitter: An interface class for socket event emission and handling.
+3. IBaseManager: An abstract base class for managing various components of the game server.
+4. IDatabaseManager: An interface class for database operations.
+5. Entity: A base class for all entities within the game.
+6. Character: A base class for all characters, extending from Entity.
+7. MessageManager: A class for managing messages.
 
 ---
 
@@ -182,11 +208,6 @@ These classes should be singletons because they manage global state, provide cen
 
 1. Some classes like `FormatMessageManager` and `DirectionManager` appear to be utility classes with static methods. They don't need to be instantiated or treated as singletons.
 
-2. The `Player` class uses a static method `createNewPlayer`, but instances of `Player` should still be created for each player in the game.
+2. The `Player` class uses a static method `createNewPlayer`, but instances of `Player` should be created for each player in the game.
 
-3. The `MessageManager` is implemented as a singleton, but it also has static methods. This design could be simplified to use only static methods if it doesn't need to maintain any instance-specific state.
-
-4. Some manager classes (e.g., `NpcMovementManager`, `LocationCoordinateManager`) are implemented with a singleton pattern but also accept dependencies in their constructor. This approach allows for easier testing and dependency injection while ensuring only one instance exists during runtime.
-
-Remember that the choice between singleton and instanced classes can sometimes depend on the specific requirements of your game and how you intend to scale it. Always consider thread safety and potential bottlenecks when using singletons in a multi-threaded environment.
-```
+The choice between instance and singleton classes depends on specific requirements of the game and how it's intended to scale. Always consider thread safety and potential bottlenecks when using singletons in a multi-threaded environment.
