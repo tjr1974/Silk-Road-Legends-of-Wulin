@@ -131,6 +131,8 @@ class Logger extends ILogger {
       'WARN': 2,
       'ERROR': 4
     };
+    this.indentationLevel = 0;
+    this.indentationChar = '  '; // Two spaces for each indentation level
     Logger.instance = this;
   }
   log(level, message) {
@@ -777,7 +779,7 @@ class DatabaseManager extends IDatabaseManager {
     try {
       this.logger.info('- LOAD GAME DATA STARTED');
       this.logger.info('- - Load Locations Data');
-      this.logger.debug(`- Load Locations Data From: ${locationDataPath}`);
+      this.logger.debug(`- - Load Locations Data From: ${locationDataPath}`);
       const allLocationData = await this.loadData(locationDataPath, 'locations');
       return this.validateAndParseLocationData(allLocationData);
     } catch (error) {
@@ -2488,7 +2490,6 @@ class LocationCoordinateManager {
   }
   logCoordinateAssignmentStatus(coordinates) {
     this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
-    this.logger.info(`- - - Assign Coordinates Recursively`);
   }
   _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
     this.logger.debug(`- - Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);

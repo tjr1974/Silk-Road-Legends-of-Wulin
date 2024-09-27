@@ -10,7 +10,7 @@ const PORT = 6400;                  // Port number for the server
 const SSL_KEY_PATH = './ssl/server.key'; // Moved SSL key path to config
 const SSL_CERT_PATH = './ssl/server.crt'; // Moved SSL cert path to config
 // Logger Configuration
-const LOG_LEVEL = 'INFO'; // Set the default logger level. Options: 'DEBUG', 'FLOW', 'INFO', 'WARN', 'ERROR'
+const LOG_LEVEL = 'DEBUG'; // Set the default logger level. Options: 'DEBUG', 'FLOW', 'INFO', 'WARN', 'ERROR'
 const LOG_FILE_PATH = './server logs';     // Path for log files
 const LOG_MAX_FILE_SIZE = 1048576;  // Max file size for logger = 1 MB in bytes
 // File Paths for Game Data
