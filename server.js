@@ -5,14 +5,11 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import express from 'express';
 import { Server as SocketIOServer } from 'socket.io';
-// @ todo: implement queue
-import Queue from 'queue';
 import http from 'http';
 import https from 'https';
 import { exit } from 'process';
 import CONFIG from './config.js';
 import bcrypt from 'bcrypt';
-import { EventEmitter } from 'events';
 /**************************************************************************************************
 Logger Interface Class
 The ILogger class defines an abstract interface for logging operations within the game system.
@@ -47,9 +44,9 @@ By providing a common interface, ISocketEventEmitter ensures that event handling
 implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
 class ISocketEventEmitter {
-  on() {}
-  emit() {}
-  off() {}
+  on(event, callback) {}
+  emit(event, ...args) {}
+  off(event, callback) {}
 }
 /**************************************************************************************************
 Base Manager Interface Class
@@ -547,19 +544,29 @@ Key features:
 The SocketEventEmitter class enables flexible and scalable communication between game components,
 promoting loose coupling and enhancing the overall modularity of the system.
 ***************************************************************************************************/
-class SocketEventEmitter extends EventEmitter {
+class SocketEventEmitter extends ISocketEventEmitter {
   constructor() {
     super();
     this.listeners = new Map();
   }
   on(event, callback) {
-    super.on(event, callback);
     if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
+      this.listeners.set(event, new Set());
     }
-    this.listeners.get(event).push(callback);
+    this.listeners.get(event).add(callback);
   }
-  // ... other methods ...
+  emit(event, ...args) {
+    if (this.listeners.has(event)) {
+      for (const callback of this.listeners.get(event)) {
+        callback(...args);
+      }
+    }
+  }
+  off(event, callback) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).delete(callback);
+    }
+  }
 }
 /**************************************************************************************************
 Queue Manager Class
@@ -581,20 +588,44 @@ class QueueManager {
     }
     return QueueManager.instance;
   }
-  constructor() {
-    this.queue = [];
+  constructor(capacity = 1000) {
+    this.buffer = new Array(capacity);
+    this.capacity = capacity;
+    this.size = 0;
+    this.head = 0;
+    this.tail = 0;
     this.runningTasks = new Set();
     this.maxConcurrentTasks = 5;
   }
   enqueue(task) {
-    this.queue.push(task);
+    if (this.size === this.capacity) {
+      this.resize();
+    }
+    this.buffer[this.tail] = task;
+    this.tail = (this.tail + 1) % this.capacity;
+    this.size++;
     this.processQueue();
   }
   dequeue() {
-    return this.queue.shift();
+    if (this.size === 0) return null;
+    const item = this.buffer[this.head];
+    this.head = (this.head + 1) % this.capacity;
+    this.size--;
+    return item;
+  }
+  resize() {
+    const newCapacity = this.capacity * 2;
+    const newBuffer = new Array(newCapacity);
+    for (let i = 0; i < this.size; i++) {
+      newBuffer[i] = this.buffer[(this.head + i) % this.capacity];
+    }
+    this.buffer = newBuffer;
+    this.capacity = newCapacity;
+    this.head = 0;
+    this.tail = this.size;
   }
   async processQueue() {
-    while (this.queue.length > 0 && this.runningTasks.size < this.maxConcurrentTasks) {
+    while (this.size > 0 && this.runningTasks.size < this.maxConcurrentTasks) {
       const task = this.dequeue();
       this.runningTasks.add(task);
       try {
@@ -608,7 +639,10 @@ class QueueManager {
     }
   }
   cleanup() {
-    this.queue = [];
+    this.buffer = new Array(this.capacity);
+    this.size = 0;
+    this.head = 0;
+    this.tail = 0;
     this.runningTasks.clear();
   }
 }
@@ -1139,6 +1173,7 @@ class GameManager {
       configManager: server.configManager
     });
     this.npcIds = new Set();
+    this.combatManager = new CombatManager({ server: this });
     this.setupEventListeners();
     GameManager.instance = this;
   }
@@ -1402,6 +1437,14 @@ class GameManager {
     this.mobileNpcs.clear();
     this.questNpcs.clear();
   }
+
+  initiateCombat(player, npcId) {
+    this.combatManager.initiateCombatWithNpc({ npcId, player, playerInitiated: true });
+  }
+
+  endCombat(player) {
+    this.combatManager.endCombatForPlayer({ player });
+  }
 }
 /**************************************************************************************************
 Game Component Initializer Class
@@ -1451,7 +1494,7 @@ class GameComponentInitializer extends IBaseManager {
   async initializeSocketEventEmitter() {
     try {
       this.logger.debug('- Initialize Socket Event Emitter');
-      this.server.SocketEventEmitter = new SocketEventEmitter(/* pass necessary parameters */);
+      this.server.SocketEventEmitter = new SocketEventEmitter();
       this.logger.debug('- Initialize Socket Event Emitter Finished');
     } catch (error) {
       this.logger.error(`Initialize Socket Event Emitter: ${error.message}`);
@@ -1583,17 +1626,19 @@ This class serves as the primary representation of players within the game, ensu
 player actions and state are managed effectively.
 ***************************************************************************************************/
 class Player extends Character {
-  constructor({ uid, name, bcrypt, gameCommandManager, server }) {
+  constructor({ uid, name, bcrypt, server }) {
     super({ name, health: 100 });
     this.uid = uid;
     this.bcrypt = bcrypt;
     this.inventory = new Set();
     this.healthRegenerator = new HealthRegenerator({ player: this });
-    this.gameCommandManager = gameCommandManager;
     this.server = server;
     this.configManager = server.configManager;
     this.initializePlayerAttributes();
     this.inventoryManager = new InventoryManager(this);
+    this.gameCommandManager = GameCommandManager.getInstance({ server });
+    this.inCombat = false;
+    this.describeLocationManager = new DescribeLocationManager({ player: this, server });
   }
   initializePlayerAttributes() {
     const INITIAL_HEALTH = this.configManager.get('INITIAL_HEALTH');
@@ -1652,9 +1697,6 @@ class Player extends Character {
     this.incrementFailedLoginAttempts();
     return false;
   }
-  attackNpc(target) {
-    this.actions.attackNpc(target);
-  }
   incrementFailedLoginAttempts() {
     this.failedLoginAttempts++;
     this.consecutiveFailedAttempts++;
@@ -1662,41 +1704,6 @@ class Player extends Character {
       this.server.messageManager.notifyDisconnectionDueToFailedAttempts(this);
       this.server.gameManager.disconnectPlayer(this.uid);
     }
-  }
-  showInventory() {
-    const inventoryList = this.getInventoryList();
-    this.server.messageManager.sendMessage(this, inventoryList, 'inventoryList');
-  }
-  lootSpecifiedNpc(target) {
-    const location = this.server.gameManager.getLocation(this.currentLocation);
-    if (!location) return;
-    const targetLower = target.toLowerCase();
-    const targetEntity = location.entities.find(entity => entity.name.toLowerCase() === targetLower);
-    if (targetEntity) {
-      this.server.messageManager.sendMessage(this, `${this.getName()} loots ${targetEntity.name}.`, 'lootMessage');
-      return;
-    }
-    this.server.messageManager.sendMessage(this, `${this.getName()} doesn't see ${target} here.`, 'errorMessage');
-  }
-  moveToLocation(newLocationId) {
-    try {
-      const { gameManager } = this.server;
-      const newLocation = gameManager.getLocation(newLocationId);
-      if (newLocation) {
-        const oldLocation = gameManager.getLocation(this.currentLocation);
-        if (oldLocation) oldLocation.removePlayer(this);
-        this.currentLocation = newLocationId;
-        newLocation.addPlayer(this);
-        const message = `${this.getName()} moved to ${newLocation.getName()}.`;
-        this.server.messageManager.sendMessage(this, message, 'movementMessage');
-      }
-    } catch (error) {
-      this.server.logger.error(`Moving to location: ${error.message}`, { error });
-      this.server.logger.error(error.stack);
-    }
-  }
-  notifyPlayer(message, type = '') {
-    this.server.messageManager.sendMessage(this, message, type);
   }
   resetFailedLoginAttempts() {
     this.failedLoginAttempts = 0;
@@ -1755,91 +1762,6 @@ class Player extends Character {
       return true;
     });
   }
-  meditate() {
-    if (this.status !== "sitting") {
-      this.startHealthRegeneration();
-      this.server.messageManager.sendMessage(this, `${this.getName()} starts meditating.`, 'meditationMessage');
-      return;
-    }
-    this.status = "meditating";
-    this.server.messageManager.sendMessage(this, `${this.getName()} continues meditating.`, 'meditationMessage');
-  }
-  sleep() {
-    this.startHealthRegeneration();
-    this.status = "sleeping";
-    this.server.messageManager.sendMessage(this, `${this.getName()} lies down and falls asleep.`, 'sleepMessage');
-  }
-  sit() {
-    if (this.status === "sitting") {
-      this.server.messageManager.sendMessage(this, `${this.getName()} is already sitting.`, 'sittingMessage');
-      return;
-    }
-    if (this.status === "standing") {
-      this.startHealthRegeneration();
-      this.status = "sitting";
-      this.server.messageManager.sendMessage(this, `${this.getName()} sits down.`, 'sittingMessage');
-      return;
-    }
-    this.server.messageManager.sendMessage(this, `${this.getName()} stops meditating and stands up.`, 'standingMessage');
-  }
-  stand() {
-    if (this.status === "lying unconscious") {
-      this.status = "standing";
-      this.server.messageManager.sendMessage(this, `${this.getName()} stands up.`, 'standingMessage');
-    } else {
-      this.server.messageManager.sendMessage(this, `${this.getName()} is already standing.`, 'standingMessage');
-    }
-  }
-  wake() {
-    if (this.status === "lying unconscious") {
-      this.status = "standing";
-      this.server.messageManager.sendMessage(this, `${this.getName()} stands up.`, 'standingMessage');
-      return;
-    }
-    if (this.status === "sleeping") {
-      this.status = "standing";
-      this.server.messageManager.sendMessage(this, `${this.getName()} wakes up.`, 'wakeMessage');
-      return;
-    }
-    this.server.messageManager.sendMessage(this, `${this.getName()} is already awake.`, 'wakeMessage');
-  }
-  autoLootToggle() {
-    this.autoLoot = !this.autoLoot;
-    this.server.messageManager.sendMessage(this, `${this.getName()} auto-loot is now ${this.autoLoot ? 'enabled' : 'disabled'}.`, 'autoLootMessage');
-  }
-  lookIn(containerName) {
-    const { gameManager, items } = this.server;
-    const location = gameManager.getLocation(this.currentLocation);
-    if (!location) return;
-    const containerId = this.getContainerId(containerName) || this.findEntity(containerName, location.items, 'item');
-    if (!containerId) {
-      this.server.messageManager.sendMessage(this, `${this.getName()} doesn't see ${containerName} here.`, 'errorMessage');
-      return;
-    }
-    const container = items[containerId];
-    if (container instanceof ContainerItem) {
-      const itemsInContainer = container.inventory.map(itemId => items[itemId].name);
-      this.server.messageManager.sendMessage(this, `Inside ${container.name}: ${itemsInContainer.join(', ')}.`, 'lookInContainerMessage');
-    } else {
-      this.server.messageManager.sendMessage(this, `${container.name} is not a container.`, 'errorMessage');
-    }
-  }
-  hasChangedState() {
-    const hasChanged = this.health !== this.previousState.health || this.status !== this.previousState.status;
-    if (hasChanged) {
-      this.previousState = { health: this.health, status: this.status };
-    }
-    return hasChanged;
-  }
-  getInventoryList() {
-    return Array.from(this.inventory).map(item => item.name).join(", ");
-  }
-  describeCurrentLocation() {
-    new DescribeLocationManager(this).describe();
-  }
-  LookAtCommandHandler(target) {
-    new LookAtCommandHandler({ player: this }).look(target);
-  }
   addWeapon(weapon) {
     if (weapon instanceof WeaponItem) {
       this.weapons.add(weapon);
@@ -1852,8 +1774,69 @@ class Player extends Character {
   static async createNewPlayer({ name, age }) {
     return new CreateNewPlayer({ name, age });
   }
-  performAction(actionType, payload) {
-    this.gameCommandManager.handleCommand(this.socket, actionType, payload);
+  moveToLocation(direction) {
+    this.gameCommandManager.executeCommand(this, 'move', [direction]);
+  }
+  attack(target) {
+    if (!this.inCombat) {
+      this.server.gameManager.initiateCombat(this, target);
+    } else {
+      this.server.combatManager.performCombatAction(this, target);
+    }
+  }
+  receiveDamage(damage) {
+    this.health -= damage;
+    if (this.health <= 0) {
+      this.die();
+    }
+  }
+  die() {
+    this.status = "lying unconscious";
+    this.server.gameManager.endCombat(this);
+    // Additional logic for player death (e.g., respawn, item drop)
+  }
+  showInventory() {
+    this.gameCommandManager.executeCommand(this, 'showInventory');
+  }
+  lootSpecifiedNpc(target) {
+    this.gameCommandManager.executeCommand(this, 'lootSpecifiedNpc', [target]);
+  }
+  meditate() {
+    this.gameCommandManager.executeCommand(this, 'meditate');
+  }
+  sleep() {
+    this.gameCommandManager.executeCommand(this, 'sleep');
+  }
+  sit() {
+    this.gameCommandManager.executeCommand(this, 'sit');
+  }
+  stand() {
+    this.gameCommandManager.executeCommand(this, 'stand');
+  }
+  wake() {
+    this.gameCommandManager.executeCommand(this, 'wake');
+  }
+  autoLootToggle() {
+    this.gameCommandManager.executeCommand(this, 'autoLootToggle');
+  }
+  lookIn(containerName) {
+    this.gameCommandManager.executeCommand(this, 'lookIn', [containerName]);
+  }
+  describeCurrentLocation() {
+    this.describeLocationManager.describe();
+  }
+  LookAtCommandHandler(target) {
+    this.gameCommandManager.executeCommand(this, 'lookAt', [target]);
+  }
+  hasChangedState() {
+    const hasChanged = this.health !== this.previousState.health || this.status !== this.previousState.status;
+    if (hasChanged) {
+      this.previousState = { health: this.health, status: this.status };
+    }
+    return hasChanged;
+  }
+  getInventoryList() {
+    return Array.from(this.inventory).map(item => item.name).join(", ");
   }
 }
 /**************************************************************************************************
@@ -1928,37 +1911,71 @@ as a bridge between the user interface and the game's internal logic.
 ***************************************************************************************************/
 class GameCommandManager {
   static instance;
-  static getInstance() {
+  static getInstance({ server }) {
     if (!GameCommandManager.instance) {
-      GameCommandManager.instance = new GameCommandManager();
+      GameCommandManager.instance = new GameCommandManager({ server });
     }
     return GameCommandManager.instance;
   }
   constructor({ server }) {
-    this.server = server; // Injecting the server instance
+    this.server = server;
+    this.logger = server.logger;
+    this.commandHandlers = {
+      move: this.handleMove.bind(this),
+      attack: this.handleAttack.bind(this),
+      showInventory: this.handleShowInventory.bind(this),
+      lootSpecifiedNpc: this.handleLootSpecifiedNpc.bind(this),
+      meditate: this.handleMeditate.bind(this),
+      sleep: this.handleSleep.bind(this),
+      sit: this.handleSit.bind(this),
+      stand: this.handleStand.bind(this),
+      wake: this.handleWake.bind(this),
+      autoLootToggle: this.handleAutoLootToggle.bind(this),
+      lookIn: this.handleLookIn.bind(this),
+      describeLocation: this.handleDescribeLocation.bind(this),
+      lookAt: this.handleLookAt.bind(this),
+    };
   }
-  handleCommand(socket, actionType, payload) {
-    const handler = this.commandHandlers[actionType] || this.commandHandlers.simpleAction;
-    handler.execute(socket, payload);
+  executeCommand(player, command, args = []) {
+    const handler = this.commandHandlers[command];
+    if (handler) {
+      try {
+        handler(player, ...args);
+      } catch (error) {
+        this.logger.error(`Error executing command ${command}: ${error.message}`);
+        this.server.messageManager.sendMessage(player, `Error executing command: ${command}`, 'error');
+      }
+    } else {
+      this.logger.warn(`Unknown command: ${command}`);
+      this.server.messageManager.sendMessage(player, `Unknown command: ${command}`, 'error');
+    }
   }
-}
-/**************************************************************************************************
-Move Command Handler Class
-The MoveCommandHandler class is responsible for handling player movement commands. It processes
-the direction input from the player and updates the player's position accordingly.
-Key features:
-1. Command execution for player movement
-2. Integration with game state for location updates
-3. Error handling for invalid movement inputs
-This class ensures that player movement is processed correctly, maintaining the game's spatial
-integrity and player experience.
-***************************************************************************************************/
-class MoveCommandHandler {
-  constructor({ logger }) {
-    this.logger = logger;
+  handleMove(player, direction) {
+    const validDirections = ['n', 'e', 'w', 's', 'u', 'd'];
+    if (!validDirections.includes(direction)) {
+      this.server.messageManager.sendMessage(player, `Invalid direction: ${direction}`, 'error');
+      return;
+    }
+    this.server.gameManager.moveEntity(player, direction);
   }
-  execute(socket, { direction }) { // Destructured payload
-    this.logger.debug(`Player ${socket.id} Moved ${direction}`);
+  handleAttack(player, target) {
+    const npc = this.server.gameManager.getNpc(target);
+    if (npc) {
+      player.attack(npc.id);
+    } else {
+      this.server.messageManager.sendMessage(player, `You don't see ${target} here.`, 'error');
+    }
+  }
+  handleShowInventory(player) {
+    const inventoryList = player.getInventoryList();
+    this.server.messageManager.sendMessage(player, `Your inventory: ${inventoryList}`, 'inventory');
+  }
+  handleLookAt(player, target) {
+    const lookAtHandler = new LookAtCommandHandler({ player });
+    lookAtHandler.execute(target);
+  }
+  handleDescribeLocation(player) {
+    player.describeCurrentLocation();
   }
 }
 /**************************************************************************************************
@@ -2015,6 +2032,9 @@ class LookAtCommandHandler {
   }
   lookAtSelfCommandHandler() {
     this.server.messageManager.notifyLookAtSelfCommandHandler(this.player);
+  }
+  execute(player, target) {
+    this.look(target);
   }
 }
 /**************************************************************************************************
@@ -2682,6 +2702,16 @@ class Npc extends Character {
       this.previousState = { currHealth: this.currHealth, status: this.status };
     }
     return hasChanged;
+  }
+  receiveDamage(damage) {
+    this.currHealth -= damage;
+    if (this.currHealth <= 0) {
+      this.die();
+    }
+  }
+  die() {
+    this.status = "lying dead";
+    // Additional logic for Npc death (e.g., loot drop, respawn timer)
   }
 }
 /**************************************************************************************************
@@ -3611,6 +3641,35 @@ class MessageManager {
   // Get a template message for auto-looting items from an Npc
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
     return `${playerName} auto-looted ${lootedItems.map(item => item.name).join(', ')} from ${npcName}.`;
+  }
+
+  static notifyCombatResult(player, result) {
+    player.server.messageManager.sendMessage(player, result, 'combatMessage');
+  }
+
+  static notifyCombatStart(player, npc) {
+    player.server.messageManager.sendMessage(player, `You engage in combat with ${npc.getName()}!`, 'combatMessage');
+  }
+
+  static notifyCombatEnd(player) {
+    player.server.messageManager.sendMessage(player, `Combat has ended.`, 'combatMessage');
+  }
+
+  static sendMessage(player, messageData, type) {
+    if (typeof messageData === 'string') {
+      this.notify({ player, message: messageData, type });
+    } else {
+      // Assuming messageData is an object with multiple fields
+      Object.entries(messageData).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          this.notify({ player, message: value, type: key });
+        } else if (Array.isArray(value)) {
+          value.forEach(item => this.notify({ player, message: item.text, type: item.cssid }));
+        } else if (typeof value === 'object') {
+          this.notify({ player, message: value.text, type: value.cssid });
+        }
+      });
+    }
   }
 }
 /**************************************************************************************************
