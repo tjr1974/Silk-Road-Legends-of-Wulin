@@ -29,7 +29,6 @@ easily modified or extended across the entire game system.
 class ILogger {
   log() {}
   debug() {}
-  flow() {}
   info() {}
   warn() {}
   error() {}
@@ -126,13 +125,10 @@ class Logger extends ILogger {
     this.logLevel = config.LOG_LEVEL;
     this.logLevels = {
       'DEBUG': 0,
-      'FLOW': 1,
       'INFO': 1,
       'WARN': 2,
-      'ERROR': 4
+      'ERROR': 3
     };
-    this.indentationLevel = 0;
-    this.indentationChar = '  '; // Two spaces for each indentation level
     Logger.instance = this;
   }
   log(level, message) {
@@ -141,9 +137,6 @@ class Logger extends ILogger {
       switch (level) {
         case 'DEBUG':
           coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
-          break;
-        case 'FLOW':
-          coloredMessage = `${this.CONFIG.BLUE}${message}${this.CONFIG.RESET}`;
           break;
         case 'WARN':
           coloredMessage = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
