@@ -281,18 +281,29 @@ class Server {
       });
       this.logger.debug("- Configure Server");
       await this.serverConfigurator.configureServer();
-      this.SocketEventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this));
-      this.gameManager = GameManager.getInstance({ SocketEventEmitter: this.SocketEventEmitter, logger: this.logger, server: this });
+      // Add null checks before accessing properties
+      if (this.SocketEventEmitter) {
+        this.SocketEventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this));
+      } else {
+        this.logger.warn("SocketEventEmitter not initialized");
+      }
+      this.gameManager = GameManager.getInstance({
+        SocketEventEmitter: this.SocketEventEmitter,
+        logger: this.logger,
+        server: this
+      });
       this.gameComponentInitializer = new GameComponentInitializer({ server: this, logger: this.logger });
       await this.gameComponentInitializer.setupGameComponents();
       if (this.gameManager) {
         this.gameManager.startGame();
       } else {
-        this.logger.error(`Game Manager Not Initialized. Check Game Manager Initialization In Server.init()`);
+        this.logger.error("Game Manager Not Initialized. Check Game Manager Initialization In Server.init()");
       }
       this.logger.info("- CONFIGURE SERVER COMPONENTS FINISHED");
     } catch (error) {
       this.logger.error(`Initializing Server: ${error.message}`);
+      // Log the full error stack for debugging
+      this.logger.error(error.stack);
     }
   }
   handlePlayerConnected(player) {
@@ -504,6 +515,8 @@ class SocketEventManager extends IBaseManager {
     super({ server, logger });
     this.io = null;
     this.gameCommandManager = gameCommandManager;
+    this.queueManager = QueueManager.getInstance();
+    this.taskManager = TaskManager.getInstance({ server });
   }
   initializeSocketEvents() {
     this.io = new SocketIOServer(this.server.httpServer);
@@ -516,7 +529,13 @@ class SocketEventManager extends IBaseManager {
   setupSocketListeners(socket) {
     socket.on('playerAction', (data) => {
       const { actionType, payload } = data;
-      this.gameCommandManager.handleCommand(socket, actionType, payload);
+      const task = new TaskManager({
+        server: this.server,
+        execute: async () => {
+          await this.gameCommandManager.handleCommand(socket, actionType, payload);
+        }
+      });
+      this.queueManager.enqueue(task);
     });
     socket.on('disconnect', () => this.handleDisconnect(socket));
     // Add more event listeners as needed
@@ -582,13 +601,14 @@ handling multiple game tasks efficiently, maintaining system stability and perfo
 ***************************************************************************************************/
 class QueueManager {
   static instance;
-  static getInstance() {
+  static getInstance({ logger } = {}) {
     if (!QueueManager.instance) {
-      QueueManager.instance = new QueueManager();
+      QueueManager.instance = new QueueManager({ logger });
     }
     return QueueManager.instance;
   }
-  constructor(capacity = 1000) {
+  constructor({ logger, capacity = 1000 } = {}) {
+    this.logger = logger || console;
     this.buffer = new Array(capacity);
     this.capacity = capacity;
     this.size = 0;
@@ -598,40 +618,55 @@ class QueueManager {
     this.maxConcurrentTasks = 5;
   }
   enqueue(task) {
-    if (this.size === this.capacity) {
-      this.resize();
+    try {
+      if (this.size === this.capacity) {
+        this.resize();
+      }
+      this.buffer[this.tail] = task;
+      this.tail = (this.tail + 1) % this.capacity;
+      this.size++;
+      this.processQueue();
+    } catch (error) {
+      this.logger.error(`Error enqueueing task: ${error.message}`);
     }
-    this.buffer[this.tail] = task;
-    this.tail = (this.tail + 1) % this.capacity;
-    this.size++;
-    this.processQueue();
   }
   dequeue() {
-    if (this.size === 0) return null;
-    const item = this.buffer[this.head];
-    this.head = (this.head + 1) % this.capacity;
-    this.size--;
-    return item;
+    try {
+      if (this.size === 0) return null;
+      const item = this.buffer[this.head];
+      this.head = (this.head + 1) % this.capacity;
+      this.size--;
+      return item;
+    } catch (error) {
+      this.logger.error(`Error dequeuing task: ${error.message}`);
+      return null;
+    }
   }
   resize() {
-    const newCapacity = this.capacity * 2;
-    const newBuffer = new Array(newCapacity);
-    for (let i = 0; i < this.size; i++) {
-      newBuffer[i] = this.buffer[(this.head + i) % this.capacity];
+    try {
+      const newCapacity = this.capacity * 2;
+      const newBuffer = new Array(newCapacity);
+      for (let i = 0; i < this.size; i++) {
+        newBuffer[i] = this.buffer[(this.head + i) % this.capacity];
+      }
+      this.buffer = newBuffer;
+      this.capacity = newCapacity;
+      this.head = 0;
+      this.tail = this.size;
+    } catch (error) {
+      this.logger.error(`Error resizing queue: ${error.message}`);
     }
-    this.buffer = newBuffer;
-    this.capacity = newCapacity;
-    this.head = 0;
-    this.tail = this.size;
   }
   async processQueue() {
     while (this.size > 0 && this.runningTasks.size < this.maxConcurrentTasks) {
       const task = this.dequeue();
+      if (!task) continue;
       this.runningTasks.add(task);
       try {
         await task.run();
         task.onComplete();
       } catch (error) {
+        this.logger.error(`Error processing task: ${error.message}`);
         task.onError(error);
       } finally {
         this.runningTasks.delete(task);
@@ -639,11 +674,52 @@ class QueueManager {
     }
   }
   cleanup() {
-    this.buffer = new Array(this.capacity);
-    this.size = 0;
-    this.head = 0;
-    this.tail = 0;
-    this.runningTasks.clear();
+    try {
+      this.buffer = new Array(this.capacity);
+      this.size = 0;
+      this.head = 0;
+      this.tail = 0;
+      this.runningTasks.clear();
+    } catch (error) {
+      this.logger.error(`Error cleaning up queue: ${error.message}`);
+    }
+  }
+}
+/**************************************************************************************************
+Object Pool Class
+The ObjectPool class provides a reusable pool of objects to improve performance and reduce
+memory allocation overhead. It manages the creation and reuse of objects, particularly
+useful for frequently created and destroyed objects like combat actions.
+Key features:
+1. Object creation and management
+2. Efficient reuse of objects
+3. Customizable object initialization and reset
+This class enhances performance by reducing the need for frequent object creation and
+garbage collection, particularly beneficial in high-frequency operations like combat.
+***************************************************************************************************/
+class ObjectPool {
+  constructor(createFunc, initialSize = 10) {
+    this.createFunc = createFunc;
+    this.pool = [];
+    this.initialize(initialSize);
+  }
+
+  initialize(size) {
+    for (let i = 0; i < size; i++) {
+      this.pool.push(this.createFunc());
+    }
+  }
+
+  acquire() {
+    if (this.pool.length > 0) {
+      return this.pool.pop();
+    }
+    return this.createFunc();
+  }
+
+  release(obj) {
+    // Optionally reset the object here if needed
+    this.pool.push(obj);
   }
 }
 /**************************************************************************************************
@@ -661,16 +737,20 @@ system to handle complex sequences of actions in a controlled and monitored mann
 ***************************************************************************************************/
 class TaskManager {
   static instance;
-  static getInstance() {
+  static getInstance({ server }) {
     if (!TaskManager.instance) {
-      TaskManager.instance = new TaskManager();
+      TaskManager.instance = new TaskManager({ server });
     }
     return TaskManager.instance;
   }
-  constructor({ name, execute }) {
-    this.name = name;
-    this.execute = execute;
-    this.status = 'pending';
+  constructor({ server }) {
+    if (TaskManager.instance) {
+      return TaskManager.instance;
+    }
+    this.server = server;
+    this.logger = server.logger;
+    this.tasks = new Map();
+    TaskManager.instance = this;
   }
   async run() {
     this.status = 'running';
@@ -679,7 +759,15 @@ class TaskManager {
       this.status = 'completed';
     } catch (error) {
       this.status = 'failed';
-      this.logger.error(`Task Execution Failed: ${error.message}`);
+      this.logger.error(`Task '${this.name}' execution failed: ${error.message}`);
+      this.logger.error(`Stack trace: ${error.stack}`);
+      if (this.errorCallback) {
+        this.errorCallback(error);
+      }
+    } finally {
+      if (this.status === 'completed' && this.completeCallback) {
+        this.completeCallback();
+      }
     }
   }
   cancel() {
@@ -1174,6 +1262,8 @@ class GameManager {
     });
     this.npcIds = new Set();
     this.combatManager = new CombatManager({ server: this });
+    this.queueManager = QueueManager.getInstance();
+    this.taskManager = TaskManager.getInstance({ server });
     this.setupEventListeners();
     GameManager.instance = this;
   }
@@ -1235,7 +1325,13 @@ class GameManager {
     const TICK_RATE = this.configManager.get('TICK_RATE');
     this.gameLoopInterval = setInterval(() => {
       try {
-        this.SocketEventEmitter.emit('tick');
+        const tickTask = new TaskManager({
+          name: 'GameTick',
+          execute: async () => {
+            await this.handleTick();
+          }
+        });
+        this.queueManager.enqueue(tickTask);
       } catch (error) {
         this.logger.error(`Game tick: ${error.message}`);
       }
@@ -1260,7 +1356,14 @@ class GameManager {
     }
   }
   sendTickMessageToClients() {
- // @ todo: implement tick
+    const sendTickTask = new TaskManager({
+      name: 'SendTickMessage',
+      execute: async () => {
+        // Implement tick message sending logic here
+        // Use this.server.socketEventManager.io to emit messages to clients
+      }
+    });
+    this.queueManager.enqueue(sendTickTask);
   }
   updateGameTime() {
     const currentTime = Date.now();
@@ -1437,11 +1540,9 @@ class GameManager {
     this.mobileNpcs.clear();
     this.questNpcs.clear();
   }
-
   initiateCombat(player, npcId) {
     this.combatManager.initiateCombatWithNpc({ npcId, player, playerInitiated: true });
   }
-
   endCombat(player) {
     this.combatManager.endCombatForPlayer({ player });
   }
@@ -2244,18 +2345,28 @@ class CombatManager {
       !this.defeatedNpcs.has(npc.id);
   }
   performCombatAction(attacker, defender, isPlayer) {
-    const outcome = this.calculateAttackOutcome(attacker, defender);
-    const technique = CombatManager.getRandomElement(CombatManager.TECHNIQUES);
+    const combatAction = this.objectPool.acquire();
+    combatAction.initialize(attacker, defender);
+
+    try {
+      const outcome = combatAction.execute();
+      this.processCombatOutcome(outcome, attacker, defender);
+    } finally {
+      this.objectPool.release(combatAction);
+    }
+
+    return FormatMessageManager.createMessageData(`${isPlayer ? "player" : "npc"}">${this.getCombatDescription(outcome, attacker, defender, combatAction.technique)}`);
+  }
+  processCombatOutcome(outcome, attacker, defender) {
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
-    let description = this.getCombatDescription(outcome, attacker, defender, technique);
+
     if (outcome === "critical success") {
       damage *= 2;
     }
     if (damage > resistDamage) {
       defender.health -= damage - resistDamage;
     }
-    return FormatMessageManager.createMessageData(`${isPlayer ? "player" : "npc"}">${description}`);
   }
   getCombatDescription(outcome, attacker, defender, technique) {
     const descriptionFunc = this.outcomeDescriptions.get(outcome) ||
@@ -2361,27 +2472,61 @@ class CombatAction {
   constructor({ logger }) {
     this.logger = logger;
   }
-  perform({ attacker, defender }) {
-    try {
-      const damage = this.calculateDamage(attacker, defender);
-      defender.health = Math.max(0, defender.health - damage);
-      this.notifyCombatResult(attacker, defender, damage);
-      if (defender.health <= 0) {
-        this.handleDefeat(defender);
-      }
-    } catch (error) {
-      this.logger.error(`During Combat Action: ${error.message}`, { error });
+  initialize(attacker, defender) {
+    this.attacker = attacker;
+    this.defender = defender;
+    this.technique = this.selectTechnique();
+    this.outcome = null;
+  }
+  execute() {
+    const roll = Math.floor(Math.random() * 20) + 1;
+    let value = this.calculateAttackValue(roll);
+    this.outcome = this.determineOutcome(value);
+    this.calculateDamage();
+    this.notifyCombatResult();
+    if (this.defender.health <= 0) {
+      this.handleDefeat();
+    }
+    return this.outcome;
+  }
+  selectTechnique() {
+    return CombatManager.getRandomElement(CombatManager.TECHNIQUES);
+  }
+  calculateAttackValue(roll) {
+    if (this.attacker.level === this.defender.level) {
+      return roll + this.attacker.csml;
+    } else if (this.attacker.level < this.defender.level) {
+      return (roll + this.attacker.csml) - (this.defender.level - this.attacker.level);
+    } else {
+      return (roll + this.attacker.csml) + (this.attacker.level - this.defender.level);
     }
   }
-  calculateDamage(attacker, defender) {
-    return Math.max(attacker.attackPower - defender.defensePower, 0);
+  determineOutcome(value) {
+    if (value >= 21 || value === 19) return "critical success";
+    if (value === 20) return "knockout";
+    if (value >= 13) return "attack hits";
+    if (value >= 10) return "attack is blocked";
+    if (value >= 7) return "attack is parried";
+    if (value >= 4) return "attack is trapped";
+    if (value >= 1) return "attack is evaded";
+    return "attack hits";
   }
-  notifyCombatResult(attacker, defender, damage) {
-    this.logger.info(`${attacker.getName()} attacks ${defender.getName()} for ${damage} damage.`);
+  calculateDamage() {
+    let damage = this.attacker.attackPower;
+    let resistDamage = this.defender.defensePower;
+    if (this.outcome === "critical success") {
+      damage *= 2;
+    }
+    if (damage > resistDamage) {
+      this.defender.health -= damage - resistDamage;
+    }
   }
-  handleDefeat(defender) {
-    this.logger.info(`${defender.getName()} has been defeated!`);
-    defender.status = "lying unconscious";
+  notifyCombatResult() {
+    this.logger.info(`${this.attacker.getName()} attacks ${this.defender.getName()} with a ${this.technique}. The strike ${this.outcome}.`);
+  }
+  handleDefeat() {
+    this.logger.info(`${this.defender.getName()} has been defeated!`);
+    this.defender.status = "lying unconscious";
     // Additional logic for handling defeat (e.g., removing from game, notifying players)
   }
 }
@@ -2712,6 +2857,9 @@ class Npc extends Character {
   die() {
     this.status = "lying dead";
     // Additional logic for Npc death (e.g., loot drop, respawn timer)
+  }
+  attack(target) {
+    this.server.combatManager.performCombatAction(this, target);
   }
 }
 /**************************************************************************************************
@@ -3642,19 +3790,15 @@ class MessageManager {
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
     return `${playerName} auto-looted ${lootedItems.map(item => item.name).join(', ')} from ${npcName}.`;
   }
-
   static notifyCombatResult(player, result) {
     player.server.messageManager.sendMessage(player, result, 'combatMessage');
   }
-
   static notifyCombatStart(player, npc) {
     player.server.messageManager.sendMessage(player, `You engage in combat with ${npc.getName()}!`, 'combatMessage');
   }
-
   static notifyCombatEnd(player) {
     player.server.messageManager.sendMessage(player, `Combat has ended.`, 'combatMessage');
   }
-
   static sendMessage(player, messageData, type) {
     if (typeof messageData === 'string') {
       this.notify({ player, message: messageData, type });
