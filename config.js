@@ -8,6 +8,7 @@ const HOST = 'localhost';           // or '0.0.0.0' for external access
 const PORT = 6400;                  // Port number for the server
 const SSL_KEY_PATH = './ssl/server.key'; // Moved SSL key path to config
 const SSL_CERT_PATH = './ssl/server.crt'; // Moved SSL cert path to config
+
 // Logger Configuration
 const LOG_LEVEL = 'DEBUG'; // Set the default logger level. Options: 'DEBUG', 'INFO', 'WARN', 'ERROR'
 const LOG_FILE_PATH = './server logs';     // Path for log files
@@ -19,9 +20,17 @@ const NPCS_DATA_PATH = './source code/world data/npcs'; // Changed from NPC_DATA
 const ITEMS_DATA_PATH = './source code/world data/items'; // Changed from ITEM_DATA_PATH
 const GAME_DATA_PATH = './source code/world data/gameData.json';
 // Game Configuration
+const SALT_ROUNDS = 10;             // Number of salt rounds for bcrypt
+const ITEM_UID_SALT_ROUNDS = 1;     // Number of salt rounds for item UIDs
+const SESSION_SECRET = 'your-secret-key'; // Secret key for session
+const SESSION_RESAVE = false;       // Don't save session if unmodified
+const SESSION_SAVE_UNINITIALIZED = false; // Don't create session until something stored
+const COOKIE_SECURE = true;         // Use secure cookies in production
+const COOKIE_HTTP_ONLY = true;      // Use HTTP-only cookies
+const COOKIE_SAME_SITE = 'strict';  // CSRF protection
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute
 const WORLD_EVENT_INTERVAL = 1440;  //
-const NPC_MOVEMENT_INTERVAL = 5000;  // 1000ms = 1 second, * 60 = 1 minute
+const NPC_MOVEMENT_INTERVAL = 15000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_RATES = new Map([
   ['IN_COMBAT', 0.125], // 12.5% per minute
@@ -47,6 +56,14 @@ const CONFIG = {
   NPCS_DATA_PATH, // Updated
   ITEMS_DATA_PATH, // Updated
   GAME_DATA_PATH, // Added to config
+  SALT_ROUNDS,
+  ITEM_UID_SALT_ROUNDS,
+  SESSION_SECRET,
+  SESSION_RESAVE,
+  SESSION_SAVE_UNINITIALIZED,
+  COOKIE_SECURE,
+  COOKIE_HTTP_ONLY,
+  COOKIE_SAME_SITE,
   TICK_RATE,
   WORLD_EVENT_INTERVAL,
   NPC_MOVEMENT_INTERVAL,

@@ -1310,7 +1310,7 @@ class UidGenerator {
     try {
       const { hash } = await import('bcrypt');
       const uniqueValue = Date.now() + Math.random();
-      return hash(uniqueValue.toString(), 5);
+      return hash(uniqueValue.toString(), CONFIG.SALT_ROUNDS);
     } catch (error) {
       this.logger.error(`Generating UID - ${error.message}`);
       return null;
@@ -1944,7 +1944,7 @@ class Player extends Character {
   }
   async hashUid() {
     try {
-      this.hashedUid = await this.bcrypt.hash(this.uid, 5);
+      this.hashedUid = await this.bcrypt.hash(this.uid, CONFIG.SALT_ROUNDS);
     } catch (error) {
       console.error('Failed to hash UID:', error);
       console.error(error.stack);
@@ -2470,8 +2470,9 @@ class CombatManager {
     "whipping knee", "whipping kick", "whipping palm", "whipping shoulder strike",
     "whipping strike"
   ]);
-  constructor({ server }) {
+  constructor({ server, config }) {
     this.server = server;
+    this.config = config;
     this.logger = server.logger;
     this.objectPool = new ObjectPool(() => new CombatAction({ logger: this.logger }), 10);
     this.gameManager = server.gameManager;
@@ -2562,7 +2563,7 @@ class CombatManager {
         if (player.health <= 0) {
           this.handlePlayerDefeat(npc, player);
         }
-      }, CombatManager.COMBAT_INTERVAL);
+      }, this.config.COMBAT_INTERVAL);
     }
   }
   handlePlayerDefeat(npc, player) {
@@ -3344,21 +3345,18 @@ class NpcMovementManager {
   }
   startMovement() {
     if (this.movementInterval) {
-      this.logger.debug('- Npc movement is already running');
-      return;
+      clearInterval(this.movementInterval);
     }
-    const NPC_MOVEMENT_INTERVAL = CONFIG.NPC_MOVEMENT_INTERVAL;
-    this.logger.debug(`- Configure Npc Movement With Interval: ${NPC_MOVEMENT_INTERVAL}ms`);
+    const NPC_MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
     this.movementInterval = setInterval(() => {
       this.moveAllNpcs();
     }, NPC_MOVEMENT_INTERVAL);
-    this.logger.debug('- Npc Movement Started');
+    this.logger.debug(`- Npc movement started with interval: ${NPC_MOVEMENT_INTERVAL}ms`);
   }
   moveAllNpcs() {
     let movedNpcs = 0;
     const totalMobileNpcs = this.gameManager.mobileNpcs.size;
     this.logger.debug(``);
-
     // Use for...of loop instead of creating an array
     for (const npc of this.gameManager.mobileNpcs.values()) {
       this.logger.debug(`Checking Mobile: ${npc.name} - ID: ${npc.id}`);
@@ -3374,7 +3372,6 @@ class NpcMovementManager {
         this.logger.debug(`Mobile: ${npc.name} - ID: ${npc.id} - Cannot Move`);
       }
     }
-
     this.logger.debug(`Moved: ${movedNpcs} of ${totalMobileNpcs} Total Mobiles`);
     const now = new Date();
     this.logger.debug(`Mobiles Moved - [${now.toLocaleString()}]`);
@@ -3383,7 +3380,7 @@ class NpcMovementManager {
     if (this.movementInterval) {
       clearInterval(this.movementInterval);
       this.movementInterval = null;
-      this.logger.debug('Stopped Npc movement');
+      this.logger.info('NPC movement stopped');
     }
   }
 }
@@ -3509,7 +3506,7 @@ class ItemManager {
       return ItemManager.instance;
     }
     this.logger = logger;
-    this.configManager = configManager;
+    this.config = configManager;
     this.items = new Map();
     ItemManager.instance = this;
   }
@@ -3538,12 +3535,9 @@ class ItemManager {
   }
   async assignUidsToItems(itemData) {
     this.logger.debug(`Assigning UIDs to Items`);
-    const SALT_ROUNDS = 1;
-
-    // Use Promise.all with map instead of creating a separate array
     await Promise.all(Object.entries(itemData).map(async ([id, item]) => {
       try {
-        const uid = await bcrypt.hash(id, SALT_ROUNDS);
+        const uid = await bcrypt.hash(id, this.config.ITEM_UID_SALT_ROUNDS);
         item.uid = uid;
         this.items.set(uid, item);
         this.logger.debug(`Assigned UID to Item: ${id} -> ${uid}`);
@@ -3551,7 +3545,6 @@ class ItemManager {
         this.logger.error(`Assigning UID to Item ${id}: ${error.message}`);
       }
     }));
-
     this.logger.debug(`Total Items with UIDs: ${this.items.size}`);
   }
   getItem(uid) {
@@ -3661,10 +3654,8 @@ class InventoryManager {
       MessageManager.notifyNoItemsHere(this.player);
       return;
     }
-
     const itemsTaken = [];
     const { items } = this.player.server;
-
     // Use for...of loop instead of forEach
     for (const itemId of source) {
       const item = items[itemId];
@@ -3673,13 +3664,11 @@ class InventoryManager {
         this.player.inventory.add(item);
       }
     }
-
     if (sourceType === 'location') {
       this.player.server.location[this.player.currentLocation].items.clear();
     } else {
       this.player.server.items[containerName].inventory.clear();
     }
-
     MessageManager.notifyItemsTaken(this.player, itemsTaken);
   }
   getAllItemsFromLocation() {
@@ -3738,7 +3727,6 @@ class InventoryManager {
   putAllItems(containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-
     const itemsToPut = new Set();
     // Use for...of loop instead of filter
     for (const item of this.player.inventory) {
@@ -3746,18 +3734,15 @@ class InventoryManager {
         itemsToPut.add(item);
       }
     }
-
     if (itemsToPut.size === 0) {
       MessageManager.notifyNoItemsToPut(this.player, container.name);
       return;
     }
-
     // Use for...of loop instead of forEach
     for (const item of itemsToPut) {
       container.inventory.add(item.uid);
       this.player.inventory.delete(item);
     }
-
     MessageManager.notifyItemsPutInContainer(this.player, [...itemsToPut], container.name);
   }
   putAllSpecificItemsIntoContainer(itemType, containerName) {
@@ -3784,7 +3769,6 @@ class InventoryManager {
     if (currentLocation.items && currentLocation.items.size > 0) {
       const itemsTaken = [];
       const { items } = this.player.server;
-
       for (const itemId of currentLocation.items) {
         const item = items[itemId];
         if (this.itemMatchesType(item, itemType)) {
@@ -3792,7 +3776,6 @@ class InventoryManager {
           this.player.inventory.add(item);
         }
       }
-
       if (itemsTaken.length > 0) {
         for (const itemId of itemsTaken) {
           currentLocation.items.delete(itemId);
@@ -3808,10 +3791,8 @@ class InventoryManager {
   getAllSpecificItemsFromContainer(itemType, containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-
     const itemsTaken = [];
     const { items } = this.player.server;
-
     for (const itemId of container.inventory) {
       const item = items[itemId];
       if (this.itemMatchesType(item, itemType)) {
@@ -3819,7 +3800,6 @@ class InventoryManager {
         this.player.inventory.add(item);
       }
     }
-
     if (itemsTaken.length > 0) {
       for (const itemId of itemsTaken) {
         container.inventory.delete(itemId);
@@ -3879,11 +3859,9 @@ class InventoryManager {
       );
       return;
     }
-
     const lootedItems = new Set();
     const lootedNpcs = new Set();
     const { npcs, items } = this.player.server;
-
     // Use for...of loop instead of forEach
     for (const npcId of currentLocation.npcs) {
       const npc = npcs[npcId];
@@ -3899,7 +3877,6 @@ class InventoryManager {
         npc.inventory.clear();
       }
     }
-
     if (lootedItems.size > 0) {
       this.messageManager.sendMessage(this.player,
         MessageManager.getLootedAllNpcsTemplate(this.player.getName(), [...lootedNpcs], [...lootedItems]),
