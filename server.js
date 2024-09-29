@@ -1140,7 +1140,6 @@ class GameDataLoader {
   }
   async createNpcs(npcData) {
     const npcs = new Map();
-    const npcPromises = [];
     this.server.logger.info(`- - - Create Npcs From Data`);
     for (const [id, npcInfo] of npcData) {
       if (this.server.gameManager.npcIds.has(id)) {
@@ -1156,10 +1155,8 @@ class GameDataLoader {
         this.server.logger.debug(`- - - Type: ${npc.type}`);
       }
     }
-    return Promise.all(npcPromises).then(() => {
-      this.server.logger.debug(`- Total npcs created: ${npcs.size}`);
-      return npcs;
-    });
+    this.server.logger.debug(`- Total npcs created: ${npcs.size}`);
+    return npcs;
   }
   async createItems(itemData) {
     const items = new Map();
@@ -1736,7 +1733,7 @@ class Player extends Character {
     this.server = server;
     this.configManager = server.configManager;
     this.initializePlayerAttributes();
-    this.inventoryManager = new InventoryManager(this);
+    this.inventoryManager = InventoryManager.getInstance(this);
     this.gameCommandManager = GameCommandManager.getInstance({ server });
     this.inCombat = false;
     this.describeLocationManager = new DescribeLocationManager({ player: this, server });
@@ -1879,11 +1876,7 @@ class Player extends Character {
     this.gameCommandManager.executeCommand(this, 'move', [direction]);
   }
   attack(target) {
-    if (!this.inCombat) {
-      this.server.gameManager.initiateCombat(this, target);
-    } else {
-      this.server.combatManager.performCombatAction(this, target);
-    }
+    this.gameCommandManager.executeCommand(this, 'attack', [target]);
   }
   receiveDamage(damage) {
     this.health -= damage;
@@ -1894,7 +1887,7 @@ class Player extends Character {
   die() {
     this.status = "lying unconscious";
     this.server.gameManager.endCombat(this);
-    // Additional logic for player death (e.g., respawn, item drop)
+    this.server.messageManager.notifyPlayerDeath(this);
   }
   showInventory() {
     this.gameCommandManager.executeCommand(this, 'showInventory');
@@ -2207,7 +2200,12 @@ class CombatManager {
   initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
     try {
       this.logger.debug(`- Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}`);
-      this.startCombat({ npcId, player, playerInitiated });
+      const npc = this.gameManager.getNpc(npcId);
+      if (!npc) {
+        this.logger.error(`Npc with ID ${npcId} not found`);
+        return;
+      }
+      this.startCombat({ npc, player, playerInitiated });
     } catch (error) {
       this.logger.error(`Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}:`, error);
     }
@@ -2215,21 +2213,20 @@ class CombatManager {
   endCombatForPlayer({ player }) {
     this.endCombat(player);
   }
-  startCombat({ npcId, player, playerInitiated }) {
+  startCombat({ npc, player, playerInitiated }) {
     try {
-      this.logger.debug(`- Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npcId}`);
-      const npc = this.gameManager.getNpc(npcId);
-      if (!npc || this.combatOrder.has(npcId)) {
-        this.logger.debug(`- Npc: ${npcId} - Not Found Or Already In Combat`);
+      this.logger.debug(`- Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npc.getName()}`);
+      if (this.combatOrder.has(npc.id)) {
+        this.logger.debug(`- Npc: ${npc.id} - Already In Combat`);
         return;
       }
-      this.combatOrder.set(npcId, { state: 'engaged' });
+      this.combatOrder.set(npc.id, { state: 'engaged' });
       player.status !== "in combat"
         ? this.initiateCombat({ player, npc, playerInitiated })
         : this.notifyCombatJoin({ npc, player });
       npc.status = "engaged in combat";
     } catch (error) {
-      this.logger.error(`Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npcId}:`, error);
+      this.logger.error(`Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npc.getName()}:`, error);
     }
   }
   initiateCombat({ player, npc, playerInitiated }) {
@@ -2275,10 +2272,10 @@ class CombatManager {
       }, CombatManager.COMBAT_INTERVAL);
     }
   }
-  handlePlayerDefeat({ defeatingNpc, player }) {
+  handlePlayerDefeat(npc, player) {
     player.status = "lying unconscious";
     this.endCombat(player);
-    this.logger.info(`${player.getName()} has been defeated by ${defeatingNpc.getName()}.`, { playerId: player.getId(), npcId: defeatingNpc.id });
+    this.logger.info(`${player.getName()} has been defeated by ${npc.getName()}.`, { playerId: player.getId(), npcId: npc.id });
   }
   handleNpcDefeat(npc, player) {
     npc.status = player.killer ? "lying dead" : "lying unconscious";
@@ -2351,11 +2348,10 @@ class CombatManager {
     try {
       const outcome = combatAction.execute();
       this.processCombatOutcome(outcome, attacker, defender);
+      return this.getCombatDescription(outcome, attacker, defender, combatAction.technique);
     } finally {
       this.objectPool.release(combatAction);
     }
-
-    return FormatMessageManager.createMessageData(`${isPlayer ? "player" : "npc"}">${this.getCombatDescription(outcome, attacker, defender, combatAction.technique)}`);
   }
   processCombatOutcome(outcome, attacker, defender) {
     let damage = attacker.attackPower;
@@ -2482,11 +2478,6 @@ class CombatAction {
     const roll = Math.floor(Math.random() * 20) + 1;
     let value = this.calculateAttackValue(roll);
     this.outcome = this.determineOutcome(value);
-    this.calculateDamage();
-    this.notifyCombatResult();
-    if (this.defender.health <= 0) {
-      this.handleDefeat();
-    }
     return this.outcome;
   }
   selectTechnique() {
@@ -2510,24 +2501,6 @@ class CombatAction {
     if (value >= 4) return "attack is trapped";
     if (value >= 1) return "attack is evaded";
     return "attack hits";
-  }
-  calculateDamage() {
-    let damage = this.attacker.attackPower;
-    let resistDamage = this.defender.defensePower;
-    if (this.outcome === "critical success") {
-      damage *= 2;
-    }
-    if (damage > resistDamage) {
-      this.defender.health -= damage - resistDamage;
-    }
-  }
-  notifyCombatResult() {
-    this.logger.info(`${this.attacker.getName()} attacks ${this.defender.getName()} with a ${this.technique}. The strike ${this.outcome}.`);
-  }
-  handleDefeat() {
-    this.logger.info(`${this.defender.getName()} has been defeated!`);
-    this.defender.status = "lying unconscious";
-    // Additional logic for handling defeat (e.g., removing from game, notifying players)
   }
 }
 /**************************************************************************************************
@@ -2856,6 +2829,7 @@ class Npc extends Character {
   }
   die() {
     this.status = "lying dead";
+    this.server.messageManager.notifyNpcDeath(this);
     // Additional logic for Npc death (e.g., loot drop, respawn timer)
   }
   attack(target) {
