@@ -19,60 +19,65 @@ List of all classes in 'server.js':
 09. **ServerConfigurator**
 10. **SocketEventManager**
 11. **SocketEventEmitter**
+12. **ReplicationManager**
 
 ## Task and Queue Management
-12. **QueueManager**
-13. **TaskManager**
-14. **MessageQueueSystem**
+13. **QueueManager**
+14. **TaskManager**
+15. **MessageQueueSystem**
 
 ## Database and Data Management
-15. **DatabaseManager**
-16. **GameDataLoader**
-17. **UidGenerator**
+16. **DatabaseManager**
+17. **GameDataLoader**
+18. **UidGenerator**
 
 ## Game Management
-18. **GameManager**
-19. **GameComponentInitializer**
+19. **GameManager**
+20. **GameComponentInitializer**
 
 ## Command Management
-20. **GameCommandManager**
-21. **MoveCommandHandler**
-22. **LookAtCommandHandler**
+21. **GameCommandManager**
+22. **MoveCommandHandler**
+23. **LookAtCommandHandler**
 
 ## Entity Management
-23. **Entity**
-24. **Character**
+24. **Entity**
+25. **Character**
 
 ## Player Management
-25. **CreateNewPlayer**
-26. **Player**
-27. **HealthRegenerator**
+26. **CreateNewPlayer**
+27. **Player**
+28. **HealthRegenerator**
 
 ## Npc Management
-28. **Npc**
-29. **MobileNpc**
-30. **QuestNpc**
-31. **NpcMovementManager**
+29. **Npc**
+30. **MobileNpc**
+31. **QuestNpc**
+32. **NpcMovementManager**
 
 ## Item Management
-32. **BaseItem**
-33. **Item**
-34. **ConsumableItem**
-35. **ContainerItem**
-36. **WeaponItem**
-37. **ItemManager**
-38. **InventoryManager**
+33. **BaseItem**
+34. **Item**
+35. **ConsumableItem**
+36. **ContainerItem**
+37. **WeaponItem**
+38. **ItemManager**
+39. **InventoryManager**
+40. **Currency**
+41. **TransactionManager**
+42. **TradeSession**
+43. **AtomicTransaction**
 
 ## Locations and Navigation Management
-39. **Locations**
-40. **LocationCoordinateManager**
-41. **DescribeLocationManager**
-42. **DirectionManager**
+44. **Locations**
+45. **LocationCoordinateManager**
+46. **DescribeLocationManager**
+47. **DirectionManager**
 
 ## Combat Management
-43. **CombatManager**
-44. **CombatAction**
+48. **CombatManager**
+49. **CombatAction**
 
 ## Messaging Management
-45. **FormatMessageManager**
-46. **MessageManager**
+50. **FormatMessageManager**
+51. **MessageManager**
