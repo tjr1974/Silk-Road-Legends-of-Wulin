@@ -1517,18 +1517,18 @@ class GameManager {
     }
   }
   updateNpcs() {
-    this.npcs.forEach(npc => {
+    for (const npc of this.npcs.values()) {
       if (npc.hasChangedState()) {
         MessageManager.notifyNpcStateChange(npc);
       }
-    });
+    }
   }
   updatePlayerAffects() {
-    this.players.forEach(player => {
+    for (const player of this.players.values()) {
       if (player.hasChangedState()) {
         player.checkAndRemoveExpiredAffects();
-  }
-    });
+      }
+    }
   }
   updateWorldEvents() {
     const WORLD_EVENT_INTERVAL = this.configManager.get('WORLD_EVENT_INTERVAL');
@@ -2586,12 +2586,12 @@ class CombatManager {
       return;
     }
     const experiencePerParticipant = Math.floor(defeatedNpc.experienceReward / participants.length);
-    participants.forEach(participantId => {
+    for (const participantId of participants) {
       const player = this.gameManager.getPlayer(participantId);
       if (player) {
         this.awardExperience(player, experiencePerParticipant);
       }
-    });
+    }
     // If there's any remaining XP due to rounding, give it to the main player
     const remainingXP = defeatedNpc.experienceReward - (experiencePerParticipant * participants.length);
     if (remainingXP > 0) {
@@ -2646,22 +2646,22 @@ class CombatManager {
     player.status = "standing";
     this.gameManager.fullStateSync(player);
     this.checkAggressiveNpcs(player);
-    this.combatParticipants.forEach((participants, npcId) => {
+    for (const [npcId, participants] of this.combatParticipants.entries()) {
       if (participants.has(player.getId())) {
         this.removeCombatParticipant(this.gameManager.getNpc(npcId), player);
       }
-    });
+    }
   }
   checkForAggressiveNpcs(player) {
     if (player.health > 0) {
       const location = this.gameManager.getLocation(player.currentLocation);
       if (location && location.npcs) {
-        location.npcs.forEach(npcId => {
+        for (const npcId of location.npcs) {
           const npc = this.gameManager.getNpc(npcId);
           if (this.isAggressiveNpc(npc, player)) {
             this.startCombat({ npcId, player, playerInitiated: false });
           }
-        });
+        }
       }
     }
   }
@@ -2731,16 +2731,19 @@ class CombatManager {
     }
   }
   getAvailableNpcId(npcs) {
-    return Array.from(npcs).find(id => {
+    for (const id of npcs) {
       const npc = this.gameManager.getNpc(id);
-      return npc && !npc.isUnconsciousOrDead();
-    });
+      if (npc && !npc.isUnconsciousOrDead()) {
+        return id;
+      }
+    }
+    return null;
   }
   getCombatOrder() {
     return this.combatOrder;
   }
   getNextNpcInCombatOrder() {
-    return Array.from(this.combatOrder.keys())[0];
+    return this.combatOrder.keys().next().value;
   }
   notifyPlayersInLocation(locationId, content) {
     MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(locationId), content);
@@ -2781,7 +2784,7 @@ class CombatManager {
     return "attack hits";
   }
   static getRandomElement(array) {
-    return Array.from(array)[Math.floor(Math.random() * array.size)];
+    return [...array][Math.floor(Math.random() * array.size)];
   }
   addCombatParticipant(npc, player) {
     if (!this.combatParticipants.has(npc.id)) {
@@ -2798,7 +2801,7 @@ class CombatManager {
     }
   }
   getCombatParticipants(npcId) {
-    return Array.from(this.combatParticipants.get(npcId) || []);
+    return [...(this.combatParticipants.get(npcId) || [])];
   }
   isPlayerInCombatWithNpc(playerId, npcId) {
     return this.combatParticipants.has(npcId) && this.combatParticipants.get(npcId).has(playerId);
@@ -2876,7 +2879,7 @@ class Locations {
     this.items = new Set();
     this.npcs = new Set();
     this.playersInLocation = new Set();
-    this.zone = [];
+    this.zone = new Set(); // Changed from array to Set
   }
   addExit(direction, linkedLocation) {
     this.exits.set(direction, linkedLocation);
@@ -2900,7 +2903,7 @@ class Locations {
     return this.name;
   }
   getNpcs() {
-    return Array.from(this.npcs).map(npcId => this.gameManager.getNpc(npcId));
+    return [...this.npcs].map(npcId => this.gameManager.getNpc(npcId));
   }
 }
 /**************************************************************************************************
@@ -2940,19 +2943,22 @@ class LocationCoordinateManager {
       this.logger.error(`Invalid Or Missing Location Data`);
       return;
     }
-    const topLevelKeys = Object.keys(locationData);
-    const uniqueKeys = new Set(topLevelKeys);
-    if (topLevelKeys.length !== uniqueKeys.size) {
-      for (const key of topLevelKeys) {
-        if (topLevelKeys.indexOf(key) !== topLevelKeys.lastIndexOf(key)) {
-          this.logger.error(`Duplicate Key Detected: ${key}`);
-        }
+    const uniqueKeys = new Set();
+    const duplicateKeys = new Set();
+    for (const key of Object.keys(locationData)) {
+      if (uniqueKeys.has(key)) {
+        duplicateKeys.add(key);
+      } else {
+        uniqueKeys.add(key);
+      }
+    }
+    if (duplicateKeys.size > 0) {
+      for (const key of duplicateKeys) {
+        this.logger.error(`Duplicate Key Detected: ${key}`);
       }
       this.logger.error(`Duplicate Location IDs Detected`);
     } else {
-      for (const [id, location] of Object.entries(locationData)) {
-        this.locations.set(id, location);
-      }
+      this.locations = new Map(Object.entries(locationData));
     }
   }
   async assignCoordinates(locationData) {
@@ -2962,19 +2968,15 @@ class LocationCoordinateManager {
     }
     this.logger.info(`- - - Assign Coordinates`);
     this.locations = locationData;
-    const coordinates = this.initializeCoordinates();
-    this._assignCoordinatesRecursively("100", coordinates);
+    const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
+    await this._assignCoordinatesRecursively("100", coordinates);
     this.logCoordinateAssignmentStatus(coordinates);
     this._updateLocationsWithCoordinates(coordinates);
   }
-  initializeCoordinates() {
-    const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
-    return coordinates;
-  }
   logCoordinateAssignmentStatus(coordinates) {
-    this.logger.debug(`${JSON.stringify(Array.from(coordinates.entries()))}`);
+    this.logger.debug(JSON.stringify(Object.fromEntries(coordinates)));
   }
-  _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
+  async _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
     this.logger.debug(`- - Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
     const location = this.locations.get(locationId);
     if (!location) {
@@ -2982,32 +2984,29 @@ class LocationCoordinateManager {
       return;
     }
     location.coordinates = { x, y, z };
-    if (!location.exits) {
+    if (!location.exits || typeof location.exits !== 'object') {
       this.logger.debug(`- No Exits Found For Location: ${locationId}`);
       return;
     }
+    const directionMap = {
+      north: [0, 1, 0], south: [0, -1, 0], east: [1, 0, 0],
+      west: [-1, 0, 0], up: [0, 0, 1], down: [0, 0, -1]
+    };
+    const promises = [];
     for (const [direction, exitId] of Object.entries(location.exits)) {
-      let newX = x, newY = y, newZ = z;
-      switch (direction) {
-        case 'north': newY += 1; break;
-        case 'south': newY -= 1; break;
-        case 'east': newX += 1; break;
-        case 'west': newX -= 1; break;
-        case 'up': newZ += 1; break;
-        case 'down': newZ -= 1; break;
-      }
       if (!coordinates.has(exitId)) {
-        this.logger.debug(`- - Assign Coordinates To Exit: ${exitId} in direction ${direction}`);
-        coordinates.set(exitId, { x: newX, y: newY, z: newZ });
-        this._assignCoordinatesRecursively(exitId, coordinates, newX, newY, newZ);
+        const [dx, dy, dz] = directionMap[direction] || [0, 0, 0];
+        coordinates.set(exitId, { x: x + dx, y: y + dy, z: z + dz });
+        promises.push(this._assignCoordinatesRecursively(exitId, coordinates, x + dx, y + dy, z + dz));
       } else {
         this.logger.debug(`- - Coordinates Already Assigned To Exit: ${exitId}`);
       }
     }
+    await Promise.all(promises);
   }
   _updateLocationsWithCoordinates(coordinates) {
     this.logger.info('- - - Update Location Coordinates');
-    for (const [id, coord] of coordinates) {
+    for (const [id, coord] of coordinates.entries()) {
       const location = this.locations.get(id);
       if (location) {
         location.coordinates = coord;
@@ -3090,25 +3089,25 @@ class DescribeLocationManager {
     };
   }
   getExitsDescription(location) {
-    return Array.from(location.exits.entries()).map(([direction, linkedLocation]) => ({
+    return [...location.exits.entries()].map(([direction, linkedLocation]) => ({
       cssid: `exit-${direction}`,
       text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`,
     }));
   }
   getItemsDescription(location) {
-    return Array.from(location.items).map(item => ({
+    return [...location.items].map(item => ({
       cssid: `item-${item.uid}`,
       text: `A ${item.name} is lying here.`,
     }));
   }
   getNpcsDescription(location) {
-    return Array.from(location.npcs).map(npcId => {
+    return [...location.npcs].map(npcId => {
       const npc = this.server.gameManager.getNpc(npcId);
       return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null;
     }).filter(npc => npc);
   }
   getPlayersDescription(location) {
-    return Array.from(location.playersInLocation).map(otherPlayer => ({
+    return [...location.playersInLocation].map(otherPlayer => ({
       cssid: `player`,
       text: `${otherPlayer.getName()} is ${otherPlayer.getStatus()} here.`,
     }));
@@ -3189,7 +3188,7 @@ class Npc extends Character {
     this.server.combatManager.performCombatAction(this, target);
   }
   getLoot() {
-    return this.lootTable.filter(() => Math.random() < 0.5);
+    return [...this.lootTable].filter(() => Math.random() < 0.5);
   }
 }
 /**************************************************************************************************
@@ -3206,7 +3205,7 @@ and the environment through movement.
 class MobileNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'mobile', server, lootTable });
-    this.zones = zones;
+    this.zones = new Set(zones); // Ensure zones is always a Set
     this.config = config;
     this.logger = server.logger;
   }
@@ -3222,7 +3221,7 @@ class MobileNpc extends Npc {
       return;
     }
     const validDirections = this.getValidDirections(location);
-    if (validDirections.length > 0) {
+    if (validDirections.size > 0) {
       const randomDirection = this.getRandomDirection(validDirections);
       this.moveToNewLocation(location, randomDirection);
     } else {
@@ -3231,24 +3230,24 @@ class MobileNpc extends Npc {
     }
   }
   getValidDirections(location) {
-    const validDirections = Object.keys(location.exits || {}).filter(direction => {
+    const validDirections = new Set(Object.keys(location.exits || {}).filter(direction => {
       const exitLocationId = location.exits[direction];
       const exitLocation = this.server.gameManager.getLocation(exitLocationId);
-      const isValidZone = exitLocation && (this.zones.length === 0 || this.zones.includes(exitLocation.zone[0]));
+      const isValidZone = exitLocation && (this.zones.size === 0 || this.zones.has(exitLocation.zone[0]));
       this.logger.debug(`- - Checking Directions: ${direction} - Exit Location - ID: ${exitLocationId} - Valid Zone: ${isValidZone}`);
       return isValidZone;
-    });
+    }));
     this.logger.debug(`- - Valid Directions For:`);
-    this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - ${validDirections.join(', ')}`);
+    this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - ${[...validDirections].join(', ')}`);
     return validDirections;
   }
   getRandomDirection(validDirections) {
-    return validDirections[Math.floor(Math.random() * validDirections.length)];
+    return [...validDirections][Math.floor(Math.random() * validDirections.size)];
   }
   moveToNewLocation(location, direction) {
     const newLocationId = location.exits[direction];
     const newLocation = this.server.gameManager.getLocation(newLocationId);
-    if (this.zones.length > 0 && !this.zones.includes(newLocation.zone[0])) {
+    if (this.zones.size > 0 && !this.zones.has(newLocation.zone[0])) {
       this.logger.debug(`- Mobile:${this.name} Cannot Move To:`);
       this.logger.debug(`- ${newLocation.name} - Due To Zone Restrictions.`);
       return; // Prevent movement if the zone is not allowed
@@ -3357,27 +3356,28 @@ class NpcMovementManager {
   }
   moveAllNpcs() {
     let movedNpcs = 0;
-    let totalMobileNpcs = this.gameManager.mobileNpcs.size;
+    const totalMobileNpcs = this.gameManager.mobileNpcs.size;
     this.logger.debug(``);
-    this.gameManager.mobileNpcs.forEach((npc, id) => {
-      this.logger.debug(`Checking Mobile:`);
-      this.logger.debug(`  ${npc.name} - ID: ${id}`);
+
+    // Use for...of loop instead of creating an array
+    for (const npc of this.gameManager.mobileNpcs.values()) {
+      this.logger.debug(`Checking Mobile: ${npc.name} - ID: ${npc.id}`);
       if (npc.canMove()) {
         try {
           npc.moveRandomly();
           movedNpcs++;
-          this.logger.debug(`Mobile: ${npc.name} - ID: ${id} - Moved`);
+          this.logger.debug(`Mobile: ${npc.name} - ID: ${npc.id} - Moved`);
         } catch (error) {
-          this.logger.error(`Moving Mobile: ${npc.name} - ID: ${id}: ${error.message}`, { error });
+          this.logger.error(`Moving Mobile: ${npc.name} - ID: ${npc.id}: ${error.message}`, { error });
         }
       } else {
-        this.logger.debug(`Mobile: ${npc.name} - ID: ${id} - Cannot Move`);
+        this.logger.debug(`Mobile: ${npc.name} - ID: ${npc.id} - Cannot Move`);
       }
-    });
+    }
+
     this.logger.debug(`Moved: ${movedNpcs} of ${totalMobileNpcs} Total Mobiles`);
     const now = new Date();
-    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-    this.logger.debug(`Mobiles Moved - [${timestamp}]`);
+    this.logger.debug(`Mobiles Moved - [${now.toLocaleString()}]`);
   }
   stopMovement() {
     if (this.movementInterval) {
@@ -3539,23 +3539,26 @@ class ItemManager {
   async assignUidsToItems(itemData) {
     this.logger.debug(`Assigning UIDs to Items`);
     const SALT_ROUNDS = 1;
-    for (const [id, item] of Object.entries(itemData)) {
+
+    // Use Promise.all with map instead of creating a separate array
+    await Promise.all(Object.entries(itemData).map(async ([id, item]) => {
       try {
         const uid = await bcrypt.hash(id, SALT_ROUNDS);
         item.uid = uid;
         this.items.set(uid, item);
         this.logger.debug(`Assigned UID to Item: ${id} -> ${uid}`);
-    } catch (error) {
+      } catch (error) {
         this.logger.error(`Assigning UID to Item ${id}: ${error.message}`);
       }
-    }
+    }));
+
     this.logger.debug(`Total Items with UIDs: ${this.items.size}`);
   }
   getItem(uid) {
     return this.items.get(uid);
   }
   getAllItems() {
-    return Array.from(this.items.values());
+    return [...this.items.values()];
   }
   createItemInstance(itemId) {
     const itemTemplate = this.items.get(itemId);
@@ -3658,13 +3661,25 @@ class InventoryManager {
       MessageManager.notifyNoItemsHere(this.player);
       return;
     }
-    const itemsTaken = Array.from(source).map(itemId => this.player.server.items[itemId]);
-    itemsTaken.forEach(item => this.player.inventory.add(item));
+
+    const itemsTaken = [];
+    const { items } = this.player.server;
+
+    // Use for...of loop instead of forEach
+    for (const itemId of source) {
+      const item = items[itemId];
+      if (item) {
+        itemsTaken.push(item);
+        this.player.inventory.add(item);
+      }
+    }
+
     if (sourceType === 'location') {
       this.player.server.location[this.player.currentLocation].items.clear();
     } else {
       this.player.server.items[containerName].inventory.clear();
     }
+
     MessageManager.notifyItemsTaken(this.player, itemsTaken);
   }
   getAllItemsFromLocation() {
@@ -3674,7 +3689,7 @@ class InventoryManager {
   getAllItemsFromContainer(containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const items = new Set(Array.from(container.inventory).filter(i => this.player.server.items[i]));
+    const items = new Set([...container.inventory].filter(i => this.player.server.items[i]));
     this.getAllItemsFromSource(items, 'container', container.name);
   }
   getSingleItemFromContainer(itemName, containerName) {
@@ -3700,11 +3715,11 @@ class InventoryManager {
     this.dropItems(this.player.inventory, 'all');
   }
   dropAllSpecificItems(itemType) {
-    const itemsToDrop = new Set(Array.from(this.player.inventory).filter(item => this.itemMatchesType(item, itemType)));
+    const itemsToDrop = new Set([...this.player.inventory].filter(item => this.itemMatchesType(item, itemType)));
     this.dropItems(itemsToDrop, 'specific', itemType);
   }
   dropSingleItem(target) {
-    const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === target.toLowerCase());
+    const item = [...this.player.inventory].find(i => i.name.toLowerCase() === target.toLowerCase());
     if (item) {
       this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
     } else {
@@ -3723,41 +3738,66 @@ class InventoryManager {
   putAllItems(containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const itemsToPut = new Set(Array.from(this.player.inventory).filter(item => item !== container));
+
+    const itemsToPut = new Set();
+    // Use for...of loop instead of filter
+    for (const item of this.player.inventory) {
+      if (item !== container) {
+        itemsToPut.add(item);
+      }
+    }
+
     if (itemsToPut.size === 0) {
       MessageManager.notifyNoItemsToPut(this.player, container.name);
       return;
     }
-    itemsToPut.forEach(item => {
+
+    // Use for...of loop instead of forEach
+    for (const item of itemsToPut) {
       container.inventory.add(item.uid);
       this.player.inventory.delete(item);
-    });
-    MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
+    }
+
+    MessageManager.notifyItemsPutInContainer(this.player, [...itemsToPut], container.name);
   }
   putAllSpecificItemsIntoContainer(itemType, containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const itemsToPut = new Set(Array.from(this.player.inventory).filter(item => item !== container && this.itemMatchesType(item, itemType)));
+    const itemsToPut = new Set();
+    for (const item of this.player.inventory) {
+      if (item !== container && this.itemMatchesType(item, itemType)) {
+        itemsToPut.add(item);
+      }
+    }
     if (itemsToPut.size === 0) {
       MessageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name);
       return;
     }
-    itemsToPut.forEach(item => {
+    for (const item of itemsToPut) {
       container.inventory.add(item.uid);
       this.player.inventory.delete(item);
-    });
+    }
     MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
   }
   getAllSpecificItemsFromLocation(itemType) {
     const currentLocation = this.player.server.location[this.player.currentLocation];
     if (currentLocation.items && currentLocation.items.size > 0) {
-      const itemsTaken = new Set(Array.from(currentLocation.items).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
-      if (itemsTaken.size > 0) {
-        itemsTaken.forEach(itemId => {
-          this.player.inventory.add(this.player.server.items[itemId]);
+      const itemsTaken = [];
+      const { items } = this.player.server;
+
+      for (const itemId of currentLocation.items) {
+        const item = items[itemId];
+        if (this.itemMatchesType(item, itemType)) {
+          itemsTaken.push(itemId);
+          this.player.inventory.add(item);
+        }
+      }
+
+      if (itemsTaken.length > 0) {
+        for (const itemId of itemsTaken) {
           currentLocation.items.delete(itemId);
-        });
-        MessageManager.notifyItemsTaken(this.player, Array.from(itemsTaken));
+        }
+        MessageManager.notifyItemsTaken(this.player, itemsTaken);
       } else {
         MessageManager.notifyNoSpecificItemsHere(this.player, itemType);
       }
@@ -3768,13 +3808,23 @@ class InventoryManager {
   getAllSpecificItemsFromContainer(itemType, containerName) {
     const container = this.getContainer(containerName);
     if (!container) return;
-    const itemsTaken = new Set(Array.from(container.inventory).filter(itemId => this.itemMatchesType(this.player.server.items[itemId], itemType)));
-    if (itemsTaken.size > 0) {
-      itemsTaken.forEach(itemId => {
-        this.player.inventory.add(this.player.server.items[itemId]);
+
+    const itemsTaken = [];
+    const { items } = this.player.server;
+
+    for (const itemId of container.inventory) {
+      const item = items[itemId];
+      if (this.itemMatchesType(item, itemType)) {
+        itemsTaken.push(itemId);
+        this.player.inventory.add(item);
+      }
+    }
+
+    if (itemsTaken.length > 0) {
+      for (const itemId of itemsTaken) {
         container.inventory.delete(itemId);
-      });
-      MessageManager.notifyItemsTakenFromContainer(this.player, Array.from(itemsTaken), container.name);
+      }
+      MessageManager.notifyItemsTakenFromContainer(this.player, itemsTaken, container.name);
     } else {
       MessageManager.notifyNoSpecificItemsInContainer(this.player, itemType, container.name);
     }
@@ -3829,22 +3879,30 @@ class InventoryManager {
       );
       return;
     }
+
     const lootedItems = new Set();
     const lootedNpcs = new Set();
-    currentLocation.npcs.forEach(npcId => {
-      const npc = this.player.server.npcs[npcId];
-      if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory && npc.inventory.size > 0) {
-        npc.inventory.forEach(itemId => {
-          lootedItems.add(itemId);
-          this.player.inventory.add(this.player.server.items[itemId]);
-        });
+    const { npcs, items } = this.player.server;
+
+    // Use for...of loop instead of forEach
+    for (const npcId of currentLocation.npcs) {
+      const npc = npcs[npcId];
+      if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory?.size > 0) {
+        for (const itemId of npc.inventory) {
+          const item = items[itemId];
+          if (item) {
+            lootedItems.add(itemId);
+            this.player.inventory.add(item);
+          }
+        }
         lootedNpcs.add(npc.name);
         npc.inventory.clear();
       }
-    });
+    }
+
     if (lootedItems.size > 0) {
       this.messageManager.sendMessage(this.player,
-        MessageManager.getLootedAllNpcsTemplate(this.player.getName(), Array.from(lootedNpcs), Array.from(lootedItems)),
+        MessageManager.getLootedAllNpcsTemplate(this.player.getName(), [...lootedNpcs], [...lootedItems]),
         'lootMessage'
       );
     } else {
@@ -3861,14 +3919,14 @@ class InventoryManager {
     }
     const currentLocation = this.player.server.location[this.player.currentLocation];
     currentLocation.items = currentLocation.items || new Set();
-    itemsToDrop.forEach(item => {
+    for (const item of itemsToDrop) {
       currentLocation.items.add(item.uid);
       this.player.inventory.delete(item);
-    });
+    }
     this.messageManager.notifyItemsDropped(this.player, Array.from(itemsToDrop));
   }
   getContainer(containerName) {
-    const container = Array.from(this.player.inventory).find(item =>
+    const container = [...this.player.inventory].find(item =>
       item.name.toLowerCase() === containerName.toLowerCase() && item.inventory
     );
     if (!container) {
@@ -3878,7 +3936,7 @@ class InventoryManager {
     return container;
   }
   getItemFromInventory(itemName) {
-    const item = Array.from(this.player.inventory).find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    const item = [...this.player.inventory].find(i => i.name.toLowerCase() === itemName.toLowerCase());
     if (!item) {
       MessageManager.notifyItemNotInInventory(this.player, itemName);
     }
@@ -3888,13 +3946,13 @@ class InventoryManager {
     this.player.server.transferItem(itemId, source, sourceType, this.player);
   }
   getNpcIdFromLocation(npcName, npcs) {
-    return Array.from(npcs).find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
+    return [...npcs].find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
   }
   getItemIdFromLocation(target, items) {
-    return Array.from(items).find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
+    return [...items].find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
   }
   getItemIdFromContainer(itemName, container) {
-    return Array.from(container.inventory).find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
+    return [...container.inventory].find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
   }
   itemMatchesType(item, itemType) {
     if (!this.itemTypeMap.has(item.uniqueId)) {
@@ -4102,7 +4160,7 @@ class TradeSession {
   removeItem(player, itemName) {
     if (!this.canModifyTrade(player)) return;
     const itemList = player === this.player1 ? this.player1Items : this.player2Items;
-    const item = Array.from(itemList.values()).find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    const item = [...itemList.values()].find(i => i.name.toLowerCase() === itemName.toLowerCase());
     if (item) {
       itemList.delete(item.id);
       this.resetConfirmations();
@@ -4340,7 +4398,9 @@ class MessageManager {
   // Notify all players in a specific location with a message
   static notifyPlayersInLocation({ location, message, type = '' }) {
     if (!location || !location.playersInLocation) return;
-    Array.from(location.playersInLocation).forEach(player => this.notify({ player, message, type }));
+    for (const player of location.playersInLocation) {
+      this.notify({ player, message, type });
+    }
   }
   // Notify a player about a specific action performed on a target
   static notifyAction({ player, action, targetName, type }) {
@@ -4402,7 +4462,7 @@ class MessageManager {
   }
   // Get a template message for looting an Npc
   static getLootedNpcTemplate({ playerName, npcName, lootedItems }) {
-    return `${playerName} looted ${npcName} and found: ${lootedItems.map(item => item.name).join(', ')}.`;
+    return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
   }
   // Get a template message for finding nothing to loot from an Npc
   static getNoLootTemplate({ playerName, npcName }) {
@@ -4426,7 +4486,7 @@ class MessageManager {
   }
   // Get a template message for looting all Npcs
   static getLootedAllNpcsTemplate({ playerName, lootedNpcs, lootedItems }) {
-    return `${playerName} looted ${lootedNpcs.join(', ')} and found: ${lootedItems.join(', ')}.`;
+    return `${playerName} looted ${[...lootedNpcs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
   }
   // Notify a player that they have no items to drop
   static notifyNoItemsToDrop({ player, type, itemType }) {
@@ -4434,11 +4494,11 @@ class MessageManager {
   }
   // Notify a player about items they dropped
   static notifyItemsDropped({ player, items }) {
-    return this.notify({ player, message: `${player.getName()} dropped: ${items.map(item => item.name).join(', ')}.`, type: 'dropMessage' });
+    return this.notify({ player, message: `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, type: 'dropMessage' });
   }
   // Notify a player about items they took
   static notifyItemsTaken({ player, items }) {
-    return this.notify({ player, message: `${player.getName()} took: ${items.map(item => item.name).join(', ')}.`, type: 'takeMessage' });
+    return this.notify({ player, message: `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, type: 'takeMessage' });
   }
   // Notify a player that there are no items here
   static notifyNoItemsHere({ player }) {
@@ -4446,7 +4506,7 @@ class MessageManager {
   }
   // Notify a player about items taken from a container
   static notifyItemsTakenFromContainer({ player, items, containerName }) {
-    return this.notify({ player, message: `${player.getName()} took ${items.map(item => item.name).join(', ')} from ${containerName}.`, type: 'takeMessage' });
+    return this.notify({ player, message: `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, type: 'takeMessage' });
   }
   // Notify a player that there are no specific items in a container
   static notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
@@ -4478,7 +4538,7 @@ class MessageManager {
   }
   // Notify a player about items put in a container
   static notifyItemsPutInContainer({ player, items, containerName }) {
-    return this.notify({ player, message: `${player.getName()} put ${items.map(item => item.name).join(', ')} in ${containerName}.`, type: 'putMessage' });
+    return this.notify({ player, message: `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, type: 'putMessage' });
   }
   // Notify a player that they have no specific items to put in a container
   static notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
@@ -4490,7 +4550,7 @@ class MessageManager {
   }
   // Get a template message for auto-looting items from an Npc
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
-    return `${playerName} auto-looted ${lootedItems.map(item => item.name).join(', ')} from ${npcName}.`;
+    return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
   }
   // Notify a player about the result of a combat
   static notifyCombatResult(player, result) {
@@ -4510,15 +4570,17 @@ class MessageManager {
       this.notify({ player, message: messageData, type });
     } else {
       // Assuming messageData is an object with multiple fields
-      Object.entries(messageData).forEach(([key, value]) => {
+      for (const [key, value] of Object.entries(messageData)) {
         if (typeof value === 'string') {
           this.notify({ player, message: value, type: key });
         } else if (Array.isArray(value)) {
-          value.forEach(item => this.notify({ player, message: item.text, type: item.cssid }));
+          for (const item of value) {
+            this.notify({ player, message: item.text, type: item.cssid });
+          }
         } else if (typeof value === 'object') {
           this.notify({ player, message: value.text, type: value.cssid });
         }
-      });
+      }
     }
   }
   // Notify a player about currency changes

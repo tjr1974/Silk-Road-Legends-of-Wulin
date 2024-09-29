@@ -74,5 +74,19 @@ The Strategy Pattern defines a family of algorithms, encapsulates each one, and 
 
 # CLIENT
 
-## Debounce or Throttle Events
 For frequently triggered events (like combat actions), implement debouncing or throttling to limit how often they can be processed.
+
+Implement connection pooling for database connections
+
+Use Web Workers for CPU-intensive tasks in the browser.
+
+Implement efficient event delegation.
+
+Use efficient data structures like Set, Map, and WeakMap for data storage and retrieval.
+
+Optimize DOM manipulation by reducing the number of DOM operations and batching them when possible.
+
+Use efficient algorithms and data structures for sorting, searching, and other operations.
+
+Use efficient algorithms and data structures for sorting, searching, and other operations.
+
