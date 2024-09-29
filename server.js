@@ -1297,6 +1297,7 @@ Key features:
 2. Hashing for security and uniqueness
 This class ensures that all game entities have unique identifiers, facilitating proper
 management and interaction within the game.
+@ todo: one salt round variable for item uid and another for password hash
 ***************************************************************************************************/
 class UidGenerator {
   static instance;
@@ -3582,6 +3583,7 @@ Key features:
 3. Interaction with game items and containers
 This class ensures that players can effectively manage their inventory, enhancing the gameplay
 experience through item interactions.
+@ todo: explain how loot should work.
 ***************************************************************************************************/
 class InventoryManager {
   static instance;

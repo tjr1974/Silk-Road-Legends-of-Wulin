@@ -10,7 +10,7 @@ Here are some important features that may be missing for the game server to func
 - **User Interface**: Develop a user interface for players to interact with the game, including inventory management, character stats, and game notifications.
 - **Documentation**: Provide comprehensive documentation for the server's API, game mechanics, and setup instructions for future developers.
 
-### Additional Features
+# Additional Features
 
 - **Player Customization**: Allow players to customize their characters (appearance, skills, etc.).
 - **Quest System**: Implement a quest system with objectives, rewards, and tracking.
