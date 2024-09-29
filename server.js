@@ -263,6 +263,7 @@ class Server {
     this.messageQueueSystem = new MessageQueueSystem(this);
     this.gameComponentInitializer = null;
     this.itemManager = new ItemManager({ logger, configManager });
+    this.tradeManager = new TradeManager(this);
     Server.instance = this;
   }
   async init() {
@@ -703,20 +704,17 @@ class ObjectPool {
     this.pool = [];
     this.initialize(initialSize);
   }
-
   initialize(size) {
     for (let i = 0; i < size; i++) {
       this.pool.push(this.createFunc());
     }
   }
-
   acquire() {
     if (this.pool.length > 0) {
       return this.pool.pop();
     }
     return this.createFunc();
   }
-
   release(obj) {
     // Optionally reset the object here if needed
     this.pool.push(obj);
@@ -914,7 +912,7 @@ class DatabaseManager extends IDatabaseManager {
           this.customJsonParse(fileContent, duplicateIds, allData, file, dataType);
         }
         return allData;
-      } else {
+    } else {
         const fileContents = await Promise.all(
           jsonFiles.map(async file => {
             const filePath = path.join(folderPath, file);
@@ -1728,7 +1726,7 @@ class Player extends Character {
     super({ name, health: 100 });
     this.uid = uid;
     this.bcrypt = bcrypt;
-    this.inventory = new Set();
+    this.inventory = new Map();
     this.healthRegenerator = new HealthRegenerator({ player: this });
     this.server = server;
     this.configManager = server.configManager;
@@ -1737,6 +1735,8 @@ class Player extends Character {
     this.gameCommandManager = GameCommandManager.getInstance({ server });
     this.inCombat = false;
     this.describeLocationManager = new DescribeLocationManager({ player: this, server });
+    this.currency = new Currency();
+    this.currentTrade = null;
   }
   initializePlayerAttributes() {
     const INITIAL_HEALTH = this.configManager.get('INITIAL_HEALTH');
@@ -1930,7 +1930,82 @@ class Player extends Character {
     return hasChanged;
   }
   getInventoryList() {
-    return Array.from(this.inventory).map(item => item.name).join(", ");
+    return Array.from(this.inventory.values()).map(item => item.name).join(", ");
+  }
+  addItemToInventory(item) {
+    if (this.canAddToInventory(item)) {
+      const itemInstance = item.createInstance();
+      this.inventory.set(itemInstance.uid, itemInstance);
+      this.server.messageManager.notifyPickupItem(this, itemInstance.name);
+      return true;
+    }
+    return false;
+  }
+  removeItemFromInventory(itemUid) {
+    if (this.inventory.has(itemUid)) {
+      const item = this.inventory.get(itemUid);
+      this.inventory.delete(itemUid);
+      this.server.messageManager.notifyDropItem(this, item.name);
+      return item;
+    }
+    return null;
+  }
+  getCurrency() {
+    return this.currency.getAmount();
+  }
+  addCurrency(amount) {
+    this.currency.add(amount);
+  }
+  subtractCurrency(amount) {
+    return this.currency.subtract(amount);
+  }
+  initiateTrade(targetPlayer) {
+    this.server.tradeManager.initiateTrade(this, targetPlayer);
+  }
+  acceptTrade() {
+    if (this.currentTrade) {
+      this.currentTrade.acceptTrade(this);
+    } else {
+      this.server.messageManager.sendMessage(this, "You are not in a trade session.", 'error');
+    }
+  }
+  declineTrade() {
+    if (this.currentTrade) {
+      this.currentTrade.declineTrade(this);
+    } else {
+      this.server.messageManager.sendMessage(this, "You are not in a trade session.", 'error');
+    }
+  }
+  addItemToTrade(itemName) {
+    if (this.currentTrade) {
+      const item = this.getItemFromInventory(itemName);
+      if (item) {
+        this.currentTrade.addItem(this, item);
+      }
+    } else {
+      this.server.messageManager.sendMessage(this, "You are not in a trade session.", 'error');
+    }
+  }
+  removeItemFromTrade(itemName) {
+    if (this.currentTrade) {
+      this.currentTrade.removeItem(this, itemName);
+    } else {
+      this.server.messageManager.sendMessage(this, "You are not in a trade session.", 'error');
+    }
+  }
+  setTradeGold(amount) {
+    if (this.currentTrade) {
+      this.currentTrade.setGold(this, amount);
+    } else {
+      this.server.messageManager.sendMessage(this, "You are not in a trade session.", 'error');
+    }
+  }
+  confirmTrade() {
+    if (this.currentTrade) {
+      this.currentTrade.confirmTrade(this);
+    } else {
+      this.server.messageManager.sendMessage(this, "You are not in a trade session.", 'error');
+    }
   }
 }
 /**************************************************************************************************
@@ -2028,6 +2103,9 @@ class GameCommandManager {
       lookIn: this.handleLookIn.bind(this),
       describeLocation: this.handleDescribeLocation.bind(this),
       lookAt: this.handleLookAt.bind(this),
+      buy: this.handleBuy.bind(this),
+      sell: this.handleSell.bind(this),
+      listMerchantItems: this.handleListMerchantItems.bind(this),
     };
   }
   executeCommand(player, command, args = []) {
@@ -2071,6 +2149,59 @@ class GameCommandManager {
   handleDescribeLocation(player) {
     player.describeCurrentLocation();
   }
+  handleBuy(player, itemName) {
+    const merchant = this.findMerchantInLocation(player.currentLocation);
+    if (!merchant) {
+      this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
+      return;
+    }
+    const item = merchant.getInventory().find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    if (!item) {
+      this.server.messageManager.sendMessage(player, `The merchant doesn't have ${itemName}.`, 'errorMessage');
+      return;
+    }
+    if (merchant.sellItem(item.id, player)) {
+      this.server.messageManager.sendMessage(player, `You bought ${item.name} for ${item.price} coins.`, 'buyMessage');
+    } else {
+      this.server.messageManager.sendMessage(player, `You don't have enough money to buy ${item.name}.`, 'errorMessage');
+    }
+  }
+  handleSell(player, itemName) {
+    const merchant = this.findMerchantInLocation(player.currentLocation);
+    if (!merchant) {
+      this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
+      return;
+    }
+    const item = player.inventory.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    if (!item) {
+      this.server.messageManager.sendMessage(player, `You don't have ${itemName} in your inventory.`, 'errorMessage');
+      return;
+    }
+    if (merchant.buyItem(item, player)) {
+      const sellPrice = Math.floor(item.price * 0.5);
+      this.server.messageManager.sendMessage(player, `You sold ${item.name} for ${sellPrice} coins.`, 'sellMessage');
+    } else {
+      this.server.messageManager.sendMessage(player, `Failed to sell ${item.name}.`, 'errorMessage');
+    }
+  }
+  handleListMerchantItems(player) {
+    const merchant = this.findMerchantInLocation(player.currentLocation);
+    if (!merchant) {
+      this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
+      return;
+    }
+    const itemList = merchant.getInventory().map(item => `${item.name} - ${item.price} coins`).join('\n');
+    this.server.messageManager.sendMessage(player, `Merchant's inventory:\n${itemList}`, 'merchantInventory');
+  }
+  findMerchantInLocation(locationId) {
+    const location = this.server.gameManager.getLocation(locationId);
+    if (!location || !location.npcs) return null;
+    for (const npcId of location.npcs) {
+      const npc = this.server.gameManager.getNpc(npcId);
+      if (npc instanceof Merchant) return npc;
+    }
+    return null;
+  }
 }
 /**************************************************************************************************
 Look At Command HandlerClass
@@ -2100,7 +2231,7 @@ class LookAtCommandHandler {
       return;
     }
     const lookTargets = [
-      { check: () => this.player.inventory.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtCommandHandlerItemInInventory },
+      { check: () => Array.from(this.player.inventory.values()).find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtCommandHandlerItemInInventory },
       { check: () => location.items.find(item => item.aliases.includes(targetLower)), notify: this.server.messageManager.notifyLookAtCommandHandlerItemInLocation },
       { check: () => this.findNpc(location, targetLower), notify: this.server.messageManager.notifyLookAtCommandHandlerNpc },
       { check: () => location.playersInLocation.find(p => p.name.toLowerCase() === targetLower), notify: this.server.messageManager.notifyLookAtCommandHandlerOtherPlayer }
@@ -2344,7 +2475,6 @@ class CombatManager {
   performCombatAction(attacker, defender, isPlayer) {
     const combatAction = this.objectPool.acquire();
     combatAction.initialize(attacker, defender);
-
     try {
       const outcome = combatAction.execute();
       this.processCombatOutcome(outcome, attacker, defender);
@@ -2356,7 +2486,6 @@ class CombatManager {
   processCombatOutcome(outcome, attacker, defender) {
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
-
     if (outcome === "critical success") {
       damage *= 2;
     }
@@ -2933,6 +3062,43 @@ class QuestNpc extends Npc {
   }
 }
 /**************************************************************************************************
+Merchant Class
+The Merchant class is a concrete implementation of the Npc class, representing merchants
+who can buy and sell items to players. It includes logic for managing the merchant's
+inventory and handling transactions with players.
+Key features:
+1. Merchant inventory management
+2. Transaction logic for buying and selling items
+This class provides functionality for merchants, ensuring that they can interact with players
+***************************************************************************************************/
+class Merchant extends Npc {
+  constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, inventory, server }) {
+    super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'merchant', server });
+    this.inventory = new Map(inventory.map(item => [item.id, { ...item, price: item.price || 0 }]));
+  }
+  getInventory() {
+    return Array.from(this.inventory.values());
+  }
+  sellItem(itemId, player) {
+    const item = this.inventory.get(itemId);
+    if (item && player.subtractCurrency(item.price)) {
+      this.inventory.delete(itemId);
+      player.addItemToInventory(item);
+      return true;
+    }
+    return false;
+  }
+  buyItem(item, player) {
+    const buyPrice = Math.floor(item.price * 0.5); // 50% of original price
+    if (player.removeItemFromInventory(item.uid)) {
+      player.addCurrency(buyPrice);
+      this.inventory.set(item.id, { ...item, price: item.price });
+      return true;
+    }
+    return false;
+  }
+}
+/**************************************************************************************************
 Npc Movement Manager Class
 The NpcMovementManager class is responsible for managing the movement of mobile Npcs within
 the game world. It includes logic for determining movement intervals and executing movement
@@ -3036,11 +3202,16 @@ This class serves as the base for all item types, ensuring that items are proper
 and managed within the game.
 ***************************************************************************************************/
 class Item extends BaseItem {
-  constructor({ id, name, description, aliases, type, server }) {
+  constructor({ id, name, description, aliases, type, price = 0, server }) {
     super({ name, description, aliases });
     this.id = id;
     this.type = type;
+    this.price = price;
     this.server = server;
+    this.uid = UidGenerator.generateUid();
+  }
+  createInstance() {
+    return new this.constructor({ ...this, uid: UidGenerator.generateUid() });
   }
   async initialize() {
     // Any additional initialization logic can go here
@@ -3158,7 +3329,7 @@ class ItemManager {
         item.uid = uid;
         this.items.set(uid, item);
         this.logger.debug(`Assigned UID to Item: ${id} -> ${uid}`);
-      } catch (error) {
+    } catch (error) {
         this.logger.error(`Assigning UID to Item ${id}: ${error.message}`);
       }
     }
@@ -3169,6 +3340,24 @@ class ItemManager {
   }
   getAllItems() {
     return Array.from(this.items.values());
+  }
+  createItemInstance(itemId) {
+    const itemTemplate = this.items.get(itemId);
+    if (!itemTemplate) {
+      this.logger.error(`Item template not found for ID: ${itemId}`);
+      return null;
+    }
+    return itemTemplate.createInstance();
+  }
+  transferItem(sourceInventory, targetInventory, itemUid) {
+    const item = sourceInventory.get(itemUid);
+    if (!item) {
+      this.logger.error(`Item not found in source inventory: ${itemUid}`);
+      return false;
+    }
+    sourceInventory.delete(itemUid);
+    targetInventory.set(itemUid, item);
+    return true;
   }
 }
 /**************************************************************************************************
@@ -3194,7 +3383,24 @@ class InventoryManager {
     this.player = player;
     this.server = player.server;
     this.messageManager = this.server.messageManager;
-    this.itemTypeMap = new Map();
+    this.itemManager = this.server.itemManager;
+    this.inventory = new Map();
+  }
+  addItem(item) {
+    this.inventory.set(item.uid, item);
+    this.messageManager.notifyPickupItem(this.player, item.name);
+  }
+  removeItem(itemUid) {
+    const item = this.inventory.get(itemUid);
+    if (item) {
+      this.inventory.delete(itemUid);
+      this.messageManager.notifyDropItem(this.player, item.name);
+      return item;
+    }
+    return null;
+  }
+  transferItemTo(targetInventory, itemUid) {
+    return this.itemManager.transferItem(this.inventory, targetInventory, itemUid);
   }
   // Create an item instance from the item data
   async createItemFromData(itemId) {
@@ -3482,16 +3688,199 @@ class InventoryManager {
   }
 }
 /**************************************************************************************************
-Message Manager Class
-The MessageManager class is responsible for handling message-related operations within the
-game. It provides methods for sending messages to players, notifying them of events, and
-formatting messages for different types of game interactions.
+Currency Class
+The Currency class is responsible for managing the player's currency.
+It provides methods to add, subtract, and get the current amount of currency.
 Key features:
-1. Player notification management for various events
+1. Currency management
+2. Addition and subtraction of currency
+3. Getter for the current amount of currency
+This class is essential for handling the player's financial transactions within the game.
+***************************************************************************************************/
+class Currency {
+  constructor(amount = 0) {
+    this.amount = amount;
+  }
+  add(value) {
+    this.amount += value;
+  }
+  subtract(value) {
+    if (this.amount >= value) {
+      this.amount -= value;
+      return true;
+    }
+    return false;
+  }
+  getAmount() {
+    return this.amount;
+  }
+}
+/**************************************************************************************************
+Trade Manager Class
+The TradeManager class is responsible for managing trade sessions between players.
+It handles the initiation, tracking, and completion of trades.
+Key features:
+1. Trade initiation and tracking
+2. Trade session management
+3. Item and gold transfer
+4. Error handling for trade conflicts
+This class is essential for managing trades between players, ensuring that items and gold are
+transferred correctly and that the trade process is handled securely and reliably.
+***************************************************************************************************/
+class TradeManager {
+  constructor(server) {
+    this.server = server;
+    this.activeTrades = new Map();
+  }
+  initiateTrade(initiator, target) {
+    if (this.activeTrades.has(initiator.getId()) || this.activeTrades.has(target.getId())) {
+      this.server.messageManager.sendMessage(initiator, "One of the players is already in a trade.", 'error');
+      return;
+    }
+    const tradeSession = new TradeSession(this.server, initiator, target);
+    this.activeTrades.set(initiator.getId(), tradeSession);
+    this.activeTrades.set(target.getId(), tradeSession);
+    initiator.currentTrade = tradeSession;
+    target.currentTrade = tradeSession;
+    this.server.messageManager.notifyTradeInitiated(initiator, target);
+  }
+  endTrade(tradeSession) {
+    this.activeTrades.delete(tradeSession.player1.getId());
+    this.activeTrades.delete(tradeSession.player2.getId());
+    tradeSession.player1.currentTrade = null;
+    tradeSession.player2.currentTrade = null;
+  }
+}
+/**************************************************************************************************
+Trade Session Class
+The TradeSession class is responsible for managing the state and interactions of a trade session
+between two players. It handles the addition, removal, and management of items and gold during
+the trade process.
+Key features:
+1. Item management in the trade session
+2. Gold management in the trade session
+3. Confirmation tracking for trade acceptance
+4. Trade completion and item transfer
+This class is essential for managing trades between players, ensuring that items and gold are
+transferred correctly and that the trade process is handled securely and reliably.
+***************************************************************************************************/
+class TradeSession {
+  constructor(server, player1, player2) {
+    this.server = server;
+    this.player1 = player1;
+    this.player2 = player2;
+    this.player1Items = new Map();
+    this.player2Items = new Map();
+    this.player1Gold = 0;
+    this.player2Gold = 0;
+    this.player1Confirmed = false;
+    this.player2Confirmed = false;
+    this.accepted = false;
+  }
+  acceptTrade(player) {
+    if (this.accepted) return;
+    if (player !== this.player2) {
+      this.server.messageManager.sendMessage(player, "You can't accept this trade.", 'error');
+      return;
+    }
+    this.accepted = true;
+    this.server.messageManager.notifyTradeAccepted(this.player1, this.player2);
+  }
+  declineTrade(player) {
+    this.server.messageManager.notifyTradeDeclined(this.player1, this.player2);
+    this.server.tradeManager.endTrade(this);
+  }
+  addItem(player, item) {
+    if (!this.accepted) {
+      this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+      return;
+    }
+    const itemList = player === this.player1 ? this.player1Items : this.player2Items;
+    itemList.set(item.id, item);
+    this.resetConfirmations();
+    this.server.messageManager.notifyTradeItemAdded(player, item);
+  }
+  removeItem(player, itemName) {
+    if (!this.accepted) {
+      this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+      return;
+    }
+    const itemList = player === this.player1 ? this.player1Items : this.player2Items;
+    const item = Array.from(itemList.values()).find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    if (item) {
+      itemList.delete(item.id);
+      this.resetConfirmations();
+      this.server.messageManager.notifyTradeItemRemoved(player, itemName);
+    } else {
+      this.server.messageManager.sendMessage(player, `${itemName} is not in the trade.`, 'error');
+    }
+  }
+  setGold(player, amount) {
+    if (!this.accepted) {
+      this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+      return;
+    }
+    if (amount < 0 || amount > player.getCurrency()) {
+      this.server.messageManager.sendMessage(player, "Invalid gold amount.", 'error');
+      return;
+    }
+    if (player === this.player1) {
+      this.player1Gold = amount;
+    } else {
+      this.player2Gold = amount;
+    }
+    this.resetConfirmations();
+    this.server.messageManager.notifyTradeGoldSet(player, amount);
+  }
+  confirmTrade(player) {
+    if (!this.accepted) {
+      this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+      return;
+    }
+    if (player === this.player1) {
+      this.player1Confirmed = true;
+    } else if (player === this.player2) {
+      this.player2Confirmed = true;
+    }
+    this.server.messageManager.notifyTradeConfirmed(player);
+    if (this.player1Confirmed && this.player2Confirmed) {
+      this.completeTrade();
+    }
+  }
+  completeTrade() {
+    // Transfer items
+    this.transferItems(this.player1Items, this.player2);
+    this.transferItems(this.player2Items, this.player1);
+    // Transfer gold
+    this.player1.subtractCurrency(this.player1Gold);
+    this.player2.addCurrency(this.player1Gold);
+    this.player2.subtractCurrency(this.player2Gold);
+    this.player1.addCurrency(this.player2Gold);
+    this.server.messageManager.notifyTradeCompleted(this.player1, this.player2);
+    this.server.tradeManager.endTrade(this);
+  }
+  transferItems(itemList, recipient) {
+    for (const item of itemList.values()) {
+      recipient.addItemToInventory(item);
+    }
+  }
+  resetConfirmations() {
+    this.player1Confirmed = false;
+    this.player2Confirmed = false;
+  }
+  getOtherPlayer(player) {
+    return player === this.player1 ? this.player2 : this.player1;
+  }
+}
+/**************************************************************************************************
+Format Message Manager Class
+The FormatMessageManager class is responsible for formatting messages for different types of game
+events. It provides methods for creating message data with appropriate CSS identifiers and content.
+Key features:
+1. Message formatting for different types of game events
 2. Integration with the socket for real-time communication
 3. Templated messages for common game events
-The MessageManager is essential for facilitating communication between the server and players,
-ensuring that important information is conveyed effectively and promptly.
+The FormatMessageManager is essential for ensuring that messages are displayed correctly
 ***************************************************************************************************/
 class FormatMessageManager {
   static createMessageData({ cssid = '', message }) {
@@ -3562,7 +3951,10 @@ class FormatMessageManager {
       /* CSS for error messages
         any message sent to a client that contains
         an error message must include this */
-      errorMessage: 'error-message'
+      errorMessage: 'error-message',
+      buyMessage: 'buy-message',
+      sellMessage: 'sell-message',
+      merchantInventory: 'merchant-inventory',
     };
     return messageIds[type] || '';
   }
@@ -3789,9 +4181,14 @@ class MessageManager {
       });
     }
   }
+  static notifyCurrencyChange(player, amount, isAddition) {
+    const action = isAddition ? 'gained' : 'spent';
+    return this.notify({ player, message: `You ${action} ${Math.abs(amount)} coins.`, type: 'currencyChange' });
+  }
 }
 /**************************************************************************************************
 Start Server Code
 ***************************************************************************************************/
 const serverInitializer = ServerInitializer.getInstance({ config: CONFIG });
 serverInitializer.initialize();
+
