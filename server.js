@@ -1388,9 +1388,15 @@ class GameDataLoader {
     return npcs;
   }
   async createNpc(id, npcInfo) {
-    const { type, ...npcData } = npcInfo;
-    let npc;
+    if (typeof id !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
+    if (typeof npcInfo !== 'object' || npcInfo === null) {
+      throw new TypeError('NPC data must be an object');
+    }
     try {
+      const { type, ...npcData } = npcInfo;
+      let npc;
       switch (type) {
         case 'mobile':
           npc = new MobileNpc({ id, ...npcData, server: this.server });
@@ -1654,6 +1660,12 @@ class GameManager extends IGameManager {
     }
   }
   moveEntity(entity, newLocationId) {
+    if (!(entity instanceof Player) && !(entity instanceof Npc)) {
+      throw new TypeError('Entity must be an instance of Player or Npc');
+    }
+    if (typeof newLocationId !== 'string') {
+      throw new TypeError('New location ID must be a string');
+    }
     try {
       const oldLocationId = entity.currentLocation;
       const oldLocation = this.getLocation(oldLocationId);
@@ -1766,6 +1778,12 @@ class GameManager extends IGameManager {
     }
   }
   createNpc(id, npcData) {
+    if (typeof id !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
+    if (typeof npcData !== 'object' || npcData === null) {
+      throw new TypeError('NPC data must be an object');
+    }
     try {
       const { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, lootTable = [] } = npcData;
       let npc;
@@ -1825,9 +1843,15 @@ class GameManager extends IGameManager {
     this.npcs.delete(id);
   }
   getNpc(npcId) {
+    if (typeof npcId !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
     return this.npcs.get(npcId);
   }
   getLocation(locationId) {
+    if (typeof locationId !== 'string') {
+      throw new TypeError('Location ID must be a string');
+    }
     const location = this.locations.get(locationId);
     if (!location) {
       this.logger.error(`Location not found - ID : ${locationId}`, { error: new Error(`Location not found - ID : ${locationId}`) });
@@ -2199,12 +2223,21 @@ class Player extends Character {
     return new CreateNewPlayer({ name, age });
   }
   moveToLocation(direction) {
+    if (typeof direction !== 'string') {
+      throw new TypeError('Direction must be a string');
+    }
     this.gameCommandManager.executeCommand(this, 'move', [direction]);
   }
   attack(target) {
+    if (!(target instanceof Character)) {
+      throw new TypeError('Target must be a Character instance');
+    }
     this.gameCommandManager.executeCommand(this, 'attack', [target]);
   }
   receiveDamage(damage) {
+    if (typeof damage !== 'number' || isNaN(damage)) {
+      throw new TypeError('Damage must be a number');
+    }
     this.health -= damage;
     if (this.health <= 0) {
       this.die();
@@ -2259,6 +2292,9 @@ class Player extends Character {
     return Array.from(this.inventory.values()).map(item => item.name).join(", ");
   }
   addItemToInventory(item) {
+    if (!(item instanceof Item)) {
+      throw new TypeError('Item must be an Item instance');
+    }
     try {
       if (this.canAddToInventory(item)) {
         const itemInstance = item.createInstance();
@@ -2273,6 +2309,9 @@ class Player extends Character {
     }
   }
   removeItemFromInventory(itemUid) {
+    if (typeof itemUid !== 'string') {
+      throw new TypeError('Item UID must be a string');
+    }
     if (this.inventory.has(itemUid)) {
       const item = this.inventory.get(itemUid);
       this.inventory.delete(itemUid);
@@ -2380,6 +2419,12 @@ class AuthenticationManager {
     this.SALT_ROUNDS = CONFIG.PASSWORD_SALT_ROUNDS;
   }
   async createNewCharacter(characterData) {
+    if (typeof characterData !== 'object' || characterData === null) {
+      throw new TypeError('Character data must be an object');
+    }
+    if (typeof characterData.password !== 'string') {
+      throw new TypeError('Password must be a string');
+    }
     try {
       const hashedPassword = await this.bcrypt.hash(characterData.password, this.SALT_ROUNDS);
       characterData.password = hashedPassword;
@@ -2391,6 +2436,9 @@ class AuthenticationManager {
     }
   }
   async authenticateCharacter(characterName, password) {
+    if (typeof characterName !== 'string' || typeof password !== 'string') {
+      throw new TypeError('Character name and password must be strings');
+    }
     try {
       const characterData = await this.server.databaseManager.getCharacter(characterName);
       if (!characterData) {
@@ -2428,6 +2476,9 @@ class SessionManager {
     this.bcrypt = bcrypt;
   }
   createSession(characterId) {
+    if (typeof characterId !== 'string') {
+      throw new TypeError('Character ID must be a string');
+    }
     try {
       const token = this.generateSessionToken();
       this.sessions.set(token, { characterId, lastActivity: Date.now() });
@@ -2438,6 +2489,9 @@ class SessionManager {
     }
   }
   getSession(token) {
+    if (typeof token !== 'string') {
+      throw new TypeError('Token must be a string');
+    }
     try {
       return this.sessions.get(token);
     } catch (error) {
@@ -2490,6 +2544,9 @@ enhancing the gameplay experience.
 ***************************************************************************************************/
 class HealthRegenerator {
   constructor({ player }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     this.player = player;
     this.configManager = player.configManager;
     this.regenInterval = null;
@@ -2555,6 +2612,9 @@ class GameCommandManager {
     return GameCommandManager.instance;
   }
   constructor({ server }) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.server = server;
     this.logger = server.logger;
     this.commandHandlers = {
@@ -2582,6 +2642,15 @@ class GameCommandManager {
     };
   }
   executeCommand(player, command, args = []) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof command !== 'string') {
+      throw new TypeError('Command must be a string');
+    }
+    if (!Array.isArray(args)) {
+      throw new TypeError('Args must be an array');
+    }
     const handler = this.commandHandlers[command];
     if (handler) {
       try {
@@ -2596,6 +2665,9 @@ class GameCommandManager {
     }
   }
   handleMove(player, direction) {
+    if (typeof direction !== 'string') {
+      throw new TypeError('Direction must be a string');
+    }
     const validDirections = ['n', 'e', 'w', 's', 'u', 'd'];
     if (!validDirections.includes(direction)) {
       this.server.messageManager.sendMessage(player, `Invalid direction: ${direction}`, 'error');
@@ -2604,6 +2676,9 @@ class GameCommandManager {
     this.server.gameManager.moveEntity(player, direction);
   }
   handleAttack(player, target) {
+    if (!(target instanceof Character)) {
+      throw new TypeError('Target must be a Character instance');
+    }
     const npc = this.server.gameManager.getNpc(target);
     if (npc) {
       player.attack(npc.id);
@@ -2623,6 +2698,12 @@ class GameCommandManager {
     player.describeCurrentLocation();
   }
   handleBuy(player, itemName) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
     const merchant = this.findMerchantInLocation(player.currentLocation);
     if (!merchant) {
       this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
@@ -2710,15 +2791,21 @@ game world through examination and observation.
 ***************************************************************************************************/
 class LookAtCommandHandler {
   constructor({ player }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     this.player = player;
-    this.server = player.server; // Add this line to access the server
+    this.server = player.server;
   }
   look(target) {
-    const { currentLocation } = this.player; // Change this line
+    if (typeof target !== 'string') {
+      throw new TypeError('Target must be a string');
+    }
+    const { currentLocation } = this.player;
     const location = this.server.gameManager.getLocation(currentLocation);
     if (!location) return;
     const targetLower = target.toLowerCase();
-    const playerNameLower = this.player.getName().toLowerCase(); // Change this line
+    const playerNameLower = this.player.getName().toLowerCase();
     if (this.isSelfLook(targetLower, playerNameLower)) {
       this.lookAtSelfCommandHandler();
       return;
@@ -2804,6 +2891,12 @@ class CombatManager {
     "whipping strike"
   ]);
   constructor({ server, config }) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (typeof config !== 'object' || config === null) {
+      throw new TypeError('Config must be an object');
+    }
     this.server = server;
     this.config = config;
     this.logger = server.logger;
@@ -2821,9 +2914,18 @@ class CombatManager {
       ["critical success", ({ attacker, defender, technique }) => `${attacker.getName()} attacks ${defender.getName()} with a devastatingly catastrophic ${technique}.<br>The strike critically hits ${defender.getName()}!`],
       ["knockout", ({ attacker, defender, technique }) => `${attacker.getName()} strikes ${defender.getName()} with a spectacularly phenomenal blow!<br>${defender.getName()}'s body goes limp and collapses to the ground!`],
     ]);
-    this.combatParticipants = new Map(); // New map to track combat participants
+    this.combatParticipants = new Map();
   }
   initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
+    if (typeof npcId !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof playerInitiated !== 'boolean') {
+      throw new TypeError('playerInitiated must be a boolean');
+    }
     try {
       this.logger.debug(`- Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}`);
       const npc = this.gameManager.getNpc(npcId);
@@ -2831,7 +2933,7 @@ class CombatManager {
         throw new Error(`Npc with ID ${npcId} not found`);
       }
       this.startCombat({ npc, player, playerInitiated });
-      this.addCombatParticipant(npc, player); // Add player to Npc's combat participants
+      this.addCombatParticipant(npc, player);
     } catch (error) {
       this.logger.error(`Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}:`, { error });
     }
@@ -2882,7 +2984,7 @@ class CombatManager {
         }
         const npc = this.getNextNpcInCombatOrder();
         if (npc) {
-          const action = this.objectPool.acquire(); // Reuse combat action objects from a pool
+          const action = this.objectPool.acquire();
           action.perform({ attacker: player, defender: npc });
           this.objectPool.release(action);
           this.notifyHealthStatus(player, npc);
@@ -2914,7 +3016,6 @@ class CombatManager {
   distributeExperience(defeatedNpc, mainPlayer) {
     const participants = this.getCombatParticipants(defeatedNpc.id);
     if (participants.length === 0) {
-      // If no participants (shouldn't happen), give all XP to the main player
       this.awardExperience(mainPlayer, defeatedNpc.experienceReward);
       return;
     }
@@ -2925,7 +3026,6 @@ class CombatManager {
         this.awardExperience(player, experiencePerParticipant);
       }
     }
-    // If there's any remaining XP due to rounding, give it to the main player
     const remainingXP = defeatedNpc.experienceReward - (experiencePerParticipant * participants.length);
     if (remainingXP > 0) {
       this.awardExperience(mainPlayer, remainingXP);
@@ -3006,6 +3106,12 @@ class CombatManager {
       !this.defeatedNpcs.has(npc.id);
   }
   performCombatAction(attacker, defender, isPlayer) {
+    if (!(attacker instanceof Character) || !(defender instanceof Character)) {
+      throw new TypeError('Attacker and defender must be instances of Character');
+    }
+    if (typeof isPlayer !== 'boolean') {
+      throw new TypeError('isPlayer must be a boolean');
+    }
     const combatAction = this.objectPool.acquire();
     combatAction.initialize(attacker, defender);
     try {
@@ -3152,9 +3258,15 @@ Key features:
 ***************************************************************************************************/
 class CombatAction {
   constructor({ logger }) {
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
     this.logger = logger;
   }
   initialize(attacker, defender) {
+    if (!(attacker instanceof Character) || !(defender instanceof Character)) {
+      throw new TypeError('Attacker and defender must be instances of Character');
+    }
     this.attacker = attacker;
     this.defender = defender;
     this.technique = this.selectTechnique();
@@ -3170,6 +3282,9 @@ class CombatAction {
     return CombatManager.getRandomElement(CombatManager.TECHNIQUES);
   }
   calculateAttackValue(roll) {
+    if (typeof roll !== 'number' || isNaN(roll)) {
+      throw new TypeError('Roll must be a number');
+    }
     if (this.attacker.level === this.defender.level) {
       return roll + this.attacker.csml;
     } else if (this.attacker.level < this.defender.level) {
@@ -3179,6 +3294,9 @@ class CombatAction {
     }
   }
   determineOutcome(value) {
+    if (typeof value !== 'number' || isNaN(value)) {
+      throw new TypeError('Value must be a number');
+    }
     if (value >= 21 || value === 19) return "critical success";
     if (value === 20) return "knockout";
     if (value >= 13) return "attack hits";
@@ -3204,27 +3322,51 @@ interactions and navigation are managed effectively.
 ***************************************************************************************************/
 class Locations {
   constructor({ name, description }) {
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof description !== 'string') {
+      throw new TypeError('Description must be a string');
+    }
     this.name = name;
     this.description = description;
     this.exits = new Map();
     this.items = new Set();
     this.npcs = new Set();
     this.playersInLocation = new Set();
-    this.zone = new Set(); // Changed from array to Set
+    this.zone = new Set();
   }
   addExit(direction, linkedLocation) {
+    if (typeof direction !== 'string') {
+      throw new TypeError('Direction must be a string');
+    }
+    if (typeof linkedLocation !== 'string') {
+      throw new TypeError('Linked location must be a string');
+    }
     this.exits.set(direction, linkedLocation);
   }
   addItem(item) {
+    if (!(item instanceof Item)) {
+      throw new TypeError('Item must be an instance of Item');
+    }
     this.items.add(item);
   }
   addNpc(npc) {
+    if (!(npc instanceof Npc)) {
+      throw new TypeError('NPC must be an instance of Npc');
+    }
     this.npcs.add(npc.id);
   }
   addPlayer(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     this.playersInLocation.add(player);
   }
   removePlayer(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     this.playersInLocation.delete(player);
   }
   getDescription() {
@@ -3261,6 +3403,12 @@ class LocationCoordinateManager {
   constructor({ logger, server, locationData }) {
     if (LocationCoordinateManager.instance) {
       return LocationCoordinateManager.instance;
+    }
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
     }
     this.server = server;
     this.logger = logger;
@@ -3387,6 +3535,12 @@ the game world, allowing players to engage more deeply with their environment.
 ***************************************************************************************************/
 class DescribeLocationManager {
   constructor({ player, server }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.player = player;
     this.server = server;
     this.logger = server.logger;
@@ -3409,6 +3563,9 @@ class DescribeLocationManager {
     }
   }
   formatDescription(location) {
+    if (!(location instanceof Locations)) {
+      throw new TypeError('Location must be an instance of Locations');
+    }
     return {
       title: { cssid: `location-title`, text: location.getName() },
       desc: { cssid: `location-description`, text: location.getDescription() },
@@ -3420,24 +3577,36 @@ class DescribeLocationManager {
     };
   }
   getExitsDescription(location) {
+    if (!(location instanceof Locations)) {
+      throw new TypeError('Location must be an instance of Locations');
+    }
     return [...location.exits.entries()].map(([direction, linkedLocation]) => ({
       cssid: `exit-${direction}`,
       text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`,
     }));
   }
   getItemsDescription(location) {
+    if (!(location instanceof Locations)) {
+      throw new TypeError('Location must be an instance of Locations');
+    }
     return [...location.items].map(item => ({
       cssid: `item-${item.uid}`,
       text: `A ${item.name} is lying here.`,
     }));
   }
   getNpcsDescription(location) {
+    if (!(location instanceof Locations)) {
+      throw new TypeError('Location must be an instance of Locations');
+    }
     return [...location.npcs].map(npcId => {
       const npc = this.server.gameManager.getNpc(npcId);
       return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null;
     }).filter(npc => npc);
   }
   getPlayersDescription(location) {
+    if (!(location instanceof Locations)) {
+      throw new TypeError('Location must be an instance of Locations');
+    }
     return [...location.playersInLocation].map(otherPlayer => ({
       cssid: `player`,
       text: `${otherPlayer.getName()} is ${otherPlayer.getStatus()} here.`,
@@ -3457,14 +3626,23 @@ for entities and players.
 ***************************************************************************************************/
 class DirectionManager {
   static getDirectionTo(newLocationId) {
+    if (typeof newLocationId !== 'string') {
+      throw new TypeError('New location ID must be a string');
+    }
     const directionMap = { 'north': 'northward', 'east': 'eastward', 'west': 'westward', 'south': 'southward', 'up': 'upward', 'down': 'downward' };
     return directionMap[newLocationId] || 'unknown direction';
   }
   static getDirectionFrom(oldLocationId) {
+    if (typeof oldLocationId !== 'string') {
+      throw new TypeError('Old location ID must be a string');
+    }
     const directionMap = { 'north': 'from the north', 'east': 'from the east', 'west': 'from the west', 'south': 'from the south', 'up': 'from above', 'down': 'from below' };
     return directionMap[oldLocationId] || 'from an unknown direction';
   }
   static getOppositeDirection(direction) {
+    if (typeof direction !== 'string') {
+      throw new TypeError('Direction must be a string');
+    }
     const oppositeMap = {
       'north': 'south',
       'south': 'north',
@@ -3494,6 +3672,51 @@ interactions are managed consistently within the game.
 ***************************************************************************************************/
 class Npc extends Character {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server, lootTable = [] }) {
+    if (typeof id !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof sex !== 'string') {
+      throw new TypeError('Sex must be a string');
+    }
+    if (typeof currHealth !== 'number' || isNaN(currHealth)) {
+      throw new TypeError('Current health must be a number');
+    }
+    if (typeof maxHealth !== 'number' || isNaN(maxHealth)) {
+      throw new TypeError('Max health must be a number');
+    }
+    if (typeof attackPower !== 'number' || isNaN(attackPower)) {
+      throw new TypeError('Attack power must be a number');
+    }
+    if (typeof csml !== 'number' || isNaN(csml)) {
+      throw new TypeError('CSML must be a number');
+    }
+    if (typeof aggro !== 'number' || isNaN(aggro)) {
+      throw new TypeError('Aggro must be a number');
+    }
+    if (typeof assist !== 'number' || isNaN(assist)) {
+      throw new TypeError('Assist must be a number');
+    }
+    if (typeof status !== 'string') {
+      throw new TypeError('Status must be a string');
+    }
+    if (typeof currentLocation !== 'string') {
+      throw new TypeError('Current location must be a string');
+    }
+    if (!Array.isArray(aliases)) {
+      throw new TypeError('Aliases must be an array');
+    }
+    if (typeof type !== 'string') {
+      throw new TypeError('Type must be a string');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!Array.isArray(lootTable)) {
+      throw new TypeError('Loot table must be an array');
+    }
     super({ name, health: currHealth });
     this.id = id;
     this.sex = sex;
@@ -3508,7 +3731,7 @@ class Npc extends Character {
     this.aliases = aliases;
     this.type = type;
     this.server = server;
-    this.gameManager = server.gameManager; // Add this line
+    this.gameManager = server.gameManager;
     this.previousState = { currHealth, status };
     this.lootTable = lootTable;
   }
@@ -3523,6 +3746,9 @@ class Npc extends Character {
     return hasChanged;
   }
   receiveDamage(damage) {
+    if (typeof damage !== 'number' || isNaN(damage)) {
+      throw new TypeError('Damage must be a number');
+    }
     this.currHealth -= damage;
     if (this.currHealth <= 0) {
       this.die();
@@ -3534,6 +3760,9 @@ class Npc extends Character {
     // Additional logic for Npc death (e.g., loot drop, respawn timer)
   }
   attack(target) {
+    if (!(target instanceof Character)) {
+      throw new TypeError('Target must be a Character instance');
+    }
     this.server.combatManager.performCombatAction(this, target);
   }
   getLoot() {
@@ -3553,6 +3782,54 @@ and the environment through movement.
 ***************************************************************************************************/
 class MobileNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
+    if (typeof id !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof sex !== 'string') {
+      throw new TypeError('Sex must be a string');
+    }
+    if (typeof currHealth !== 'number' || isNaN(currHealth)) {
+      throw new TypeError('Current health must be a number');
+    }
+    if (typeof maxHealth !== 'number' || isNaN(maxHealth)) {
+      throw new TypeError('Max health must be a number');
+    }
+    if (typeof attackPower !== 'number' || isNaN(attackPower)) {
+      throw new TypeError('Attack power must be a number');
+    }
+    if (typeof csml !== 'number' || isNaN(csml)) {
+      throw new TypeError('CSML must be a number');
+    }
+    if (typeof aggro !== 'number' || isNaN(aggro)) {
+      throw new TypeError('Aggro must be a number');
+    }
+    if (typeof assist !== 'number' || isNaN(assist)) {
+      throw new TypeError('Assist must be a number');
+    }
+    if (typeof status !== 'string') {
+      throw new TypeError('Status must be a string');
+    }
+    if (typeof currentLocation !== 'string') {
+      throw new TypeError('Current location must be a string');
+    }
+    if (!Array.isArray(zones)) {
+      throw new TypeError('Zones must be an array');
+    }
+    if (!Array.isArray(aliases)) {
+      throw new TypeError('Aliases must be an array');
+    }
+    if (typeof config !== 'object' || config === null) {
+      throw new TypeError('Config must be an object');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!Array.isArray(lootTable)) {
+      throw new TypeError('Loot table must be an array');
+    }
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'mobile', server, lootTable });
     this.zones = new Set(zones);
     this.config = config;
@@ -3575,6 +3852,54 @@ through Npc interactions.
 ***************************************************************************************************/
 class QuestNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, questId, zones = [], aliases, server, lootTable = [] }) {
+    if (typeof id !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof sex !== 'string') {
+      throw new TypeError('Sex must be a string');
+    }
+    if (typeof currHealth !== 'number' || isNaN(currHealth)) {
+      throw new TypeError('Current health must be a number');
+    }
+    if (typeof maxHealth !== 'number' || isNaN(maxHealth)) {
+      throw new TypeError('Max health must be a number');
+    }
+    if (typeof attackPower !== 'number' || isNaN(attackPower)) {
+      throw new TypeError('Attack power must be a number');
+    }
+    if (typeof csml !== 'number' || isNaN(csml)) {
+      throw new TypeError('CSML must be a number');
+    }
+    if (typeof aggro !== 'number' || isNaN(aggro)) {
+      throw new TypeError('Aggro must be a number');
+    }
+    if (typeof assist !== 'number' || isNaN(assist)) {
+      throw new TypeError('Assist must be a number');
+    }
+    if (typeof status !== 'string') {
+      throw new TypeError('Status must be a string');
+    }
+    if (typeof currentLocation !== 'string') {
+      throw new TypeError('Current location must be a string');
+    }
+    if (typeof questId !== 'string') {
+      throw new TypeError('Quest ID must be a string');
+    }
+    if (!Array.isArray(zones)) {
+      throw new TypeError('Zones must be an array');
+    }
+    if (!Array.isArray(aliases)) {
+      throw new TypeError('Aliases must be an array');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!Array.isArray(lootTable)) {
+      throw new TypeError('Loot table must be an array');
+    }
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'quest', server, lootTable });
     this.questId = questId;
     this.zones = zones;
@@ -3584,6 +3909,9 @@ class QuestNpc extends Npc {
     this.server.messageManager.sendMessage(this, `${this.getName()} has received a quest: ${this.quest.title}`, 'questMessage');
   }
   completeQuest(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     // Logic to complete the quest
     if (this.quest.isCompleted(player)) {
       this.server.messageManager.sendMessage(player, `${player.getName()} has completed the quest: ${this.quest.title}`, 'questMessage');
@@ -3595,10 +3923,64 @@ class QuestNpc extends Npc {
 }
 class MerchantNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
+    if (typeof id !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof sex !== 'string') {
+      throw new TypeError('Sex must be a string');
+    }
+    if (typeof currHealth !== 'number' || isNaN(currHealth)) {
+      throw new TypeError('Current health must be a number');
+    }
+    if (typeof maxHealth !== 'number' || isNaN(maxHealth)) {
+      throw new TypeError('Max health must be a number');
+    }
+    if (typeof attackPower !== 'number' || isNaN(attackPower)) {
+      throw new TypeError('Attack power must be a number');
+    }
+    if (typeof csml !== 'number' || isNaN(csml)) {
+      throw new TypeError('CSML must be a number');
+    }
+    if (typeof aggro !== 'number' || isNaN(aggro)) {
+      throw new TypeError('Aggro must be a number');
+    }
+    if (typeof assist !== 'number' || isNaN(assist)) {
+      throw new TypeError('Assist must be a number');
+    }
+    if (typeof status !== 'string') {
+      throw new TypeError('Status must be a string');
+    }
+    if (typeof currentLocation !== 'string') {
+      throw new TypeError('Current location must be a string');
+    }
+    if (!Array.isArray(zones)) {
+      throw new TypeError('Zones must be an array');
+    }
+    if (!Array.isArray(aliases)) {
+      throw new TypeError('Aliases must be an array');
+    }
+    if (typeof config !== 'object' || config === null) {
+      throw new TypeError('Config must be an object');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!Array.isArray(lootTable)) {
+      throw new TypeError('Loot table must be an array');
+    }
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'merchant', server, lootTable });
     this.inventory = new Map();
   }
   async sellItem(itemId, player) {
+    if (typeof itemId !== 'string') {
+      throw new TypeError('Item ID must be a string');
+    }
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       const item = await this.server.transactionManager.executeBuyTransaction(player, this, itemId);
       this.server.messageManager.notifyItemPurchased(player, item);
@@ -3609,6 +3991,12 @@ class MerchantNpc extends Npc {
     }
   }
   async buyItem(itemUid, player) {
+    if (typeof itemUid !== 'string') {
+      throw new TypeError('Item UID must be a string');
+    }
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       const sellPrice = await this.server.transactionManager.executeSellTransaction(player, this, itemUid);
       this.server.messageManager.notifyItemSold(player, sellPrice);
@@ -3647,6 +4035,15 @@ class NpcMovementManager {
     if (NpcMovementManager.#instance) {
       return NpcMovementManager.#instance;
     }
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (typeof configManager !== 'object' || configManager === null) {
+      throw new TypeError('Config manager must be an object');
+    }
+    if (!(gameManager instanceof GameManager)) {
+      throw new TypeError('Game manager must be an instance of GameManager');
+    }
     this.logger = logger;
     this.configManager = configManager;
     this.gameManager = gameManager;
@@ -3655,10 +4052,16 @@ class NpcMovementManager {
     NpcMovementManager.#instance = this;
   }
   setGameManager(gameManager) {
+    if (!(gameManager instanceof GameManager)) {
+      throw new TypeError('Game manager must be an instance of GameManager');
+    }
     this.gameManager = gameManager;
   }
   startMovement() {
     const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
+    if (typeof MOVEMENT_INTERVAL !== 'number' || isNaN(MOVEMENT_INTERVAL)) {
+      throw new TypeError('Movement interval must be a number');
+    }
     this.movementInterval = setInterval(() => this.moveAllMobiles(), MOVEMENT_INTERVAL);
     this.logger.info(`- Start Mobile Movement With Interval: ${MOVEMENT_INTERVAL}ms`);
   }
@@ -3670,6 +4073,9 @@ class NpcMovementManager {
     }
   }
   registerMobileNpc(npc) {
+    if (!(npc instanceof MobileNpc)) {
+      throw new TypeError('NPC must be an instance of MobileNpc');
+    }
     if (!this.gameManager) {
       this.logger.error(`Game Manager not set in Npc Movement Manager. Unable to register Npc ID: ${npc.id}`);
       return;
@@ -3678,6 +4084,9 @@ class NpcMovementManager {
     this.logger.debug(`- Register Npc: ${npc.id} - With Npc Movement Manager`);
   }
   unregisterMobileNpc(npc) {
+    if (!(npc instanceof MobileNpc)) {
+      throw new TypeError('NPC must be an instance of MobileNpc');
+    }
     this.mobileNpcs.delete(npc.id);
   }
   moveAllMobiles() {
@@ -3706,6 +4115,9 @@ class NpcMovementManager {
     this.logger.debug(`Move Mobiles Finished At: ${new Date().toLocaleString()}`);
   }
   moveMobile(npc) {
+    if (!(npc instanceof MobileNpc)) {
+      throw new TypeError('NPC must be an instance of MobileNpc');
+    }
     const currentLocation = this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation) {
       this.logger.error(`Invalid location for Npc: ${npc.id} - Location: ${npc.currentLocation}`);
@@ -3723,6 +4135,9 @@ class NpcMovementManager {
     return true;
   }
   chooseRandomExit(npc) {
+    if (!(npc instanceof MobileNpc)) {
+      throw new TypeError('NPC must be an instance of MobileNpc');
+    }
     const currentLocation = this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation || !currentLocation.exits) return {};
     const availableExits = Object.entries(currentLocation.exits).filter(([, exitId]) =>
@@ -3733,6 +4148,9 @@ class NpcMovementManager {
     return { direction: chosenDirection, exitId: chosenExitId };
   }
   isExitAllowed(npc, exitLocation) {
+    if (!(npc instanceof MobileNpc)) {
+      throw new TypeError('NPC must be an instance of MobileNpc');
+    }
     if (!exitLocation) return false;
     if (npc.level < exitLocation.minLevel) return false;
     if (npc.allowedZones && npc.allowedZones.length > 0) {
@@ -3741,6 +4159,18 @@ class NpcMovementManager {
     return true;
   }
   notifyNpcMovement(npc, fromLocation, toLocation, direction) {
+    if (!(npc instanceof MobileNpc)) {
+      throw new TypeError('NPC must be an instance of MobileNpc');
+    }
+    if (!(fromLocation instanceof Locations)) {
+      throw new TypeError('From location must be an instance of Locations');
+    }
+    if (!(toLocation instanceof Locations)) {
+      throw new TypeError('To location must be an instance of Locations');
+    }
+    if (typeof direction !== 'string') {
+      throw new TypeError('Direction must be a string');
+    }
     MessageManager.notifyPlayersInLocation(fromLocation, `${npc.name} leaves ${direction}.`, 'npcMovement');
     MessageManager.notifyPlayersInLocation(toLocation, `${npc.name} arrives from the ${DirectionManager.getOppositeDirection(direction)}.`, 'npcMovement');
   }
@@ -3758,6 +4188,15 @@ item properties and behavior across the game.
 ***************************************************************************************************/
 class BaseItem {
   constructor({ name, description, aliases }) {
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof description !== 'string') {
+      throw new TypeError('Description must be a string');
+    }
+    if (!Array.isArray(aliases)) {
+      throw new TypeError('Aliases must be an array');
+    }
     this.name = name;
     this.description = description;
     this.aliases = aliases;
@@ -3778,6 +4217,18 @@ and managed within the game.
 class Item extends BaseItem {
   constructor({ id, name, description, aliases, type, price = 0, server }) {
     super({ name, description, aliases });
+    if (typeof id !== 'string') {
+      throw new TypeError('ID must be a string');
+    }
+    if (typeof type !== 'string') {
+      throw new TypeError('Type must be a string');
+    }
+    if (typeof price !== 'number' || isNaN(price)) {
+      throw new TypeError('Price must be a number');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.id = id;
     this.type = type;
     this.price = price;
@@ -3841,6 +4292,9 @@ This class serves as the base for all weapon types, ensuring that weapons are pr
 class WeaponItem extends Item {
   constructor({ id, name, description, aliases, damage, server }) {
     super({ id, name, description, aliases, type: 'weapon', server });
+    if (typeof damage !== 'number' || isNaN(damage)) {
+      throw new TypeError('Damage must be a number');
+    }
     this.damage = damage;
   }
 }
@@ -3865,6 +4319,15 @@ class ItemManager {
   constructor({ logger, configManager, bcrypt }) {
     if (ItemManager.instance) {
       return ItemManager.instance;
+    }
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (typeof configManager !== 'object' || configManager === null) {
+      throw new TypeError('Config manager must be an object');
+    }
+    if (typeof bcrypt !== 'object' || bcrypt === null) {
+      throw new TypeError('Bcrypt must be an object');
     }
     this.logger = logger;
     this.configManager = configManager;
@@ -3911,12 +4374,18 @@ class ItemManager {
     this.logger.debug(`Total Items with UIDs: ${this.items.size}`);
   }
   getItem(uid) {
+    if (typeof uid !== 'string') {
+      throw new TypeError('UID must be a string');
+    }
     return this.items.get(uid);
   }
   getAllItems() {
     return [...this.items.values()];
   }
   createItemInstance(itemId) {
+    if (typeof itemId !== 'string') {
+      throw new TypeError('Item ID must be a string');
+    }
     const itemTemplate = this.items.get(itemId);
     if (!itemTemplate) {
       this.logger.error(`Item template not found for ID: ${itemId}`);
@@ -3925,6 +4394,12 @@ class ItemManager {
     return itemTemplate.createInstance();
   }
   transferItem(sourceInventory, targetInventory, itemUid) {
+    if (!(sourceInventory instanceof Map) || !(targetInventory instanceof Map)) {
+      throw new TypeError('Source and target inventories must be instances of Map');
+    }
+    if (typeof itemUid !== 'string') {
+      throw new TypeError('Item UID must be a string');
+    }
     const item = sourceInventory.get(itemUid);
     if (!item) {
       this.logger.error(`Item not found in source inventory: ${itemUid}`);
@@ -3956,6 +4431,9 @@ class InventoryManager {
     return InventoryManager.instance;
   }
   constructor(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     this.player = player;
     this.server = player.server;
     this.messageManager = this.server.messageManager;
@@ -3963,10 +4441,16 @@ class InventoryManager {
     this.inventory = new Map();
   }
   addItem(item) {
+    if (!(item instanceof Item)) {
+      throw new TypeError('Item must be an instance of Item');
+    }
     this.inventory.set(item.uid, item);
     this.messageManager.notifyPickupItem(this.player, item.name);
   }
   removeItem(itemUid) {
+    if (typeof itemUid !== 'string') {
+      throw new TypeError('Item UID must be a string');
+    }
     const item = this.inventory.get(itemUid);
     if (item) {
       this.inventory.delete(itemUid);
@@ -3976,10 +4460,16 @@ class InventoryManager {
     return null;
   }
   transferItemTo(targetInventory, itemUid) {
+    if (!(targetInventory instanceof Map) || typeof itemUid !== 'string') {
+      throw new TypeError('Target inventory must be an instance of Map and item UID must be a string');
+    }
     return this.itemManager.transferItem(this.inventory, targetInventory, itemUid);
   }
   // Create an item instance from the item data
   async createItemFromData(itemId) {
+    if (typeof itemId !== 'string') {
+      throw new TypeError('Item ID must be a string');
+    }
     const itemData = this.player.server.items[itemId];
     if (!itemData) {
       this.player.server.logger.error(`Item with ID ${itemId} not found`);
@@ -4008,6 +4498,9 @@ class InventoryManager {
     }
   }
   removeFromInventory(item) {
+    if (!(item instanceof Item)) {
+      throw new TypeError('Item must be an instance of Item');
+    }
     this.player.inventory.delete(item);
     if (item.type === 'weapon') {
       this.player.weapons.delete(item);
@@ -4040,12 +4533,18 @@ class InventoryManager {
     this.getAllItemsFromSource(currentLocation.items, 'location');
   }
   getAllItemsFromContainer(containerName) {
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     const container = this.getContainer(containerName);
     if (!container) return;
     const items = new Set([...container.inventory].filter(i => this.player.server.items[i]));
     this.getAllItemsFromSource(items, 'container', container.name);
   }
   getSingleItemFromContainer(itemName, containerName) {
+    if (typeof itemName !== 'string' || typeof containerName !== 'string') {
+      throw new TypeError('Item name and container name must be strings');
+    }
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemId = this.getItemIdFromContainer(itemName, container);
@@ -4056,6 +4555,9 @@ class InventoryManager {
     }
   }
   getSingleItemFromLocation(target) {
+    if (typeof target !== 'string') {
+      throw new TypeError('Target must be a string');
+    }
     const currentLocation = this.player.server.location[this.player.currentLocation];
     const itemId = this.getItemIdFromLocation(target, currentLocation.items);
     if (itemId) {
@@ -4068,10 +4570,16 @@ class InventoryManager {
     this.dropItems(this.player.inventory, 'all');
   }
   dropAllSpecificItems(itemType) {
+    if (typeof itemType !== 'string') {
+      throw new TypeError('Item type must be a string');
+    }
     const itemsToDrop = new Set([...this.player.inventory].filter(item => this.itemMatchesType(item, itemType)));
     this.dropItems(itemsToDrop, 'specific', itemType);
   }
   dropSingleItem(target) {
+    if (typeof target !== 'string') {
+      throw new TypeError('Target must be a string');
+    }
     const item = [...this.player.inventory].find(i => i.name.toLowerCase() === target.toLowerCase());
     if (item) {
       this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
@@ -4080,6 +4588,9 @@ class InventoryManager {
     }
   }
   putSingleItem(itemName, containerName) {
+    if (typeof itemName !== 'string' || typeof containerName !== 'string') {
+      throw new TypeError('Item name and container name must be strings');
+    }
     const item = this.getItemFromInventory(itemName);
     if (!item) return;
     const container = this.getContainer(containerName);
@@ -4089,6 +4600,9 @@ class InventoryManager {
     MessageManager.notifyItemPutInContainer(this.player, item.name, container.name);
   }
   putAllItems(containerName) {
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemsToPut = new Set();
@@ -4110,6 +4624,9 @@ class InventoryManager {
     MessageManager.notifyItemsPutInContainer(this.player, [...itemsToPut], container.name);
   }
   putAllSpecificItemsIntoContainer(itemType, containerName) {
+    if (typeof itemType !== 'string' || typeof containerName !== 'string') {
+      throw new TypeError('Item type and container name must be strings');
+    }
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemsToPut = new Set();
@@ -4129,6 +4646,9 @@ class InventoryManager {
     MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
   }
   getAllSpecificItemsFromLocation(itemType) {
+    if (typeof itemType !== 'string') {
+      throw new TypeError('Item type must be a string');
+    }
     const currentLocation = this.player.server.location[this.player.currentLocation];
     if (currentLocation.items && currentLocation.items.size > 0) {
       const itemsTaken = [];
@@ -4153,6 +4673,9 @@ class InventoryManager {
     }
   }
   getAllSpecificItemsFromContainer(itemType, containerName) {
+    if (typeof itemType !== 'string' || typeof containerName !== 'string') {
+      throw new TypeError('Item type and container name must be strings');
+    }
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemsTaken = [];
@@ -4174,6 +4697,9 @@ class InventoryManager {
     }
   }
   autoLootNpc(npc) {
+    if (!(npc instanceof Npc)) {
+      throw new TypeError('NPC must be an instance of Npc');
+    }
     if (npc.inventory && npc.inventory.size > 0) {
       const lootedItems = new Set(npc.inventory);
       lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
@@ -4183,6 +4709,9 @@ class InventoryManager {
     return null;
   }
   async lootNpc(target) {
+    if (typeof target !== 'string') {
+      throw new TypeError('Target must be a string');
+    }
     try {
       const currentLocation = this.player.server.location[this.player.currentLocation];
       const npcId = this.getNpcIdFromLocation(target, currentLocation.npcs);
@@ -4260,6 +4789,9 @@ class InventoryManager {
     }
   }
   dropItems(itemsToDrop, type, itemType) {
+    if (!(itemsToDrop instanceof Set) || (type !== 'all' && type !== 'specific') || (type === 'specific' && typeof itemType !== 'string')) {
+      throw new TypeError('Invalid arguments for dropItems');
+    }
     try {
       if (itemsToDrop.size === 0) {
         this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
@@ -4278,6 +4810,9 @@ class InventoryManager {
     }
   }
   getContainer(containerName) {
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       const container = [...this.player.inventory].find(item =>
         item.name.toLowerCase() === containerName.toLowerCase() && item.inventory
@@ -4293,6 +4828,9 @@ class InventoryManager {
     }
   }
   getItemFromInventory(itemName) {
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
     try {
       const item = [...this.player.inventory].find(i => i.name.toLowerCase() === itemName.toLowerCase());
       if (!item) {
@@ -4306,6 +4844,9 @@ class InventoryManager {
     }
   }
   async transferItem(itemId, source, sourceType) {
+    if (typeof itemId !== 'string' || !(source instanceof Set) || !['location', 'container', 'drop'].includes(sourceType)) {
+      throw new TypeError('Invalid arguments for transferItem');
+    }
     try {
       const item = await this.createItemFromData(itemId);
       if (!item) {
@@ -4327,6 +4868,9 @@ class InventoryManager {
     }
   }
   getItemIdFromLocation(target, items) {
+    if (typeof target !== 'string' || !(items instanceof Set)) {
+      throw new TypeError('Invalid arguments for getItemIdFromLocation');
+    }
     try {
       return [...items].find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
     } catch (error) {
@@ -4335,6 +4879,9 @@ class InventoryManager {
     }
   }
   getItemIdFromContainer(itemName, container) {
+    if (typeof itemName !== 'string' || !(container instanceof ContainerItem)) {
+      throw new TypeError('Invalid arguments for getItemIdFromContainer');
+    }
     try {
       return [...container.inventory].find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
     } catch (error) {
@@ -4343,6 +4890,9 @@ class InventoryManager {
     }
   }
   getNpcIdFromLocation(npcName, npcs) {
+    if (typeof npcName !== 'string' || !(npcs instanceof Set)) {
+      throw new TypeError('Invalid arguments for getNpcIdFromLocation');
+    }
     try {
       return [...npcs].find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
     } catch (error) {
@@ -4351,6 +4901,9 @@ class InventoryManager {
     }
   }
   itemMatchesType(item, itemType) {
+    if (!(item instanceof Item) || typeof itemType !== 'string') {
+      throw new TypeError('Invalid arguments for itemMatchesType');
+    }
     try {
       return item.type.toLowerCase() === itemType.toLowerCase();
     } catch (error) {
@@ -4370,18 +4923,27 @@ Key features:
 This class is essential for handling the player's financial transactions within the game.
 ***************************************************************************************************/
 class Currency {
-  constructor(amount = 0) {
-    this.amount = amount;
+  constructor(initialAmount = 0) {
+    if (typeof initialAmount !== 'number' || isNaN(initialAmount) || initialAmount < 0) {
+      throw new TypeError('Initial amount must be a non-negative number');
+    }
+    this.amount = initialAmount;
   }
   add(value) {
+    if (typeof value !== 'number' || isNaN(value) || value < 0) {
+      throw new TypeError('Value to add must be a non-negative number');
+    }
     this.amount += value;
   }
   subtract(value) {
-    if (this.amount >= value) {
-      this.amount -= value;
-      return true;
+    if (typeof value !== 'number' || isNaN(value) || value < 0) {
+      throw new TypeError('Value to subtract must be a non-negative number');
     }
-    return false;
+    if (this.amount < value) {
+      throw new Error('Insufficient funds');
+    }
+    this.amount -= value;
+    return true;
   }
   getAmount() {
     return this.amount;
@@ -4401,6 +4963,9 @@ correctly.
 ***************************************************************************************************/
 class TransactionManager {
   constructor(server) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.server = server;
     this.tradeSessions = new Map();
   }
@@ -4408,11 +4973,17 @@ class TransactionManager {
     return new AtomicTransaction(this.server);
   }
   async executeTransaction(operations) {
+    if (!Array.isArray(operations)) {
+      throw new TypeError('Operations must be an array');
+    }
     const transaction = this.createTransaction();
     operations.forEach(operation => transaction.addOperation(operation));
     await transaction.commit();
   }
   async executeBuyTransaction(player, merchant, itemId) {
+    if (!(player instanceof Player) || !(merchant instanceof MerchantNpc) || typeof itemId !== 'string') {
+      throw new TypeError('Invalid arguments for executeBuyTransaction');
+    }
     try {
       const item = merchant.inventory.get(itemId);
       if (!item) throw new Error("Item not found in merchant's inventory");
@@ -4436,6 +5007,9 @@ class TransactionManager {
     }
   }
   async executeSellTransaction(player, merchant, itemUid) {
+    if (!(player instanceof Player) || !(merchant instanceof MerchantNpc) || typeof itemUid !== 'string') {
+      throw new TypeError('Invalid arguments for executeSellTransaction');
+    }
     try {
       const item = player.getItemFromInventory(itemUid);
       if (!item) throw new Error("Item not found in player's inventory");
@@ -4459,6 +5033,9 @@ class TransactionManager {
     }
   }
   createTradeSession(player1, player2) {
+    if (!(player1 instanceof Player) || !(player2 instanceof Player)) {
+      throw new TypeError('Invalid arguments for createTradeSession');
+    }
     try {
       const tradeSession = new TradeSession(this.server, player1, player2);
       this.tradeSessions.set(player1.getId(), tradeSession);
@@ -4470,9 +5047,15 @@ class TransactionManager {
     }
   }
   getTradeSession(playerId) {
+    if (typeof playerId !== 'string') {
+      throw new TypeError('Player ID must be a string');
+    }
     return this.tradeSessions.get(playerId);
   }
   endTradeSession(playerId) {
+    if (typeof playerId !== 'string') {
+      throw new TypeError('Player ID must be a string');
+    }
     try {
       const tradeSession = this.tradeSessions.get(playerId);
       if (tradeSession) {
@@ -4485,6 +5068,9 @@ class TransactionManager {
     }
   }
   async executeTradeTransaction(tradeSession) {
+    if (!(tradeSession instanceof TradeSession)) {
+      throw new TypeError('Trade session must be an instance of TradeSession');
+    }
     try {
       const transaction = this.createTransaction();
       const { player1, player2, player1Items, player2Items, player1Gold, player2Gold } = tradeSession;
@@ -4504,6 +5090,9 @@ class TransactionManager {
     }
   }
   addItemTransferOperations(transaction, items, fromPlayer, toPlayer) {
+    if (!(transaction instanceof AtomicTransaction) || !(items instanceof Map) || !(fromPlayer instanceof Player) || !(toPlayer instanceof Player)) {
+      throw new TypeError('Invalid arguments for addItemTransferOperations');
+    }
     try {
       for (const [itemId, item] of items) {
         transaction.addOperation({
@@ -4523,6 +5112,9 @@ class TransactionManager {
     }
   }
   addGoldTransferOperation(transaction, fromPlayer, toPlayer, amount) {
+    if (!(transaction instanceof AtomicTransaction) || !(fromPlayer instanceof Player) || !(toPlayer instanceof Player) || typeof amount !== 'number' || isNaN(amount)) {
+      throw new TypeError('Invalid arguments for addGoldTransferOperation');
+    }
     try {
       transaction.addOperation({
         execute: () => {
@@ -4554,6 +5146,9 @@ This class is essential for managing trades between players.
 ***************************************************************************************************/
 class TradeSession {
   constructor(server, player1, player2) {
+    if (!(server instanceof Server) || !(player1 instanceof Player) || !(player2 instanceof Player)) {
+      throw new TypeError('Invalid arguments for TradeSession constructor');
+    }
     try {
       this.server = server;
       this.player1 = player1;
@@ -4571,6 +5166,9 @@ class TradeSession {
     }
   }
   acceptTrade(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       if (this.accepted) return;
       if (player !== this.player2) {
@@ -4585,6 +5183,9 @@ class TradeSession {
     }
   }
   declineTrade(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       this.server.messageManager.notifyTradeDeclined(this.player1, this.player2);
       this.server.transactionManager.endTradeSession(this.player1.getId());
@@ -4594,6 +5195,9 @@ class TradeSession {
     }
   }
   addItem(player, item) {
+    if (!(player instanceof Player) || !(item instanceof Item)) {
+      throw new TypeError('Invalid arguments for addItem');
+    }
     try {
       if (!this.canModifyTrade(player)) return;
       const itemList = player === this.player1 ? this.player1Items : this.player2Items;
@@ -4606,6 +5210,9 @@ class TradeSession {
     }
   }
   removeItem(player, itemName) {
+    if (!(player instanceof Player) || typeof itemName !== 'string') {
+      throw new TypeError('Invalid arguments for removeItem');
+    }
     try {
       if (!this.canModifyTrade(player)) return;
       const itemList = player === this.player1 ? this.player1Items : this.player2Items;
@@ -4623,6 +5230,9 @@ class TradeSession {
     }
   }
   setGold(player, amount) {
+    if (!(player instanceof Player) || typeof amount !== 'number' || isNaN(amount)) {
+      throw new TypeError('Invalid arguments for setGold');
+    }
     try {
       if (!this.canModifyTrade(player)) return;
       if (amount < 0 || amount > player.getCurrency()) {
@@ -4642,6 +5252,9 @@ class TradeSession {
     }
   }
   confirmTrade(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       if (!this.accepted) {
         this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
@@ -4679,6 +5292,9 @@ class TradeSession {
     }
   }
   canModifyTrade(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       if (!this.accepted) {
         this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
@@ -4705,6 +5321,9 @@ correctly.
 ***************************************************************************************************/
 class AtomicTransaction {
   constructor(server) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     try {
       this.server = server;
       this.operations = [];
@@ -4715,6 +5334,9 @@ class AtomicTransaction {
     }
   }
   addOperation(operation) {
+    if (typeof operation !== 'object' || operation === null) {
+      throw new TypeError('Operation must be an object');
+    }
     try {
       if (this.isCommitted) {
         throw new Error("Cannot add operations to a committed transaction");
@@ -4771,6 +5393,9 @@ The FormatMessageManager is essential for ensuring that messages are displayed c
 ***************************************************************************************************/
 class FormatMessageManager {
   static createMessageData({ cssid = '', message }) {
+    if (typeof cssid !== 'string' || typeof message !== 'string') {
+      throw new TypeError('CSS ID and message must be strings');
+    }
     try {
       return { cssid, content: message };
     } catch (error) {
@@ -4779,6 +5404,9 @@ class FormatMessageManager {
     }
   }
   static getIdForMessage(type) {
+    if (typeof type !== 'string') {
+      throw new TypeError('Type must be a string');
+    }
     try {
       const messageIds = {
         /* CSS for location title
