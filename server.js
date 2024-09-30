@@ -315,7 +315,7 @@ class Server {
         this.logger.warn("SocketEventEmitter not initialized");
       }
       // Initialize NpcMovementManager before GameManager
-      this.logger.debug("- Initialize Npc Movement Manager");
+      this.logger.debug("- Initialize Mobile Npc Movement Manager");
       this.npcMovementManager = NpcMovementManager.getInstance({
         logger: this.logger,
         configManager: this.configManager,
@@ -425,7 +425,7 @@ class Server {
         })
       };
     });
-    // Filter for NPCs
+    // Filter for Npcs
     this.replicationManager.addFilter('npc', (npc, player) => {
       const baseInfo = {
         id: npc.id,
@@ -1028,7 +1028,7 @@ providing methods for loading and saving game data. It handles interactions with
 to read and write game data, ensuring data persistence across game sessions. This class is
 responsible for managing the data lifecycle, including validation and error handling.
 Key features:
-1. Loading and saving game data (locations, NPCs, items)
+1. Loading and saving game data (locations, Npcs, items)
 2. File system interactions for data persistence
 3. Data validation and error handling during loading and saving operations
 4. Management of data paths and configuration settings
@@ -1724,7 +1724,7 @@ class GameManager extends IGameManager {
           npc = new MerchantNpc({
             id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status,
             currentLocation, aliases, server: this.server, lootTable,
-            inventory: npcData.inventory || [] // Assuming merchant NPCs have an inventory
+            inventory: npcData.inventory || []
           });
           this.merchantNpcs.set(id, npc);
           break;
