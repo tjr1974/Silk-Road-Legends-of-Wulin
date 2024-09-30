@@ -152,7 +152,7 @@ class Logger extends ILogger {
           coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
           break;
         case 'WARN':
-          coloredMessage = `${this.CONFIG.MAGENTA}${message}${this.CONFIG.RESET}`;
+          coloredMessage = `${this.CONFIG.MAGENTA}WARNING: ${message}${this.CONFIG.RESET}`;
           break;
         case 'ERROR':
           coloredMessage = `${this.CONFIG.RED}ERROR: ${message}${this.CONFIG.RESET}`;
@@ -289,6 +289,7 @@ class Server {
     this.setupReplicationFilters();
     this.authManager = new AuthenticationManager(this, bcrypt);
     this.sessionManager = new SessionManager(this, bcrypt);
+    this.npcMovementManager = null;
     Server.instance = this;
   }
   async init() {
@@ -313,18 +314,24 @@ class Server {
       } else {
         this.logger.warn("SocketEventEmitter not initialized");
       }
+      // Initialize NpcMovementManager before GameManager
+      this.logger.debug("- Initialize Npc Movement Manager");
+      this.npcMovementManager = NpcMovementManager.getInstance({
+        logger: this.logger,
+        configManager: this.configManager,
+        gameManager: null  // We'll set this after GameManager is initialized
+      });
+      this.logger.debug("- Initialize Game Manager");
       this.gameManager = GameManager.getInstance({
         SocketEventEmitter: this.SocketEventEmitter,
         logger: this.logger,
         server: this,
         configManager: this.configManager,
-        npcMovementManager: NpcMovementManager.getInstance({
-          gameManager: this.gameManager,
-          logger: this.logger,
-          configManager: this.configManager
-        }),
+        npcMovementManager: this.npcMovementManager,
         combatManager: new CombatManager({ server: this, config: this.configManager })
       });
+      // Set the gameManager reference in npcMovementManager
+      this.npcMovementManager.setGameManager(this.gameManager);
       this.gameComponentInitializer = new GameComponentInitializer({ server: this, logger: this.logger });
       await this.gameComponentInitializer.setupGameComponents();
       if (this.gameManager) {
@@ -348,7 +355,7 @@ class Server {
       this.isHttps = sslOptions.key && sslOptions.cert;
       const httpModule = this.isHttps ? https : http;
       this.server = httpModule.createServer(this.isHttps ? sslOptions : this.app);
-      this.logger.info(`- - Configure Server As - ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
+      this.logger.info(`- Configure Server As - ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
       return this.server;
     } catch (error) {
       this.logger.error(`During Http Server Configuration: ${error.message}`, { error });
@@ -366,7 +373,7 @@ class Server {
         this.logger.error(`Both SSL_CERT_PATH & SSL_KEY_PATH Must Be Provided For SSL Configuration`);
       }
     } catch (error) {
-      this.logger.warn(`- - WARNING: Failed To Load SSL Options: ${error.message}`, { error });
+      this.logger.warn(`Failed To Load SSL Options: ${error.message}`, { error });
     }
     return sslOptions;
   }
@@ -426,7 +433,7 @@ class Server {
         status: npc.status,
         currentLocation: npc.currentLocation
       };
-      // Only send detailed info if the NPC is in the same location as the player
+      // Only send detailed info if the Npc is in the same location as the player
       if (npc.currentLocation === player.currentLocation) {
         return {
           ...baseInfo,
@@ -1060,8 +1067,8 @@ class DatabaseManager extends IDatabaseManager {
     }
     try {
       this.logger.info('- LOAD GAME DATA STARTED');
-      this.logger.info('- - Load Locations Data');
-      this.logger.debug(`- - Load Locations Data From: ${locationDataPath}`);
+      this.logger.info('- Load Locations Data');
+      this.logger.debug(`- Load Locations Data From: ${locationDataPath}`);
       const allLocationData = await this.loadData(locationDataPath, 'locations');
       return this.validateAndParseLocationData(allLocationData);
     } catch (error) {
@@ -1121,7 +1128,7 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseLocationData(data) {
-    this.logger.info('- - - Validate Locations Data');
+    this.logger.info('- Validate Locations Data');
     if (typeof data !== 'object' || Array.isArray(data)) {
       this.logger.error(`Locations data must be an object`);
       return new Map();
@@ -1129,7 +1136,7 @@ class DatabaseManager extends IDatabaseManager {
     const locationData = new Map();
     const referencedLocations = new Set();
     for (const [id, location] of Object.entries(data)) {
-      this.logger.debug(`- - Validate Location - ID: ${id}`);
+      this.logger.debug(`- Validate Location - ID: ${id}`);
       //this.logger.debug(`- Locations Data:`);
       //this.logger.debug(`${JSON.stringify(location, null, 2)}`);
       if (!this.isValidLocation(location)) {
@@ -1148,7 +1155,7 @@ class DatabaseManager extends IDatabaseManager {
         this.logger.error(`Validating locations data - referenced location is missing - ID: ${refId} `);
       }
     });
-    this.logger.debug(`- Total locations validated: ${locationData.size}`);
+    this.logger.debug(`- Total Locations Validated: ${locationData.size}`);
     return locationData;
   }
   isValidLocation(location) {
@@ -1162,8 +1169,8 @@ class DatabaseManager extends IDatabaseManager {
       return;
     }
     try {
-      this.logger.info(`- - Load Npcs Data`);
-      this.logger.debug(`- - Load Npcs Data From: ${npcDataPath}`);
+      this.logger.info(`- Load Npcs Data`);
+      this.logger.debug(`- Load Npcs Data From: ${npcDataPath}`);
       const allNpcData = await this.loadData(npcDataPath, 'npcs');
       return this.validateAndParseNpcData(allNpcData);
     } catch (error) {
@@ -1171,21 +1178,21 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseNpcData(data) {
-    this.logger.info('- - - Validate Npcs Data');
+    this.logger.info('- Validate Npcs Data');
     if (typeof data !== 'object' || Array.isArray(data)) {
       this.logger.error(`Npcs data must be an object`);
       return new Map();
     }
     const npcData = new Map();
     for (const [id, npc] of Object.entries(data)) {
-      this.logger.debug(`- - Validate Npc - ID: ${id}`);
+      this.logger.debug(`- Validate Npc - ID: ${id}`);
       if (!this.isValidNpc(npc)) {
         this.logger.error(`Invalid npc object: ${JSON.stringify(npc)}`);
         continue;
       }
       npcData.set(id, npc);
     }
-    this.logger.debug(`- Total npcs validated: ${npcData.size}`);
+    this.logger.debug(`- Total Npcs Validated: ${npcData.size}`);
     return npcData;
   }
   isValidNpc(npc) {
@@ -1203,8 +1210,8 @@ class DatabaseManager extends IDatabaseManager {
       return;
     }
     try {
-      this.logger.info('- - Load Items Data');
-      this.logger.debug(`- - Load Items Data From: ${itemDataPath}`);
+      this.logger.info('- Load Items Data');
+      this.logger.debug(`- Load Items Data From: ${itemDataPath}`);
       const allItemData = await this.loadData(itemDataPath, 'items');
       return this.validateAndParseItemData(allItemData);
     } catch (error) {
@@ -1219,14 +1226,14 @@ class DatabaseManager extends IDatabaseManager {
     }
     const itemData = new Map();
     for (const [id, item] of Object.entries(data)) {
-      this.logger.debug(`- - Validate Item - ID: ${id}`);
+      this.logger.debug(`- Validate Item - ID: ${id}`);
       if (!this.isValidItem(item)) {
         this.logger.error(`Invalid item object: ${JSON.stringify(item)}`);
         continue;
       }
       itemData.set(id, item);
     }
-    this.logger.debug(`- Total items validated: ${itemData.size}`);
+    this.logger.debug(`- Total Items Validated: ${itemData.size}`);
     return itemData;
   }
   isValidItem(item) {
@@ -1278,7 +1285,7 @@ class GameDataLoader {
       // Load Npc data
       const npcData = await this.loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC);
       if (npcData instanceof Map) {
-        this.server.gameManager.npcs = await this.createNpcs(npcData);
+        this.server.gameManager.npcs = await this.createNpcsFromData(npcData);
       } else {
         logger.error(`Invalid npc data format: ${JSON.stringify(npcData)}`);
       }
@@ -1305,28 +1312,63 @@ class GameDataLoader {
       logger.error(error.stack);
     }
   }
-  async createNpcs(npcData) {
+  async createNpcsFromData(npcData) {
     const npcs = new Map();
-    this.server.logger.info(`- - - Create Npcs From Data`);
-    for (const [id, npcInfo] of npcData) {
+    this.logger.info(`- Create Npcs From Data`);
+    for (const [id, npcInfo] of npcData.entries()) {
       if (this.server.gameManager.npcIds.has(id)) {
-        this.server.logger.error(`Duplicate npc ID detected: ${id}`);
+        this.logger.error(`Duplicate npc ID detected: ${id}`);
         continue;
       }
       this.server.gameManager.npcIds.add(id);
-      const npc = this.server.gameManager.createNpc(id, npcInfo);
-      if (npc) {
-        npcs.set(id, npc);
-        this.server.logger.debug(`- - Create Npc: ${npc.name}`);
-        this.server.logger.debug(`- - - ID: ${id}`);
-        this.server.logger.debug(`- - - Type: ${npc.type}`);
-        if (npc instanceof MobileNpc) {
-          this.server.gameManager.npcMovementManager.registerMobileNpc(npc);
+      try {
+        const npc = await this.createNpc(id, npcInfo);
+        if (npc) {
+          npcs.set(id, npc);
+          this.logger.debug(`- Create Npc: ${npc.name}`);
+          this.logger.debug(`- - ID: ${id}`);
+          this.logger.debug(`- - Type: ${npc.type}`);
         }
+      } catch (error) {
+        this.logger.error(`Error creating npc with ID ${id}: ${error.message}`);
       }
     }
-    this.server.logger.debug(`- Total npcs created: ${npcs.size}`);
+    this.logger.debug(`- Total Npcs Created: ${npcs.size}`);
     return npcs;
+  }
+  async createNpc(id, npcInfo) {
+    const { type, ...npcData } = npcInfo;
+    let npc;
+    try {
+      switch (type) {
+        case 'mobile':
+          npc = new MobileNpc({ id, ...npcData, server: this.server });
+          this.server.gameManager.mobileNpcs.set(id, npc);
+          if (this.server.gameManager.npcMovementManager) {
+            this.server.gameManager.npcMovementManager.registerMobileNpc(npc);
+          } else {
+            this.logger.error(`NpcMovementManager not available for Npc: ${id}. Unable to register.`);
+          }
+          break;
+        case 'quest':
+          npc = new QuestNpc({ id, ...npcData, server: this.server });
+          this.server.gameManager.questNpcs.set(id, npc);
+          break;
+        case 'merchant':
+          npc = new MerchantNpc({ id, ...npcData, server: this.server });
+          this.server.gameManager.merchantNpcs.set(id, npc);
+          break;
+        default:
+          npc = new Npc({ id, ...npcData, server: this.server });
+      }
+      this.server.gameManager.npcs.set(id, npc);
+      await npc.initialize();
+      return npc;
+    } catch (error) {
+      this.logger.error(`Creating Npc with ID: ${id} - ${error.message}`);
+      this.logger.error(error.stack);
+      return null;
+    }
   }
   async createItems(itemData) {
     const items = new Map();
@@ -1434,6 +1476,7 @@ class GameManager extends IGameManager {
     this.combatManager = combatManager;
     this.queueManager = QueueManager.getInstance();
     this.taskManager = TaskManager.getInstance({ server });
+    this.npcMovementManager = NpcMovementManager.getInstance({ logger, configManager, gameManager: this });
     this.setupEventListeners();
     GameManager.instance = this;
   }
@@ -1548,36 +1591,67 @@ class GameManager extends IGameManager {
     const oldLocationId = entity.currentLocation;
     const oldLocation = this.getLocation(oldLocationId);
     const newLocation = this.getLocation(newLocationId);
-    if (oldLocation) {
-      this.notifyLeavingLocation(entity, oldLocationId, newLocationId);
-      if (entity instanceof Npc) {
-        oldLocation.npcs.delete(entity.id);
-      } else if (entity instanceof Player) {
-        oldLocation.removePlayer(entity);
-      }
+    if (!oldLocation || !newLocation) {
+      this.logger.error(`Invalid location for entity movement: oldLocation=${oldLocationId}, newLocation=${newLocationId}`);
+      return;
     }
+    // Ensure npcs is a Set
+    if (!(oldLocation.npcs instanceof Set)) {
+      oldLocation.npcs = new Set(oldLocation.npcs);
+    }
+    if (!(newLocation.npcs instanceof Set)) {
+      newLocation.npcs = new Set(newLocation.npcs);
+    }
+    // Remove entity from old location
+    if (entity instanceof Player) {
+      oldLocation.playersInLocation.delete(entity);
+    } else if (entity instanceof Npc) {
+      oldLocation.npcs.delete(entity.id);
+    }
+    // Add entity to new location
+    if (entity instanceof Player) {
+      newLocation.playersInLocation.add(entity);
+    } else if (entity instanceof Npc) {
+      newLocation.npcs.add(entity.id);
+    }
+    // Update entity's current location
     entity.currentLocation = newLocationId;
-    if (newLocation) {
-      this.notifyEnteringLocation(entity, oldLocationId, newLocationId);
-      if (entity instanceof Npc) {
-        newLocation.npcs.add(entity.id);
-      } else if (entity instanceof Player) {
-        newLocation.addPlayer(entity);
-      }
+    // Notify about the movement
+    MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
+    // If the entity is a player, send them the new location description
+    if (entity instanceof Player) {
+      const describeLocationManager = new DescribeLocationManager({ player: entity, server: this.server });
+      describeLocationManager.describe();
     }
   }
   notifyLeavingLocation(entity, oldLocationId, newLocationId) {
-    MessageManager.notifyLeavingLocation(entity, oldLocationId, newLocationId);
     const direction = DirectionManager.getDirectionTo(newLocationId);
-    MessageManager.notify(entity, `${entity.getName()} travels ${direction}.`);
+    let message;
+    if (entity instanceof Player) {
+      message = `${entity.getName()} travels ${direction}.`;
+    } else if (entity instanceof Npc) {
+      message = `${entity.name} leaves ${direction}.`;
+    } else {
+      this.logger.error(`Unknown entity type in notifyLeavingLocation: ${entity}`);
+      return;
+    }
+    MessageManager.notify(entity, message);
   }
   notifyEnteringLocation(entity, oldLocationId, newLocationId) {
     const newLocation = this.getLocation(newLocationId);
     if (newLocation) {
-      newLocation.addEntity(entity, "players");
-      MessageManager.notifyEnteringLocation(entity, newLocationId);
+      newLocation.addEntity(entity, entity instanceof Player ? "players" : "npcs");
       const direction = DirectionManager.getDirectionFrom(oldLocationId);
-      MessageManager.notify(entity, `${entity.getName()} arrives ${direction}.`);
+      let message;
+      if (entity instanceof Player) {
+        message = `${entity.getName()} arrives from ${direction}.`;
+      } else if (entity instanceof Npc) {
+        message = `${entity.name} arrives from ${direction}.`;
+      } else {
+        this.logger.error(`Unknown entity type in notifyEnteringLocation: ${entity}`);
+        return;
+      }
+      MessageManager.notify(entity, message);
     } else {
       this.logger.debug(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`);
     }
@@ -1632,7 +1706,11 @@ class GameManager extends IGameManager {
             server: this.server, lootTable
           });
           this.mobileNpcs.set(id, npc);
-          this.npcMovementManager.registerMobileNpc(npc);
+          if (this.npcMovementManager) {
+            this.npcMovementManager.registerMobileNpc(npc);
+          } else {
+            this.logger.error(`NpcMovementManager not available for Npc: ${id}. Unable to register.`);
+          }
           break;
         case 'quest':
           npc = new QuestNpc({
@@ -1668,6 +1746,12 @@ class GameManager extends IGameManager {
     if (npc instanceof MobileNpc) {
       this.npcMovementManager.unregisterMobileNpc(npc);
     }
+    // Remove from type-specific maps
+    this.mobileNpcs.delete(id);
+    this.questNpcs.delete(id);
+    this.merchantNpcs.delete(id);
+    // Remove from general npcs map
+    this.npcs.delete(id);
   }
   getNpc(npcId) {
     return this.npcs.get(npcId);
@@ -1677,6 +1761,9 @@ class GameManager extends IGameManager {
     if (!location) {
       this.logger.error(`Location not found - ID : ${locationId}`);
       return null;
+    }
+    if (!(location.npcs instanceof Set)) {
+      location.npcs = new Set(location.npcs);
     }
     return location;
   }
@@ -1768,7 +1855,7 @@ class GameComponentInitializer extends IBaseManager {
         configManager: this.server.configManager,
         combatManager: new CombatManager({ server: this.server, config: this.server.configManager })
       });
-      // Initialize NpcMovementManager with GameManager
+      // Initialize NpcMovementManager after GameManager
       this.server.npcMovementManager = NpcMovementManager.getInstance({
         gameManager: this.server.gameManager,
         logger: this.server.logger,
@@ -3126,7 +3213,7 @@ class LocationCoordinateManager {
       this.logger.error(`Invalid Location Data Format: Expected Map.`);
       return;
     }
-    this.logger.info(`- - - Assign Coordinates`);
+    this.logger.info(`- Assign Coordinates`);
     this.locations = locationData;
     const coordinates = new Map([["100", { x: 0, y: 0, z: 0 }]]);
     await this._assignCoordinatesRecursively("100", coordinates);
@@ -3137,7 +3224,7 @@ class LocationCoordinateManager {
     this.logger.debug(JSON.stringify(Object.fromEntries(coordinates)));
   }
   async _assignCoordinatesRecursively(locationId, coordinates, x = 0, y = 0, z = 0) {
-    this.logger.debug(`- - Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
+    this.logger.debug(`- Assign Coordinates To Location: ${locationId} - (${x}, ${y}, ${z})`);
     const location = this.locations.get(locationId);
     if (!location) {
       this.logger.error(`Assigning Coordinates To Location - Referenced Location Is Missing - ID: ${locationId}`);
@@ -3159,18 +3246,18 @@ class LocationCoordinateManager {
         coordinates.set(exitId, { x: x + dx, y: y + dy, z: z + dz });
         promises.push(this._assignCoordinatesRecursively(exitId, coordinates, x + dx, y + dy, z + dz));
       } else {
-        this.logger.debug(`- - Coordinates Already Assigned To Exit: ${exitId}`);
+        this.logger.debug(`- Coordinates Already Assigned To Exit: ${exitId}`);
       }
     }
     await Promise.all(promises);
   }
   _updateLocationsWithCoordinates(coordinates) {
-    this.logger.info('- - - Update Location Coordinates');
+    this.logger.info('- Update Location Coordinates');
     for (const [id, coord] of coordinates.entries()) {
       const location = this.locations.get(id);
       if (location) {
         location.coordinates = coord;
-        this.logger.debug(`- - Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
+        this.logger.debug(`- Location ${id} (${location.name}) - Coordinates: x=${coord.x}, y=${coord.y}, z=${coord.z}`);
       } else {
         this.logger.error(`Updating Location Coordinates - Referenced Location Is Missing - ID: ${id}`);
       }
@@ -3293,6 +3380,23 @@ class DirectionManager {
     const directionMap = { 'north': 'from the north', 'east': 'from the east', 'west': 'from the west', 'south': 'from the south', 'up': 'from above', 'down': 'from below' };
     return directionMap[oldLocationId] || 'from an unknown direction';
   }
+  static getOppositeDirection(direction) {
+    const oppositeMap = {
+      'north': 'south',
+      'south': 'north',
+      'east': 'west',
+      'west': 'east',
+      'up': 'down',
+      'down': 'up',
+      'northward': 'south',
+      'southward': 'north',
+      'eastward': 'west',
+      'westward': 'east',
+      'upward': 'down',
+      'downward': 'up'
+    };
+    return oppositeMap[direction] || 'unknown direction';
+  }
 }
 /**************************************************************************************************
 Npc Class
@@ -3320,6 +3424,7 @@ class Npc extends Character {
     this.aliases = aliases;
     this.type = type;
     this.server = server;
+    this.gameManager = server.gameManager; // Add this line
     this.previousState = { currHealth, status };
     this.lootTable = lootTable;
   }
@@ -3365,56 +3470,13 @@ and the environment through movement.
 class MobileNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'mobile', server, lootTable });
-    this.zones = new Set(zones); // Ensure zones is always a Set
+    this.zones = new Set(zones);
     this.config = config;
-    this.logger = server.logger;
+    this.allowedZones = zones;
+    this.level = 1;
   }
   canMove() {
     return !["engaged in combat", "lying dead", "lying unconscious"].includes(this.status);
-  }
-  moveRandomly() {
-    if (!this.canMove()) return;
-    const location = this.server.gameManager.getLocation(this.currentLocation);
-    if (!location) {
-      this.logger.debug(`- Invalid Location For:`);
-      this.logger.debug(`- Mobile: ${this.name} - ID: ${this.id} - Current Location: ${this.currentLocation}`);
-      return;
-    }
-    const validDirections = this.getValidDirections(location);
-    if (validDirections.size > 0) {
-      const randomDirection = this.getRandomDirection(validDirections);
-      this.moveToNewLocation(location, randomDirection);
-    } else {
-      this.logger.debug(`- - No Valid Directions For:`);
-      this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - At Location: ${this.currentLocation}`);
-    }
-  }
-  getValidDirections(location) {
-    const validDirections = new Set(Object.keys(location.exits || {}).filter(direction => {
-      const exitLocationId = location.exits[direction];
-      const exitLocation = this.server.gameManager.getLocation(exitLocationId);
-      const isValidZone = exitLocation && (this.zones.size === 0 || this.zones.has(exitLocation.zone[0]));
-      this.logger.debug(`- - Checking Directions: ${direction} - Exit Location - ID: ${exitLocationId} - Valid Zone: ${isValidZone}`);
-      return isValidZone;
-    }));
-    this.logger.debug(`- - Valid Directions For:`);
-    this.logger.debug(`- - Mobile: ${this.name} - ID: ${this.id} - ${[...validDirections].join(', ')}`);
-    return validDirections;
-  }
-  getRandomDirection(validDirections) {
-    return [...validDirections][Math.floor(Math.random() * validDirections.size)];
-  }
-  moveToNewLocation(location, direction) {
-    const newLocationId = location.exits[direction];
-    const newLocation = this.server.gameManager.getLocation(newLocationId);
-    if (this.zones.size > 0 && !this.zones.has(newLocation.zone[0])) {
-      this.logger.debug(`- Mobile:${this.name} Cannot Move To:`);
-      this.logger.debug(`- ${newLocation.name} - Due To Zone Restrictions.`);
-      return; // Prevent movement if the zone is not allowed
-    }
-    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionTo(direction), false);
-    this.currentLocation = newLocationId;
-    MessageManager.notifyNpcMovement(this, DirectionManager.getDirectionFrom(direction), true);
   }
 }
 /**************************************************************************************************
@@ -3488,10 +3550,6 @@ class NpcMovementManager {
   static instance;
   static getInstance({ logger, configManager, gameManager }) {
     if (!NpcMovementManager.instance) {
-      if (!gameManager) {
-        logger.error("GameManager is undefined in NpcMovementManager.getInstance");
-        throw new Error("GameManager is required for NpcMovementManager");
-      }
       NpcMovementManager.instance = new NpcMovementManager({ logger, configManager, gameManager });
     }
     return NpcMovementManager.instance;
@@ -3501,117 +3559,97 @@ class NpcMovementManager {
     this.configManager = configManager;
     this.gameManager = gameManager;
     this.movementInterval = null;
-    this.mobileNpcs = new Set();
-    if (!this.gameManager) {
-      this.logger.error("GameManager is undefined in NpcMovementManager constructor");
-      throw new Error("GameManager is required for NpcMovementManager");
-    }
-    this.logger.info("NpcMovementManager initialized successfully");
+    this.mobileNpcs = new Map();
+  }
+  setGameManager(gameManager) {
+    this.gameManager = gameManager;
   }
   startMovement() {
-    if (!this.gameManager) {
-      this.logger.error("GameManager not initialized in NpcMovementManager.startMovement");
-      return;
-    }
     const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
-    this.movementInterval = setInterval(() => this.moveNpcs(), MOVEMENT_INTERVAL);
-    this.logger.info(`Npc movement started with interval: ${MOVEMENT_INTERVAL}ms`);
+    this.movementInterval = setInterval(() => this.moveAllMobiles(), MOVEMENT_INTERVAL);
+    this.logger.info(`- Start Mobile Movement With Interval: ${MOVEMENT_INTERVAL}ms`);
   }
   stopMovement() {
     if (this.movementInterval) {
       clearInterval(this.movementInterval);
       this.movementInterval = null;
-      this.logger.info('NPC movement stopped');
+      this.logger.info('Npc movement stopped');
     }
   }
   registerMobileNpc(npc) {
-    if (npc instanceof MobileNpc) {
-      this.mobileNpcs.add(npc);
+    if (!this.gameManager) {
+      this.logger.error(`Game Manager not set in Npc Movement Manager. Unable to register Npc ID: ${npc.id}`);
+      return;
     }
+    this.mobileNpcs.set(npc.id, npc);
+    this.logger.debug(`- Register Npc: ${npc.id} - With Npc Movement Manager`);
   }
   unregisterMobileNpc(npc) {
-    this.mobileNpcs.delete(npc);
+    this.mobileNpcs.delete(npc.id);
   }
-  moveNpcs() {
-    if (!this.gameManager) {
-      this.logger.error('GameManager not initialized in NpcMovementManager');
-      return;
-    }
-    let movedNpcs = 0;
-    const totalMobileNpcs = this.mobileNpcs.size;
+  moveAllMobiles() {
     this.logger.debug(``);
-    for (const npc of this.mobileNpcs) {
-      this.logger.debug(`Checking Mobile: ${npc.name} - ID: ${npc.id}`);
+    this.logger.debug(`Move Mobiles - Total Mobile Npcs: ${this.mobileNpcs.size}`);
+    let movedCount = 0;
+    let stayedCount = 0;
+    for (const [npcId, npc] of this.mobileNpcs.entries()) {
+      this.logger.debug(`- Processing Mobile: ${npcId} - ${npc.name}`);
       if (npc.canMove()) {
-        try {
-          this.moveNpc(npc);
-          movedNpcs++;
-          this.logger.debug(`Mobile: ${npc.name} - ID: ${npc.id} - Moved`);
-        } catch (error) {
-          this.logger.error(`Moving Mobile: ${npc.name} - ID: ${npc.id}: ${error.message}`, { error });
+        this.logger.debug(`- - Mobile: ${npcId} can move. Current Location: ${npc.currentLocation}`);
+        const moved = this.moveMobile(npc);
+        if (moved) {
+          movedCount++;
+          this.logger.debug(`- - Mobile: ${npcId} moved to Location: ${npc.currentLocation}`);
+        } else {
+          stayedCount++;
+          this.logger.debug(`- - Mobile: ${npcId} stayed in place at Location: ${npc.currentLocation}`);
         }
       } else {
-        this.logger.debug(`Mobile: ${npc.name} - ID: ${npc.id} - Cannot Move`);
+        stayedCount++;
+        this.logger.debug(`- - Mobile: ${npcId} cannot move. Status: ${npc.status} - Location: ${npc.currentLocation}`);
       }
     }
-    this.logger.debug(`Moved: ${movedNpcs} of ${totalMobileNpcs} Total Mobiles`);
-    const now = new Date();
-    this.logger.debug(`Mobiles Moved - [${now.toLocaleString()}]`);
+    this.logger.debug(`Mobiles Moved: ${movedCount}, Mobiles Stayed: ${stayedCount}`);
+    this.logger.debug(`Move Mobiles Finished At: ${new Date().toLocaleString()}`);
   }
-  moveNpc(npc) {
+  moveMobile(npc) {
     const currentLocation = this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation) {
-      this.logger.error(`Invalid location for NPC ${npc.id}: ${npc.currentLocation}`);
-      return;
-    }
-    const availableExits = Object.keys(currentLocation.exits);
-    if (availableExits.length === 0) {
-      return;
-    }
-    if (!this.shouldNpcMove(npc)) {
-      return;
-    }
-    const randomExit = this.chooseRandomExit(availableExits, npc);
-    const newLocationId = currentLocation.exits[randomExit];
-    if (this.isValidMove(npc, newLocationId)) {
-      this.gameManager.moveEntity(npc, newLocationId);
-    }
-  }
-  shouldNpcMove(npc) {
-    if (npc.status !== 'standing' || npc.inCombat) {
+      this.logger.error(`Invalid location for Npc: ${npc.id} - Location: ${npc.currentLocation}`);
       return false;
     }
-    const currentTime = Date.now();
-    const timeSinceLastMove = currentTime - (npc.lastMoveTime || 0);
-    const moveInterval = this.configManager.get('NPC_MOVE_INTERVAL');
-    return timeSinceLastMove >= moveInterval;
+    const { direction, exitId } = this.chooseRandomExit(npc);
+    if (!direction || !exitId) return false;
+    const newLocation = this.gameManager.getLocation(exitId);
+    if (!newLocation) {
+      this.logger.error(`Invalid exit location for Npc: ${npc.id} - Exit ID: ${exitId}`);
+      return false;
+    }
+    this.gameManager.moveEntity(npc, exitId);
+    this.notifyNpcMovement(npc, currentLocation, newLocation, direction);
+    return true;
   }
   chooseRandomExit(npc) {
     const currentLocation = this.gameManager.getLocation(npc.currentLocation);
-    if (!currentLocation || !currentLocation.exits) {
-      return null;
-    }
-    const availableExits = Object.entries(currentLocation.exits).filter(([direction, exitId]) => {
-      const exitLocation = this.gameManager.getLocation(exitId);
-      return exitLocation && this.isExitAllowed(npc, exitLocation);
-    });
-    if (availableExits.length === 0) {
-      return null;
-    }
+    if (!currentLocation || !currentLocation.exits) return {};
+    const availableExits = Object.entries(currentLocation.exits).filter(([, exitId]) =>
+      this.isExitAllowed(npc, this.gameManager.getLocation(exitId))
+    );
+    if (availableExits.length === 0) return {};
     const [chosenDirection, chosenExitId] = availableExits[Math.floor(Math.random() * availableExits.length)];
     return { direction: chosenDirection, exitId: chosenExitId };
   }
   isExitAllowed(npc, exitLocation) {
-    // Check if the NPC is allowed to enter the exit location based on its properties
-    // For example, check if the NPC's level is appropriate for the zone
-    if (npc.level < exitLocation.minLevel) {
-      return false;
-    }
-    // Check if the NPC is restricted to certain zones
+    if (!exitLocation) return false;
+    if (npc.level < exitLocation.minLevel) return false;
     if (npc.allowedZones && npc.allowedZones.length > 0) {
       return npc.allowedZones.some(zone => exitLocation.zone.includes(zone));
     }
     return true;
+  }
+  notifyNpcMovement(npc, fromLocation, toLocation, direction) {
+    MessageManager.notifyPlayersInLocation(fromLocation, `${npc.name} leaves ${direction}.`, 'npcMovement');
+    MessageManager.notifyPlayersInLocation(toLocation, `${npc.name} arrives from the ${DirectionManager.getOppositeDirection(direction)}.`, 'npcMovement');
   }
 }
 /**************************************************************************************************
@@ -4592,17 +4630,18 @@ class MessageManager {
     this.socket = socketInstance;
   }
   // Notify a player with a message
-  static notify({ player, message, type = '' }) {
+  static notify(entity, message) {
     try {
-      player.server.logger.info(`Message to ${player.getName()}: ${message}`);
-      const cssid = FormatMessageManager.getIdForMessage(type);
-      const messageData = FormatMessageManager.createMessageData({ cssid, message });
-      if (this.socket) {
-        this.socket.emit('message', { playerId: player.getId(), messageData });
+      if (entity instanceof Player && entity.server && entity.server.logger) {
+        entity.server.logger.info(`Notifying Player: ${entity.getName()} - ${message}`);
+      } else if (entity instanceof Npc && entity.gameManager && entity.gameManager.logger) {
+        entity.gameManager.logger.info(`Notifying about Npc: ${entity.name} - ${message}`);
+      } else {
+        console.log(`Notification: ${message}`); // Fallback logging
       }
-      return messageData;
+      // Implement actual notification logic here
     } catch (error) {
-      player.server.logger.error(`Notifying player ${player.getName()}:`, error, error.stack);
+      console.error('Error in MessageManager.notify:', error);
     }
   }
   // Notify all players in a specific location with a message
@@ -4801,6 +4840,27 @@ class MessageManager {
   // Notify a player about experience gain
   static notifyExperienceGain(player, amount) {
     return this.notify({ player, message: `You gained ${amount} experience points.`, type: 'experienceGain' });
+  }
+  static notifyLeavingLocation(entity, oldLocationId, newLocationId) {
+    const oldLocation = entity.server.gameManager.getLocation(oldLocationId);
+    const newLocation = entity.server.gameManager.getLocation(newLocationId);
+    const direction = DirectionManager.getDirectionTo(newLocationId);
+    if (entity instanceof Player) {
+      this.notifyPlayersInLocation(oldLocation,
+        `${entity.getName()} leaves ${direction}.`,
+        'playerMovement'
+      );
+      this.notify({
+        player: entity,
+        message: `You leave ${oldLocation.getName()} and move ${direction} to ${newLocation.getName()}.`,
+        type: 'playerMovement'
+      });
+    } else if (entity instanceof Npc) {
+      this.notifyPlayersInLocation(oldLocation,
+        `${entity.name} leaves ${direction}.`,
+        'npcMovement'
+      );
+    }
   }
 }
 /**************************************************************************************************
