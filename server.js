@@ -2036,7 +2036,7 @@ class GameManager extends IGameManager {
       }
       MessageManager.notify(entity, message);
     } else {
-      this.logger.debug(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`, { error: new Error(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`) });
+      this.logger.error(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`, { error: new Error(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`) });
     }
   }
   updateNpcs() {
@@ -2077,7 +2077,7 @@ class GameManager extends IGameManager {
       this.players.delete(uid);
       this.logger.info(`Player ${uid} disconnected.`);
     } else {
-      this.logger.debug(`ERROR: Player: ${uid} - not found for disconnection.`, { error: new Error(`ERROR: Player: ${uid} - not found for disconnection.`) });
+      this.logger.error(`ERROR: Player: ${uid} - not found for disconnection.`, { error: new Error(`ERROR: Player: ${uid} - not found for disconnection.`) });
     }
   }
   createNpc(id, npcData) {
@@ -3101,7 +3101,7 @@ class GameCommandManager {
         this.server.messageManager.sendMessage(player, `Error executing command: ${command}`, 'error');
       }
     } else {
-      this.logger.warn(`Unknown command: ${command}`, { error: new Error(`Unknown command: ${command}`) });
+      this.logger.error(`Unknown command: ${command}`, { error: new Error(`Unknown command: ${command}`) });
       this.server.messageManager.sendMessage(player, `Unknown command: ${command}`, 'error');
     }
   }
@@ -6066,7 +6066,7 @@ class MessageManager {
       }
       this.socket = socketInstance;
     } catch (error) {
-      this.logger.error('Error setting socket instance:', { error });
+      this.logger.error('Error setting socket instance:', error);
     }
   }
   // Notify a player with a message
@@ -6090,7 +6090,7 @@ class MessageManager {
       }
       // Implement actual notification logic here
     } catch (error) {
-      this.logger.error('Error in MessageManager.notify:', { error });
+      this.logger.error('Error in MessageManager.notify:', error);
     }
   }
   // Notify all players in a specific location with a message
@@ -6110,7 +6110,7 @@ class MessageManager {
         this.notify(player, message, type);
       }
     } catch (error) {
-      this.logger.error('Error notifying players in location:', { error });
+      this.logger.error('Error notifying players in location:', error);
     }
   }
   // Notify a player about a specific action performed on a target
@@ -6130,7 +6130,7 @@ class MessageManager {
       }
       return this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
     } catch (error) {
-      this.logger.error('Error notifying action:', { error });
+      this.logger.error('Error notifying action:', error);
     }
   }
   // Notify a player of a successful login
@@ -6141,7 +6141,7 @@ class MessageManager {
       }
       return this.notifyAction({ player, action: 'has logged in!', targetName: '', type: 'loginSuccess' });
     } catch (error) {
-      this.logger.error('Error notifying login success:', { error });
+      this.logger.error('Error notifying login success:', error);
     }
   }
   // Notify a player of an incorrect password attempt
@@ -6152,7 +6152,7 @@ class MessageManager {
       }
       return this.notify(player, `Incorrect password. Please try again.`, 'incorrectPassword');
     } catch (error) {
-      this.logger.error('Error notifying incorrect password:', { error });
+      this.logger.error('Error notifying incorrect password:', error);
     }
   }
   // Notify a player of disconnection due to too many failed login attempts
@@ -6163,7 +6163,7 @@ class MessageManager {
       }
       return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, 'disconnectionFailedAttempts');
     } catch (error) {
-      this.logger.error('Error notifying disconnection due to failed attempts:', { error });
+      this.logger.error('Error notifying disconnection due to failed attempts:', error);
     }
   }
   // Notify a player when they pick up an item
@@ -6177,7 +6177,7 @@ class MessageManager {
       }
       return this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
     } catch (error) {
-      this.logger.error('Error notifying pickup item:', { error });
+      this.logger.error('Error notifying pickup item:', error);
     }
   }
   // Notify a player when they drop an item
@@ -6191,7 +6191,7 @@ class MessageManager {
       }
       return this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
     } catch (error) {
-      this.logger.error('Error notifying drop item:', { error });
+      this.logger.error('Error notifying drop item:', error);
     }
   }
   // Notify players in a location about an Npc's movement
@@ -6210,7 +6210,7 @@ class MessageManager {
       const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
       this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
     } catch (error) {
-      this.logger.error('Error notifying Npc movement:', { error });
+      this.logger.error('Error notifying Npc movement:', error);
     }
   }
   // Get a template message for combat initiation
@@ -6224,7 +6224,7 @@ class MessageManager {
       }
       return `${initiatorName} initiates combat with ${targetName}!`;
     } catch (error) {
-      this.logger.error('Error getting combat initiation template:', { error });
+      this.logger.error('Error getting combat initiation template:', error);
     }
   }
   // Get a template message for an Npc joining combat
@@ -6235,7 +6235,7 @@ class MessageManager {
       }
       return `${npcName} joins the combat!`;
     } catch (error) {
-      this.logger.error('Error getting combat join template:', { error });
+      this.logger.error('Error getting combat join template:', error);
     }
   }
   // Get a template message for a victory announcement
@@ -6249,7 +6249,7 @@ class MessageManager {
       }
       return `${playerName} has defeated ${defeatedName}!`;
     } catch (error) {
-      this.logger.error('Error getting victory template:', { error });
+      this.logger.error('Error getting victory template:', error);
     }
   }
   // Get a template message for a target not found
@@ -6263,7 +6263,7 @@ class MessageManager {
       }
       return `${playerName} doesn't see ${target} here.`;
     } catch (error) {
-      this.logger.error('Error getting target not found template:', { error });
+      this.logger.error('Error getting target not found template:', error);
     }
   }
   // Get a template message for no conscious enemies
@@ -6274,7 +6274,7 @@ class MessageManager {
       }
       return `${playerName} doesn't see any conscious enemies here.`;
     } catch (error) {
-      this.logger.error('Error getting no conscious enemies template:', { error });
+      this.logger.error('Error getting no conscious enemies template:', error);
     }
   }
   // Get a template message for an Npc already in a specific status
@@ -6288,7 +6288,7 @@ class MessageManager {
       }
       return `${npcName} is already ${status}.`;
     } catch (error) {
-      this.logger.error('Error getting Npc already in status template:', { error });
+      this.logger.error('Error getting Npc already in status template:', error);
     }
   }
   // Get a template message for an unknown location
@@ -6299,7 +6299,7 @@ class MessageManager {
       }
       return `${playerName} is in an unknown location.`;
     } catch (error) {
-      this.logger.error('Error getting unknown location template:', { error });
+      this.logger.error('Error getting unknown location template:', error);
     }
   }
   // Get a template message for looting an Npc
@@ -6316,7 +6316,7 @@ class MessageManager {
       }
       return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
     } catch (error) {
-      this.logger.error('Error getting looted Npc template:', { error });
+      this.logger.error('Error getting looted Npc template:', error);
     }
   }
   // Get a template message for finding nothing to loot from an Npc
@@ -6330,7 +6330,7 @@ class MessageManager {
       }
       return `${playerName} found nothing to loot from ${npcName}.`;
     } catch (error) {
-      this.logger.error('Error getting no loot template:', { error });
+      this.logger.error('Error getting no loot template:', error);
     }
   }
   // Get a template message for being unable to loot an Npc
@@ -6344,7 +6344,7 @@ class MessageManager {
       }
       return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
     } catch (error) {
-      this.logger.error('Error getting cannot loot Npc template:', { error });
+      this.logger.error('Error getting cannot loot Npc template:', error);
     }
   }
   // Get a template message for no Npc to loot
@@ -6358,7 +6358,7 @@ class MessageManager {
       }
       return `${playerName} doesn't see ${target} here to loot.`;
     } catch (error) {
-      this.logger.error('Error getting no Npc to loot template:', { error });
+      this.logger.error('Error getting no Npc to loot template:', error);
     }
   }
   // Get a template message for no Npcs to loot
@@ -6369,7 +6369,7 @@ class MessageManager {
       }
       return `${playerName} doesn't see any Npcs to loot here.`;
     } catch (error) {
-      this.logger.error('Error getting no Npcs to loot template:', { error });
+      this.logger.error('Error getting no Npcs to loot template:', error);
     }
   }
   // Get a template message for finding nothing to loot from any Npcs
@@ -6380,7 +6380,7 @@ class MessageManager {
       }
       return `${playerName} found nothing to loot from any Npcs here.`;
     } catch (error) {
-      this.logger.error('Error getting nothing to loot from Npcs template:', { error });
+      this.logger.error('Error getting nothing to loot from Npcs template:', error);
     }
   }
   // Get a template message for looting all Npcs
@@ -6397,7 +6397,7 @@ class MessageManager {
       }
       return `${playerName} looted ${[...lootedNpcs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
     } catch (error) {
-      this.logger.error('Error getting looted all Npcs template:', { error });
+      this.logger.error('Error getting looted all Npcs template:', error);
     }
   }
   // Notify a player that they have no items to drop
@@ -6414,7 +6414,7 @@ class MessageManager {
       }
       return this.notify(player, `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no items to drop:', { error });
+      this.logger.error('Error notifying no items to drop:', error);
     }
   }
   // Notify a player about items they dropped
@@ -6428,7 +6428,7 @@ class MessageManager {
       }
       return this.notify(player, `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, 'dropMessage');
     } catch (error) {
-      this.logger.error('Error notifying items dropped:', { error });
+      this.logger.error('Error notifying items dropped:', error);
     }
   }
   // Notify a player about items they took
@@ -6442,7 +6442,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, 'takeMessage');
     } catch (error) {
-      this.logger.error('Error notifying items taken:', { error });
+      this.logger.error('Error notifying items taken:', error);
     }
   }
   // Notify a player that there are no items here
@@ -6453,7 +6453,7 @@ class MessageManager {
     try {
       return this.notify(player, `There are no items here.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no items here:', { error });
+      this.logger.error('Error notifying no items here:', error);
     }
   }
   // Notify a player about items taken from a container
@@ -6470,7 +6470,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, 'takeMessage');
     } catch (error) {
-      this.logger.error('Error notifying items taken from container:', { error });
+      this.logger.error('Error notifying items taken from container:', error);
     }
   }
   // Notify a player that there are no specific items in a container
@@ -6487,7 +6487,7 @@ class MessageManager {
     try {
       return this.notify(player, `There are no ${itemType} items in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no specific items in container:', { error });
+      this.logger.error('Error notifying no specific items in container:', error);
     }
   }
   // Notify a player that there is no item in a container
@@ -6504,7 +6504,7 @@ class MessageManager {
     try {
       return this.notify(player, `There is no ${itemName} in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no item in container:', { error });
+      this.logger.error('Error notifying no item in container:', error);
     }
   }
   // Notify a player that there is no item here
@@ -6518,7 +6518,7 @@ class MessageManager {
     try {
       return this.notify(player, `There is no ${itemName} here.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no item here:', { error });
+      this.logger.error('Error notifying no item here:', error);
     }
   }
   // Notify a player that they don't have a specific container
@@ -6532,7 +6532,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} doesn't have a ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no container:', { error });
+      this.logger.error('Error notifying no container:', error);
     }
   }
   // Notify a player that an item is not in their inventory
@@ -6546,7 +6546,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} doesn't have a ${itemName} in their inventory.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying item not in inventory:', { error });
+      this.logger.error('Error notifying item not in inventory:', error);
     }
   }
   // Notify a player that they put an item in a container
@@ -6563,7 +6563,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} put ${itemName} in ${containerName}.`, 'putMessage');
     } catch (error) {
-      this.logger.error('Error notifying item put in container:', { error });
+      this.logger.error('Error notifying item put in container:', error);
     }
   }
   // Notify a player that they have no items to put in a container
@@ -6577,7 +6577,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} has no items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no items to put:', { error });
+      this.logger.error('Error notifying no items to put:', error);
     }
   }
   // Notify a player about items put in a container
@@ -6594,7 +6594,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, 'putMessage');
     } catch (error) {
-      this.logger.error('Error notifying items put in container:', { error });
+      this.logger.error('Error notifying items put in container:', error);
     }
   }
   // Notify a player that they have no specific items to put in a container
@@ -6611,7 +6611,7 @@ class MessageManager {
     try {
       return this.notify(player, `${player.getName()} has no ${itemType} items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no specific items to put:', { error });
+      this.logger.error('Error notifying no specific items to put:', error);
     }
   }
   // Notify a player that there are no specific items here
@@ -6625,7 +6625,7 @@ class MessageManager {
     try {
       return this.notify(player, `There are no ${itemType} items here.`, 'errorMessage');
     } catch (error) {
-      this.logger.error('Error notifying no specific items here:', { error });
+      this.logger.error('Error notifying no specific items here:', error);
     }
   }
   // Get a template message for auto-looting items from an Npc
@@ -6642,7 +6642,7 @@ class MessageManager {
     try {
       return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
     } catch (error) {
-      this.logger.error('Error getting auto-loot template:', { error });
+      this.logger.error('Error getting auto-loot template:', error);
     }
   }
   // Notify a player about the result of a combat
@@ -6656,7 +6656,7 @@ class MessageManager {
     try {
       player.server.messageManager.sendMessage(player, result, 'combatMessage');
     } catch (error) {
-      this.logger.error('Error notifying combat result:', { error });
+      this.logger.error('Error notifying combat result:', error);
     }
   }
   // Notify a player about the start of a combat
@@ -6670,7 +6670,7 @@ class MessageManager {
     try {
       player.server.messageManager.sendMessage(player, `You engage in combat with ${npc.getName()}!`, 'combatMessage');
     } catch (error) {
-      this.logger.error('Error notifying combat start:', { error });
+      this.logger.error('Error notifying combat start:', error);
     }
   }
   // Notify a player about the end of a combat
@@ -6681,7 +6681,7 @@ class MessageManager {
     try {
       player.server.messageManager.sendMessage(player, `Combat has ended.`, 'combatMessage');
     } catch (error) {
-      this.logger.error('Error notifying combat end:', { error });
+      this.logger.error('Error notifying combat end:', error);
     }
   }
   // Send a message to a player
@@ -6712,7 +6712,7 @@ class MessageManager {
         }
       }
     } catch (error) {
-      this.logger.error('Error sending message:', { error });
+      this.logger.error('Error sending message:', error);
     }
   }
   // Notify a player about currency changes
@@ -6730,7 +6730,7 @@ class MessageManager {
       const action = isAddition ? 'gained' : 'spent';
       return this.notify(player, `You ${action} ${Math.abs(amount)} coins.`, 'currencyChange');
     } catch (error) {
-      this.logger.error('Error notifying currency change:', { error });
+      this.logger.error('Error notifying currency change:', error);
     }
   }
   // Notify a player about experience gain
@@ -6744,7 +6744,7 @@ class MessageManager {
     try {
       return this.notify(player, `You gained ${amount} experience points.`, 'experienceGain');
     } catch (error) {
-      this.logger.error('Error notifying experience gain:', { error });
+      this.logger.error('Error notifying experience gain:', error);
     }
   }
   static notifyLeavingLocation(entity, oldLocationId, newLocationId) {
@@ -6777,7 +6777,7 @@ class MessageManager {
         );
       }
     } catch (error) {
-      this.logger.error('Error notifying leaving location:', { error });
+      this.logger.error('Error notifying leaving location:', error);
     }
   }
 }
