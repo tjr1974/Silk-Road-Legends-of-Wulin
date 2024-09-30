@@ -63,6 +63,12 @@ implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
 class IBaseManager {
   constructor({ logger, server }) {
+    if (!(logger instanceof ILogger)) {
+      throw new TypeError('Logger must be an instance of ILogger');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.server = server;
     this.logger = logger;
   }
@@ -82,6 +88,12 @@ consistently implemented and easily modified or extended across the entire game 
 ***************************************************************************************************/
 class IDatabaseManager {
   constructor({ logger, server }) {
+    if (!(logger instanceof ILogger)) {
+      throw new TypeError('Logger must be an instance of ILogger');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.server = server;
     this.logger = logger;
   }
@@ -134,6 +146,9 @@ class Logger extends ILogger {
     if (Logger.instance) {
       return Logger.instance;
     }
+    if (typeof config !== 'object' || config === null) {
+      throw new TypeError('Config must be an object');
+    }
     this.CONFIG = config;
     this.logLevel = config.LOG_LEVEL;
     this.logLevels = {
@@ -145,6 +160,12 @@ class Logger extends ILogger {
     Logger.instance = this;
   }
   log(level, message) {
+    if (typeof level !== 'string') {
+      throw new TypeError('Level must be a string');
+    }
+    if (typeof message !== 'string') {
+      throw new TypeError('Message must be a string');
+    }
     if (this.shouldLog(level)) {
       let coloredMessage = message;
       switch (level) {
@@ -162,21 +183,42 @@ class Logger extends ILogger {
     }
   }
   shouldLog(level) {
+    if (typeof level !== 'string') {
+      throw new TypeError('Level must be a string');
+    }
     return this.logLevels[level] >= this.logLevels[this.logLevel];
   }
   writeToConsole(logString) {
+    if (typeof logString !== 'string') {
+      throw new TypeError('Log string must be a string');
+    }
     console.log(logString.trim());
   }
   debug(message) {
+    if (typeof message !== 'string') {
+      throw new TypeError('Message must be a string');
+    }
     this.log('DEBUG', message);
   }
   info(message) {
+    if (typeof message !== 'string') {
+      throw new TypeError('Message must be a string');
+    }
     this.log('INFO', message);
   }
   warn(message) {
+    if (typeof message !== 'string') {
+      throw new TypeError('Message must be a string');
+    }
     this.log('WARN', message);
   }
   error(message, { error }) {
+    if (typeof message !== 'string') {
+      throw new TypeError('Message must be a string');
+    }
+    if (!(error instanceof Error)) {
+      throw new TypeError('Error must be an instance of Error');
+    }
     this.log('ERROR', `${message} - ${error.message}`);
     this.log('ERROR', error.stack);
   }
@@ -208,16 +250,25 @@ class ConfigManager {
     if (ConfigManager.instance) {
       return ConfigManager.instance;
     }
+    if (typeof config !== 'object' || config === null) {
+      throw new TypeError('Config must be an object');
+    }
     ConfigManager.config = config;
     ConfigManager.instance = this;
   }
   get(key) {
+    if (typeof key !== 'string') {
+      throw new TypeError('Key must be a string');
+    }
     if (!(key in ConfigManager.config)) {
       throw new Error(`Configuration key "${key}" not found`);
     }
     return ConfigManager.config[key];
   }
   set(key, value) {
+    if (typeof key !== 'string') {
+      throw new TypeError('Key must be a string');
+    }
     ConfigManager.config[key] = value;
   }
   // Add this new method
@@ -229,6 +280,9 @@ class ConfigManager {
     try {
       // Assuming config is imported from a separate file
       const importedConfig = await import('./config.js');
+      if (typeof importedConfig.default !== 'object' || importedConfig.default === null) {
+        throw new TypeError('Imported config must be an object');
+      }
       ConfigManager.config = importedConfig.default;
     } catch (error) {
       throw new Error(`Failed to load configuration: ${error.message}`);
@@ -236,8 +290,14 @@ class ConfigManager {
   }
   // Add this method to get multiple config values at once
   getMultiple(keys) {
+    if (!Array.isArray(keys)) {
+      throw new TypeError('Keys must be an array');
+    }
     const values = {};
     for (const key of keys) {
+      if (typeof key !== 'string') {
+        throw new TypeError('Key must be a string');
+      }
       values[key] = this.get(key);
     }
     return values;
@@ -269,6 +329,12 @@ class Server {
   constructor({ logger, configManager }) {
     if (Server.instance) {
       return Server.instance;
+    }
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (!(configManager instanceof ConfigManager)) {
+      throw new TypeError('ConfigManager must be an instance of ConfigManager');
     }
     this.SocketEventEmitter = new SocketEventEmitter();
     this.configManager = configManager || ConfigManager.getInstance();
@@ -346,6 +412,9 @@ class Server {
     }
   }
   handlePlayerConnected(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     this.logger.info(`Player connected: ${player.getName()}`);
   }
   async setupHttpServer() {
@@ -408,11 +477,20 @@ class Server {
     this.queueManager.processQueue();
   }
   addTask(task) {
+    if (!(task instanceof TaskManager)) {
+      throw new TypeError('Task must be an instance of TaskManager');
+    }
     this.queueManager.enqueue(task);
   }
   setupReplicationFilters() {
     // Filter for items
     this.replicationManager.addFilter('item', (item, player) => {
+      if (!(item instanceof Item)) {
+        throw new TypeError('Item must be an instance of Item');
+      }
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
       return {
         id: item.id,
         name: item.name,
@@ -427,6 +505,12 @@ class Server {
     });
     // Filter for Npcs
     this.replicationManager.addFilter('npc', (npc, player) => {
+      if (!(npc instanceof Npc)) {
+        throw new TypeError('NPC must be an instance of Npc');
+      }
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
       const baseInfo = {
         id: npc.id,
         name: npc.name,
@@ -446,6 +530,12 @@ class Server {
     });
     // Filter for locations
     this.replicationManager.addFilter('location', (location, player) => {
+      if (!(location instanceof Location)) {
+        throw new TypeError('Location must be an instance of Location');
+      }
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
       return {
         id: location.id,
         name: location.name,
@@ -462,6 +552,9 @@ class Server {
   }
   // Update this method to use replication filters
   fullStateSync(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     const playerData = this.replicationManager.applyFilters('player', player, player);
     const locationData = this.replicationManager.applyFilters('location', this.getLocation(player.currentLocation), player);
     const inventoryData = Array.from(player.inventory).map(itemId =>
@@ -479,15 +572,30 @@ class Server {
   }
   // Use this method when updating specific entities
   updateEntity(entityType, entityData) {
+    if (typeof entityType !== 'string') {
+      throw new TypeError('Entity type must be a string');
+    }
+    if (typeof entityData !== 'object' || entityData === null) {
+      throw new TypeError('Entity data must be an object');
+    }
     this.players.forEach(player => {
       this.replicationManager.replicateToPlayer(player, entityType, entityData);
     });
   }
   handleConnection(socket) {
+    if (!(socket instanceof Socket)) {
+      throw new TypeError('Socket must be an instance of Socket');
+    }
     socket.on('message', async (message) => {
+      if (typeof message !== 'string') {
+        throw new TypeError('Message must be a string');
+      }
       const data = JSON.parse(message);
       switch (data.type) {
         case 'login':
+          if (typeof data.characterName !== 'string' || typeof data.password !== 'string') {
+            throw new TypeError('Character name and password must be strings');
+          }
           const authResult = await this.authManager.authenticateCharacter(data.characterName, data.password);
           if (authResult.success) {
             const sessionToken = this.sessionManager.createSession(authResult.characterData.id);
@@ -497,6 +605,9 @@ class Server {
           }
           break;
         case 'restoreSession':
+          if (typeof data.token !== 'string') {
+            throw new TypeError('Session token must be a string');
+          }
           const session = this.sessionManager.getSession(data.token);
           if (session) {
             this.sessionManager.updateSessionActivity(data.token);
@@ -506,6 +617,9 @@ class Server {
           }
           break;
         case 'logout':
+          if (typeof data.token !== 'string') {
+            throw new TypeError('Session token must be a string');
+          }
           this.sessionManager.removeSession(data.token);
           socket.send(JSON.stringify({ type: 'logoutConfirmation' }));
           break;
@@ -539,6 +653,9 @@ class ServerInitializer {
   constructor({ config }) {
     if (ServerInitializer.instance) {
       return ServerInitializer.instance;
+    }
+    if (typeof config !== 'object' || config === null) {
+      throw new TypeError('Config must be an object');
     }
     const { LOG_LEVEL, ORANGE, MAGENTA, RED, RESET } = config;
     this.logger = new Logger({ LOG_LEVEL, ORANGE, MAGENTA, RED, RESET });
@@ -592,6 +709,12 @@ class ServerConfigurator extends IBaseManager {
   }
   constructor({ logger, config, server, socketEventManager }) {
     super({ server, logger });
+    if (!(config instanceof ConfigManager)) {
+      throw new TypeError('Config must be an instance of ConfigManager');
+    }
+    if (!(socketEventManager instanceof SocketEventManager)) {
+      throw new TypeError('SocketEventManager must be an instance of SocketEventManager');
+    }
     this.config = config;
     this.socketEventManager = socketEventManager;
     this.server.app = null;
@@ -633,6 +756,9 @@ class ServerConfigurator extends IBaseManager {
     try {
       this.server.app.use(express.static('public'));
       this.server.app.use((err, req, res, next) => {
+        if (!(err instanceof Error)) {
+          throw new TypeError('Error must be an instance of Error');
+        }
         this.logger.error(`Middleware Error: ${err.message}`, { error: err });
         res.status(500).send('An Unexpected Error Occurred. Please Try Again Later.');
       });
@@ -667,6 +793,9 @@ class SocketEventManager extends IBaseManager {
   constructor({ logger, server, gameCommandManager }) {
     super({ server, logger });
     this.io = null;
+    if (!(gameCommandManager instanceof GameCommandManager)) {
+      throw new TypeError('GameCommandManager must be an instance of GameCommandManager');
+    }
     this.gameCommandManager = gameCommandManager;
     this.queueManager = QueueManager.getInstance();
     this.taskManager = TaskManager.getInstance({ server });
@@ -675,6 +804,9 @@ class SocketEventManager extends IBaseManager {
     try {
       this.io = new SocketIOServer(this.server.httpServer);
       this.io.on('connection', (socket) => {
+        if (!(socket instanceof Socket)) {
+          throw new TypeError('Socket must be an instance of Socket');
+        }
         this.logger.info(`New client connected: ${socket.id}`);
         this.setupSocketListeners(socket);
       });
@@ -685,7 +817,13 @@ class SocketEventManager extends IBaseManager {
   setupSocketListeners(socket) {
     try {
       socket.on('playerAction', (data) => {
+        if (typeof data !== 'object' || data === null) {
+          throw new TypeError('Data must be an object');
+        }
         const { actionType, payload } = data;
+        if (typeof actionType !== 'string' || typeof payload !== 'object' || payload === null) {
+          throw new TypeError('Action type must be a string and payload must be an object');
+        }
         const task = new TaskManager({
           server: this.server,
           execute: async () => {
@@ -705,6 +843,9 @@ class SocketEventManager extends IBaseManager {
   }
   handleDisconnect(socket) {
     try {
+      if (!(socket instanceof Socket)) {
+        throw new TypeError('Socket must be an instance of Socket');
+      }
       this.logger.info(`Client disconnected: ${socket.id}`);
       // Clean up any necessary game state
     } catch (error) {
@@ -732,12 +873,21 @@ class SocketEventEmitter extends ISocketEventEmitter {
     this.listeners = new Map();
   }
   on(event, callback) {
+    if (typeof event !== 'string') {
+      throw new TypeError('Event must be a string');
+    }
+    if (typeof callback !== 'function') {
+      throw new TypeError('Callback must be a function');
+    }
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event).add(callback);
   }
   emit(event, ...args) {
+    if (typeof event !== 'string') {
+      throw new TypeError('Event must be a string');
+    }
     if (this.listeners.has(event)) {
       for (const callback of this.listeners.get(event)) {
         callback(...args);
@@ -745,6 +895,12 @@ class SocketEventEmitter extends ISocketEventEmitter {
     }
   }
   off(event, callback) {
+    if (typeof event !== 'string') {
+      throw new TypeError('Event must be a string');
+    }
+    if (typeof callback !== 'function') {
+      throw new TypeError('Callback must be a function');
+    }
     if (this.listeners.has(event)) {
       this.listeners.get(event).delete(callback);
     }
@@ -764,21 +920,54 @@ ensuring that all clients have up-to-date information about the game state.
 ***************************************************************************************************/
 class ReplicationManager {
   constructor(server) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.server = server;
     this.filters = new Map();
   }
   addFilter(entityType, filterFunction) {
+    if (typeof entityType !== 'string') {
+      throw new TypeError('Entity type must be a string');
+    }
+    if (typeof filterFunction !== 'function') {
+      throw new TypeError('Filter function must be a function');
+    }
     this.filters.set(entityType, filterFunction);
   }
   applyFilters(entityType, data, player) {
+    if (typeof entityType !== 'string') {
+      throw new TypeError('Entity type must be a string');
+    }
+    if (typeof data !== 'object' || data === null) {
+      throw new TypeError('Data must be an object');
+    }
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     const filter = this.filters.get(entityType);
     return filter ? filter(data, player) : data;
   }
   replicateToPlayer(player, entityType, data) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof entityType !== 'string') {
+      throw new TypeError('Entity type must be a string');
+    }
+    if (typeof data !== 'object' || data === null) {
+      throw new TypeError('Data must be an object');
+    }
     const filteredData = this.applyFilters(entityType, data, player);
     this.server.socket.emit('replicateData', { playerId: player.getId(), entityType, data: filteredData });
   }
   replicateToAllPlayers(entityType, data) {
+    if (typeof entityType !== 'string') {
+      throw new TypeError('Entity type must be a string');
+    }
+    if (typeof data !== 'object' || data === null) {
+      throw new TypeError('Data must be an object');
+    }
     this.server.players.forEach(player => {
       this.replicateToPlayer(player, entityType, data);
     });
@@ -831,6 +1020,12 @@ class QueueManager {
     return QueueManager.instance;
   }
   constructor({ logger, capacity = 1000 } = {}) {
+    if (logger && !(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (typeof capacity !== 'number' || isNaN(capacity) || capacity <= 0) {
+      throw new TypeError('Capacity must be a positive number');
+    }
     this.logger = logger || console;
     this.buffer = new Array(capacity);
     this.capacity = capacity;
@@ -842,6 +1037,9 @@ class QueueManager {
     this.asyncLock = new AsyncLock();
   }
   async enqueue(task) {
+    if (!(task instanceof TaskManager)) {
+      throw new TypeError('Task must be an instance of TaskManager');
+    }
     const release = await this.asyncLock.acquire();
     try {
       if (this.size === this.capacity) {
@@ -926,11 +1124,20 @@ garbage collection, particularly beneficial in high-frequency operations like co
 ***************************************************************************************************/
 class ObjectPool {
   constructor(createFunc, initialSize = 10) {
+    if (typeof createFunc !== 'function') {
+      throw new TypeError('Create function must be a function');
+    }
+    if (typeof initialSize !== 'number' || isNaN(initialSize) || initialSize <= 0) {
+      throw new TypeError('Initial size must be a positive number');
+    }
     this.createFunc = createFunc;
     this.pool = [];
     this.initialize(initialSize);
   }
   initialize(size) {
+    if (typeof size !== 'number' || isNaN(size) || size <= 0) {
+      throw new TypeError('Size must be a positive number');
+    }
     for (let i = 0; i < size; i++) {
       this.pool.push(this.createFunc());
     }
@@ -942,6 +1149,9 @@ class ObjectPool {
     return this.createFunc();
   }
   release(obj) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new TypeError('Object must be an object');
+    }
     // Optionally reset the object here if needed
     this.pool.push(obj);
   }
@@ -968,6 +1178,9 @@ class TaskManager {
     return TaskManager.instance;
   }
   constructor({ server }) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     if (TaskManager.instance) {
       return TaskManager.instance;
     }
@@ -999,9 +1212,15 @@ class TaskManager {
     }
   }
   onComplete(callback) {
+    if (typeof callback !== 'function') {
+      throw new TypeError('Callback must be a function');
+    }
     this.completeCallback = callback;
   }
   onError(callback) {
+    if (typeof callback !== 'function') {
+      throw new TypeError('Callback must be a function');
+    }
     this.errorCallback = callback;
   }
 }
@@ -1027,6 +1246,9 @@ class MessageQueueSystem {
     return MessageQueueSystem.instance;
   }
   constructor({ server }) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.server = server;
     this.queues = {
       high: [],
@@ -1036,6 +1258,12 @@ class MessageQueueSystem {
     this.isProcessing = false;
   }
   addMessage(message, priority = 'medium') {
+    if (typeof message !== 'object' || message === null) {
+      throw new TypeError('Message must be an object');
+    }
+    if (typeof priority !== 'string' || !['high', 'medium', 'low'].includes(priority)) {
+      throw new TypeError('Priority must be one of: high, medium, low');
+    }
     this.queues[priority].push(message);
     if (!this.isProcessing) {
       this.processQueue();
@@ -1063,6 +1291,9 @@ class MessageQueueSystem {
     return null;
   }
   async processMessage(message) {
+    if (typeof message !== 'object' || message === null) {
+      throw new TypeError('Message must be an object');
+    }
     try {
       await this.server.messageManager.sendMessage(message.recipient, message.content, message.type);
     } catch (error) {
@@ -1094,6 +1325,12 @@ class DatabaseManager extends IDatabaseManager {
   }
   constructor({ logger, server }) {
     super({ logger, server });
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     this.configManager = server.configManager;
     this.DATA_PATHS = {
       LOCATIONS: this.configManager.get('LOCATIONS_DATA_PATH'),
@@ -1126,6 +1363,12 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   async loadData(folderPath, dataType = 'default') {
+    if (typeof folderPath !== 'string') {
+      throw new TypeError('Folder path must be a string');
+    }
+    if (typeof dataType !== 'string') {
+      throw new TypeError('Data type must be a string');
+    }
     const release = await this.asyncLock.acquire();
     try {
       const files = await fs.readdir(folderPath);
@@ -1156,6 +1399,21 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   customJsonParse(jsonString, duplicateIds, allData, fileName, dataType) {
+    if (typeof jsonString !== 'string') {
+      throw new TypeError('JSON string must be a string');
+    }
+    if (!(duplicateIds instanceof Set)) {
+      throw new TypeError('Duplicate IDs must be a Set');
+    }
+    if (typeof allData !== 'object' || allData === null) {
+      throw new TypeError('All data must be an object');
+    }
+    if (typeof fileName !== 'string') {
+      throw new TypeError('File name must be a string');
+    }
+    if (typeof dataType !== 'string') {
+      throw new TypeError('Data type must be a string');
+    }
     const regex = /"(\d+)":\s*(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})/g;
     let match;
     while ((match = regex.exec(jsonString)) !== null) {
@@ -1174,6 +1432,9 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   getEntityType(dataType) {
+    if (typeof dataType !== 'string') {
+      throw new TypeError('Data type must be a string');
+    }
     switch (dataType) {
       case 'npcs': return 'NPC';
       case 'items': return 'Item';
@@ -1181,8 +1442,7 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseLocationData(data) {
-    this.logger.info('- Validate Locations Data');
-    if (typeof data !== 'object' || Array.isArray(data)) {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
       this.logger.error(`Locations data must be an object`, { error: new Error(`Locations data must be an object`) });
       return new Map();
     }
@@ -1212,7 +1472,10 @@ class DatabaseManager extends IDatabaseManager {
     return locationData;
   }
   isValidLocation(location) {
-    return location && typeof location.name === 'string' && typeof location.description === 'string' &&
+    if (typeof location !== 'object' || location === null) {
+      return false;
+    }
+    return typeof location.name === 'string' && typeof location.description === 'string' &&
            typeof location.exits === 'object' && Array.isArray(location.zone);
   }
   async loadNpcData() {
@@ -1231,8 +1494,7 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseNpcData(data) {
-    this.logger.info('- Validate Npcs Data');
-    if (typeof data !== 'object' || Array.isArray(data)) {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
       this.logger.error(`Npcs data must be an object`, { error: new Error(`Npcs data must be an object`) });
       return new Map();
     }
@@ -1249,7 +1511,10 @@ class DatabaseManager extends IDatabaseManager {
     return npcData;
   }
   isValidNpc(npc) {
-    return npc && typeof npc.name === 'string' && typeof npc.sex === 'string' &&
+    if (typeof npc !== 'object' || npc === null) {
+      return false;
+    }
+    return typeof npc.name === 'string' && typeof npc.sex === 'string' &&
            typeof npc.currHealth === 'number' && typeof npc.maxHealth === 'number' &&
            typeof npc.attackPower === 'number' && typeof npc.csml === 'number' &&
            typeof npc.aggro === 'boolean' && typeof npc.assist === 'boolean' &&
@@ -1272,8 +1537,7 @@ class DatabaseManager extends IDatabaseManager {
     }
   }
   validateAndParseItemData(data) {
-    this.logger.debug('- Validate Items Data:');
-    if (typeof data !== 'object' || Array.isArray(data)) {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
       this.logger.error(`Items data must be an object`, { error: new Error(`Items data must be an object`) });
       return new Map();
     }
@@ -1290,7 +1554,10 @@ class DatabaseManager extends IDatabaseManager {
     return itemData;
   }
   isValidItem(item) {
-    return item && typeof item.name === 'string' && typeof item.description === 'string' &&
+    if (typeof item !== 'object' || item === null) {
+      return false;
+    }
+    return typeof item.name === 'string' && typeof item.description === 'string' &&
            Array.isArray(item.aliases) && typeof item.type === 'string';
   }
 }
@@ -1310,12 +1577,18 @@ ensuring that all game data is properly loaded and structured for use by other g
 class GameDataLoader {
   static instance;
   static getInstance({ server }) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     if (!GameDataLoader.instance) {
       GameDataLoader.instance = new GameDataLoader({ server });
     }
     return GameDataLoader.instance;
   }
   constructor({ server }) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     const { configManager, logger } = server;
     this.server = server;
     this.config = configManager.config;
@@ -1355,6 +1628,12 @@ class GameDataLoader {
     }
   }
   async loadData(loadFunction, type) {
+    if (typeof loadFunction !== 'function') {
+      throw new TypeError('Load function must be a function');
+    }
+    if (typeof type !== 'string') {
+      throw new TypeError('Type must be a string');
+    }
     const { logger } = this.server;
     try {
       const data = await loadFunction();
@@ -1364,6 +1643,9 @@ class GameDataLoader {
     }
   }
   async createNpcsFromData(npcData) {
+    if (!(npcData instanceof Map)) {
+      throw new TypeError('NPC data must be an instance of Map');
+    }
     const npcs = new Map();
     this.logger.info(`- Create Npcs From Data`);
     for (const [id, npcInfo] of npcData.entries()) {
@@ -1427,6 +1709,9 @@ class GameDataLoader {
     }
   }
   async createItems(itemData) {
+    if (!(itemData instanceof Map)) {
+      throw new TypeError('Item data must be an instance of Map');
+    }
     const items = new Map();
     const itemPromises = [];
     for (const [id, itemInfo] of itemData) {
@@ -1510,6 +1795,21 @@ class GameManager extends IGameManager {
     super();
     if (GameManager.instance) {
       return GameManager.instance;
+    }
+    if (!(SocketEventEmitter instanceof SocketEventManager)) {
+      throw new TypeError('SocketEventEmitter must be an instance of SocketEventManager');
+    }
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!(configManager instanceof ConfigManager)) {
+      throw new TypeError('ConfigManager must be an instance of ConfigManager');
+    }
+    if (!(combatManager instanceof CombatManager)) {
+      throw new TypeError('CombatManager must be an instance of CombatManager');
     }
     this.players = new Map();
     this.locations = new Map();
@@ -1768,6 +2068,9 @@ class GameManager extends IGameManager {
     this.logger.info("A new day has started!");
   }
   disconnectPlayer(uid) {
+    if (typeof uid !== 'string') {
+      throw new TypeError('UID must be a string');
+    }
     const player = this.players.get(uid);
     if (player) {
       player.status = "disconnected";
@@ -1831,6 +2134,9 @@ class GameManager extends IGameManager {
     }
   }
   removeNpc(id) {
+    if (typeof id !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
     const npc = this.npcs.get(id);
     if (npc instanceof MobileNpc) {
       this.npcMovementManager.unregisterMobileNpc(npc);
@@ -1863,11 +2169,10 @@ class GameManager extends IGameManager {
     return location;
   }
   handlePlayerAction(action) {
-    const task = new TaskManager({ name: 'PlayerAction', execute: () => {
-      // Logic for handling player action
-      this.logger.debug(`- Handling action: ${action}`);
-    }});
-    this.server.addTask(task);
+    if (!(action instanceof TaskManager)) {
+      throw new TypeError('Action must be an instance of TaskManager');
+    }
+    this.server.addTask(action);
   }
   cleanup() {
     this.npcs.clear();
@@ -1876,9 +2181,18 @@ class GameManager extends IGameManager {
     this.merchantNpcs.clear();
   }
   initiateCombat(player, npcId) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof npcId !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
     this.combatManager.initiateCombatWithNpc({ npcId, player, playerInitiated: true });
   }
   endCombat(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     this.combatManager.endCombatForPlayer({ player });
   }
 }
@@ -1898,6 +2212,12 @@ components and manages potential errors during the setup process.
 class GameComponentInitializer extends IBaseManager {
   static instance;
   static getInstance({ logger, server }) {
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     if (!GameComponentInitializer.instance) {
       GameComponentInitializer.instance = new GameComponentInitializer({ logger, server });
     }
@@ -1997,6 +2317,9 @@ entity state and behavior across the game.
 ***************************************************************************************************/
 class Entity {
   constructor(name) {
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
     this.name = name;
     this.currHealth = 0;
     this.status = '';
@@ -2026,6 +2349,9 @@ character state and behavior across the game.
 class Character extends Entity {
   constructor({ name, health }) {
     super(name);
+    if (typeof health !== 'number' || isNaN(health)) {
+      throw new TypeError('Health must be a number');
+    }
     this.health = health;
   }
 }
@@ -2042,15 +2368,33 @@ ensuring that player data is correctly initialized and maintained.
 ***************************************************************************************************/
 class CreateNewPlayer {
   constructor({ name, age }) {
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof age !== 'number' || isNaN(age)) {
+      throw new TypeError('Age must be a number');
+    }
     this.name = name;
     this.age = age;
   }
   static fromPlayerData({ uid, playerData, bcrypt }) {
+    if (typeof uid !== 'string') {
+      throw new TypeError('UID must be a string');
+    }
+    if (typeof playerData !== 'object' || playerData === null) {
+      throw new TypeError('Player data must be an object');
+    }
+    if (!(bcrypt instanceof Bcrypt)) {
+      throw new TypeError('Bcrypt must be an instance of Bcrypt');
+    }
     const player = new Player({ uid, name: playerData.name, bcrypt });
     player.updateData(playerData);
     return player;
   }
   async updateData(updatedData) {
+    if (typeof updatedData !== 'object' || updatedData === null) {
+      throw new TypeError('Updated data must be an object');
+    }
     if (updatedData.health !== undefined) await this.setHealth(updatedData.health);
     if (updatedData.experience !== undefined) await this.setExperience(updatedData.experience);
     if (updatedData.level !== undefined) await this.setLevel(updatedData.level);
@@ -2071,6 +2415,24 @@ player actions and state are managed effectively.
 class Player extends Character {
   constructor({ uid, name, bcrypt, server, configManager, inventoryManager, gameCommandManager }) {
     super({ name, health: 100 });
+    if (typeof uid !== 'string') {
+      throw new TypeError('UID must be a string');
+    }
+    if (!(bcrypt instanceof Bcrypt)) {
+      throw new TypeError('Bcrypt must be an instance of Bcrypt');
+    }
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!(configManager instanceof ConfigManager)) {
+      throw new TypeError('ConfigManager must be an instance of ConfigManager');
+    }
+    if (!(inventoryManager instanceof InventoryManager)) {
+      throw new TypeError('InventoryManager must be an instance of InventoryManager');
+    }
+    if (!(gameCommandManager instanceof GameCommandManager)) {
+      throw new TypeError('GameCommandManager must be an instance of GameCommandManager');
+    }
     this.uid = uid;
     this.bcrypt = bcrypt;
     this.inventory = new Map();
@@ -2123,9 +2485,15 @@ class Player extends Character {
     return this.uid;
   }
   getPossessivePronoun() {
+    if (typeof this.sex !== 'string') {
+      throw new TypeError('Sex must be a string');
+    }
     return this.sex === 'male' ? 'his' : 'her';
   }
   canAddToInventory(item) {
+    if (!(item instanceof Item)) {
+      throw new TypeError('Item must be an instance of Item');
+    }
     const INVENTORY_CAPACITY = this.configManager.get('INVENTORY_CAPACITY');
     return this.inventory.size < INVENTORY_CAPACITY && item.isValid();
   }
@@ -2133,6 +2501,9 @@ class Player extends Character {
     return this.configManager.get('INVENTORY_CAPACITY');
   }
   authenticate(password) {
+    if (typeof password !== 'string') {
+      throw new TypeError('Password must be a string');
+    }
     const isPasswordValid = this.bcrypt.compare(password, this.password);
     if (isPasswordValid) {
       this.resetFailedLoginAttempts();
@@ -2163,6 +2534,9 @@ class Player extends Character {
     return { name, age, health, experience, level };
   }
   static async loadBatch(playerIds) {
+    if (!Array.isArray(playerIds)) {
+      throw new TypeError('Player IDs must be an array');
+    }
     const playerDataArray = await DatabaseManager.loadPlayersData(playerIds);
     return playerDataArray.map(data => new Player({ uid: data.uid, name: data.name, bcrypt: data.bcrypt }));
   }
@@ -2171,6 +2545,9 @@ class Player extends Character {
     this.server.messageManager.sendMessage(this, stats, 'statsMessage');
   }
   updateData(updatedData) {
+    if (typeof updatedData !== 'object' || updatedData === null) {
+      throw new TypeError('Updated data must be an object');
+    }
     const { health, experience, level } = updatedData;
     if (health != null) this.setHealth(health);
     if (experience != null) this.setExperience(experience);
@@ -2184,6 +2561,9 @@ class Player extends Character {
     }
   }
   async login(inputPassword) {
+    if (typeof inputPassword !== 'string') {
+      throw new TypeError('Input password must be a string');
+    }
     try {
       const isAuthenticated = await this.authenticate(inputPassword);
       if (isAuthenticated) {
@@ -2211,15 +2591,25 @@ class Player extends Character {
     });
   }
   addWeapon(weapon) {
-    if (weapon instanceof WeaponItem) {
-      this.weapons.add(weapon);
-      this.server.messageManager.notifyPickupItem(this, weapon.name);
+    if (!(weapon instanceof WeaponItem)) {
+      throw new TypeError('Weapon must be an instance of WeaponItem');
     }
+    this.weapons.add(weapon);
+    this.server.messageManager.notifyPickupItem(this, weapon.name);
   }
   removeWeapon(weapon) {
+    if (!(weapon instanceof WeaponItem)) {
+      throw new TypeError('Weapon must be an instance of WeaponItem');
+    }
     this.weapons.delete(weapon);
   }
   static async createNewPlayer({ name, age }) {
+    if (typeof name !== 'string') {
+      throw new TypeError('Name must be a string');
+    }
+    if (typeof age !== 'number' || isNaN(age)) {
+      throw new TypeError('Age must be a number');
+    }
     return new CreateNewPlayer({ name, age });
   }
   moveToLocation(direction) {
@@ -2252,6 +2642,9 @@ class Player extends Character {
     this.gameCommandManager.executeCommand(this, 'showInventory');
   }
   lootSpecifiedNpc(target) {
+    if (typeof target !== 'string') {
+      throw new TypeError('Target must be a string');
+    }
     this.gameCommandManager.executeCommand(this, 'lootSpecifiedNpc', [target]);
   }
   meditate() {
@@ -2273,12 +2666,18 @@ class Player extends Character {
     this.gameCommandManager.executeCommand(this, 'autoLootToggle');
   }
   lookIn(containerName) {
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     this.gameCommandManager.executeCommand(this, 'lookIn', [containerName]);
   }
   describeCurrentLocation() {
     this.describeLocationManager.describe();
   }
   LookAtCommandHandler(target) {
+    if (typeof target !== 'string') {
+      throw new TypeError('Target must be a string');
+    }
     this.gameCommandManager.executeCommand(this, 'lookAt', [target]);
   }
   hasChangedState() {
@@ -2293,7 +2692,7 @@ class Player extends Character {
   }
   addItemToInventory(item) {
     if (!(item instanceof Item)) {
-      throw new TypeError('Item must be an Item instance');
+      throw new TypeError('Item must be an instance of Item');
     }
     try {
       if (this.canAddToInventory(item)) {
@@ -2324,12 +2723,21 @@ class Player extends Character {
     return this.currency.getAmount();
   }
   addCurrency(amount) {
+    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+      throw new TypeError('Amount must be a non-negative number');
+    }
     this.currency.add(amount);
   }
   subtractCurrency(amount) {
+    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+      throw new TypeError('Amount must be a non-negative number');
+    }
     return this.currency.subtract(amount);
   }
   initiateTrade(targetPlayer) {
+    if (!(targetPlayer instanceof Player)) {
+      throw new TypeError('Target player must be an instance of Player');
+    }
     const tradeSession = this.server.transactionManager.createTradeSession(this, targetPlayer);
     this.server.messageManager.notifyTradeInitiated(this, targetPlayer);
     return tradeSession;
@@ -2351,6 +2759,9 @@ class Player extends Character {
     }
   }
   addItemToTrade(itemName) {
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
     const tradeSession = this.server.transactionManager.getTradeSession(this.getId());
     if (tradeSession) {
       const item = this.getItemFromInventory(itemName);
@@ -2364,6 +2775,9 @@ class Player extends Character {
     }
   }
   removeItemFromTrade(itemName) {
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
     const tradeSession = this.server.transactionManager.getTradeSession(this.getId());
     if (tradeSession) {
       const item = Array.from(tradeSession.player1Items.values()).concat(Array.from(tradeSession.player2Items.values()))
@@ -2378,6 +2792,9 @@ class Player extends Character {
     }
   }
   setTradeGold(amount) {
+    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+      throw new TypeError('Amount must be a non-negative number');
+    }
     const tradeSession = this.server.transactionManager.getTradeSession(this.getId());
     if (tradeSession) {
       if (amount > this.getCurrency()) {
@@ -2398,6 +2815,9 @@ class Player extends Character {
     }
   }
   addExperience(amount) {
+    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+      throw new TypeError('Amount must be a non-negative number');
+    }
     this.experience += amount;
   }
 }
@@ -2414,6 +2834,12 @@ Key features:
 ***************************************************************************************************/
 class AuthenticationManager {
   constructor(server, bcrypt) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!(bcrypt instanceof Bcrypt)) {
+      throw new TypeError('Bcrypt must be an instance of Bcrypt');
+    }
     this.server = server;
     this.bcrypt = bcrypt;
     this.SALT_ROUNDS = CONFIG.PASSWORD_SALT_ROUNDS;
@@ -2471,6 +2897,12 @@ enhancing the overall gaming experience.
 ***************************************************************************************************/
 class SessionManager {
   constructor(server, bcrypt) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
+    if (!(bcrypt instanceof Bcrypt)) {
+      throw new TypeError('Bcrypt must be an instance of Bcrypt');
+    }
     this.server = server;
     this.sessions = new Map();
     this.bcrypt = bcrypt;
@@ -2500,6 +2932,9 @@ class SessionManager {
     }
   }
   updateSessionActivity(token) {
+    if (typeof token !== 'string') {
+      throw new TypeError('Token must be a string');
+    }
     try {
       const session = this.sessions.get(token);
       if (session) {
@@ -2510,6 +2945,9 @@ class SessionManager {
     }
   }
   removeSession(token) {
+    if (typeof token !== 'string') {
+      throw new TypeError('Token must be a string');
+    }
     try {
       this.sessions.delete(token);
     } catch (error) {
@@ -2606,6 +3044,9 @@ as a bridge between the user interface and the game's internal logic.
 class GameCommandManager {
   static instance;
   static getInstance({ server }) {
+    if (!(server instanceof Server)) {
+      throw new TypeError('Server must be an instance of Server');
+    }
     if (!GameCommandManager.instance) {
       GameCommandManager.instance = new GameCommandManager({ server });
     }
@@ -3099,6 +3540,12 @@ class CombatManager {
     }
   }
   isAggressiveNpc(npc, player) {
+    if (!(npc instanceof Npc)) {
+      throw new TypeError('NPC must be an instance of Npc');
+    }
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     return npc && npc.aggressive &&
       npc.status !== "lying unconscious" &&
       npc.status !== "lying dead" &&
@@ -3106,8 +3553,11 @@ class CombatManager {
       !this.defeatedNpcs.has(npc.id);
   }
   performCombatAction(attacker, defender, isPlayer) {
-    if (!(attacker instanceof Character) || !(defender instanceof Character)) {
-      throw new TypeError('Attacker and defender must be instances of Character');
+    if (!(attacker instanceof Character)) {
+      throw new TypeError('Attacker must be an instance of Character');
+    }
+    if (!(defender instanceof Character)) {
+      throw new TypeError('Defender must be an instance of Character');
     }
     if (typeof isPlayer !== 'boolean') {
       throw new TypeError('isPlayer must be a boolean');
@@ -3126,6 +3576,15 @@ class CombatManager {
     }
   }
   processCombatOutcome(outcome, attacker, defender) {
+    if (typeof outcome !== 'string') {
+      throw new TypeError('Outcome must be a string');
+    }
+    if (!(attacker instanceof Character)) {
+      throw new TypeError('Attacker must be an instance of Character');
+    }
+    if (!(defender instanceof Character)) {
+      throw new TypeError('Defender must be an instance of Character');
+    }
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
     if (outcome === "critical success") {
@@ -3136,11 +3595,29 @@ class CombatManager {
     }
   }
   getCombatDescription(outcome, attacker, defender, technique) {
+    if (typeof outcome !== 'string') {
+      throw new TypeError('Outcome must be a string');
+    }
+    if (!(attacker instanceof Character)) {
+      throw new TypeError('Attacker must be an instance of Character');
+    }
+    if (!(defender instanceof Character)) {
+      throw new TypeError('Defender must be an instance of Character');
+    }
+    if (typeof technique !== 'string') {
+      throw new TypeError('Technique must be a string');
+    }
     const descriptionFunc = this.outcomeDescriptions.get(outcome) ||
       (({ attacker, defender, technique }) => `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`);
     return FormatMessageManager.createMessageData(descriptionFunc({ attacker, defender, technique }));
   }
   attackNpc({ player, target1 }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (target1 && typeof target1 !== 'string') {
+      throw new TypeError('Target1 must be a string');
+    }
     const location = player.server.gameManager.getLocation(player.currentLocation);
     if (!location) return;
     const npcId = target1 ? this.getNpcIdFromLocation(target1, location.npcs) : this.getAvailableNpcId(location.npcs);
@@ -3170,6 +3647,9 @@ class CombatManager {
     }
   }
   getAvailableNpcId(npcs) {
+    if (!Array.isArray(npcs)) {
+      throw new TypeError('NPCs must be an array');
+    }
     for (const id of npcs) {
       const npc = this.gameManager.getNpc(id);
       if (npc && !npc.isUnconsciousOrDead()) {
@@ -3185,9 +3665,21 @@ class CombatManager {
     return this.combatOrder.keys().next().value;
   }
   notifyPlayersInLocation(locationId, content) {
+    if (typeof locationId !== 'string') {
+      throw new TypeError('Location ID must be a string');
+    }
+    if (typeof content !== 'string') {
+      throw new TypeError('Content must be a string');
+    }
     MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(locationId), content);
   }
   notifyHealthStatus(player, npc) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (!(npc instanceof Npc)) {
+      throw new TypeError('NPC must be an instance of Npc');
+    }
     const playerHealthPercentage = this.calculateHealthPercentage(player.health, player.maxHealth);
     const npcHealthPercentage = this.calculateHealthPercentage(npc.health, npc.maxHealth);
     const healthMessage = MessageManager.getCombatHealthStatusTemplate(
@@ -3199,9 +3691,24 @@ class CombatManager {
     this.server.messageManager.notifyPlayersInLocation(player.currentLocation, healthMessage, 'combatMessageHealth');
   }
   calculateHealthPercentage(currentHealth, maxHealth) {
+    if (typeof currentHealth !== 'number' || isNaN(currentHealth)) {
+      throw new TypeError('Current health must be a number');
+    }
+    if (typeof maxHealth !== 'number' || isNaN(maxHealth)) {
+      throw new TypeError('Max health must be a number');
+    }
     return (currentHealth / maxHealth) * 100;
   }
   calculateAttackValue(attacker, defender, roll) {
+    if (!(attacker instanceof Character)) {
+      throw new TypeError('Attacker must be an instance of Character');
+    }
+    if (!(defender instanceof Character)) {
+      throw new TypeError('Defender must be an instance of Character');
+    }
+    if (typeof roll !== 'number' || isNaN(roll)) {
+      throw new TypeError('Roll must be a number');
+    }
     if (attacker.level === defender.level) {
       return roll + attacker.csml;
     } else if (attacker.level < defender.level) {
@@ -3211,6 +3718,12 @@ class CombatManager {
     }
   }
   calculateAttackOutcome(attacker, defender) {
+    if (!(attacker instanceof Character)) {
+      throw new TypeError('Attacker must be an instance of Character');
+    }
+    if (!(defender instanceof Character)) {
+      throw new TypeError('Defender must be an instance of Character');
+    }
     const roll = Math.floor(Math.random() * 20) + 1;
     let value = this.calculateAttackValue(attacker, defender, roll);
     if (value >= 21 || value === 19) return "critical success";
@@ -3223,15 +3736,30 @@ class CombatManager {
     return "attack hits";
   }
   static getRandomElement(array) {
+    if (!Array.isArray(array)) {
+      throw new TypeError('Array must be an array');
+    }
     return [...array][Math.floor(Math.random() * array.size)];
   }
   addCombatParticipant(npc, player) {
+    if (!(npc instanceof Npc)) {
+      throw new TypeError('NPC must be an instance of Npc');
+    }
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     if (!this.combatParticipants.has(npc.id)) {
       this.combatParticipants.set(npc.id, new Set());
     }
     this.combatParticipants.get(npc.id).add(player.getId());
   }
   removeCombatParticipant(npc, player) {
+    if (!(npc instanceof Npc)) {
+      throw new TypeError('NPC must be an instance of Npc');
+    }
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     if (this.combatParticipants.has(npc.id)) {
       this.combatParticipants.get(npc.id).delete(player.getId());
       if (this.combatParticipants.get(npc.id).size === 0) {
@@ -3240,9 +3768,18 @@ class CombatManager {
     }
   }
   getCombatParticipants(npcId) {
+    if (typeof npcId !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
     return [...(this.combatParticipants.get(npcId) || [])];
   }
   isPlayerInCombatWithNpc(playerId, npcId) {
+    if (typeof playerId !== 'string') {
+      throw new TypeError('Player ID must be a string');
+    }
+    if (typeof npcId !== 'string') {
+      throw new TypeError('NPC ID must be a string');
+    }
     return this.combatParticipants.has(npcId) && this.combatParticipants.get(npcId).has(playerId);
   }
 }
@@ -3264,8 +3801,11 @@ class CombatAction {
     this.logger = logger;
   }
   initialize(attacker, defender) {
-    if (!(attacker instanceof Character) || !(defender instanceof Character)) {
-      throw new TypeError('Attacker and defender must be instances of Character');
+    if (!(attacker instanceof Character)) {
+      throw new TypeError('Attacker must be an instance of Character');
+    }
+    if (!(defender instanceof Character)) {
+      throw new TypeError('Defender must be an instance of Character');
     }
     this.attacker = attacker;
     this.defender = defender;
@@ -4341,11 +4881,10 @@ class ItemManager {
     await this.assignUidsToItems(itemData);
   }
   checkItemsForDuplicateIds(itemData) {
-    this.logger.debug(`Processing Item Data`);
     if (!itemData || typeof itemData !== 'object') {
-      this.logger.error(`Invalid Or Missing Item Data`);
-      return;
+      throw new TypeError('Item data must be an object');
     }
+    this.logger.debug(`Processing Item Data`);
     const itemIds = Object.keys(itemData);
     const uniqueIds = new Set(itemIds);
     if (itemIds.length !== uniqueIds.size) {
@@ -4360,6 +4899,9 @@ class ItemManager {
     }
   }
   async assignUidsToItems(itemData) {
+    if (!itemData || typeof itemData !== 'object') {
+      throw new TypeError('Item data must be an object');
+    }
     this.logger.debug(`Assigning UIDs to Items`);
     await Promise.all(Object.entries(itemData).map(async ([id, item]) => {
       try {
@@ -4425,6 +4967,9 @@ experience through item interactions.
 class InventoryManager {
   static instance;
   static getInstance(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     if (!InventoryManager.instance) {
       InventoryManager.instance = new InventoryManager(player);
     }
@@ -5334,8 +5879,8 @@ class AtomicTransaction {
     }
   }
   addOperation(operation) {
-    if (typeof operation !== 'object' || operation === null) {
-      throw new TypeError('Operation must be an object');
+    if (typeof operation !== 'object' || operation === null || typeof operation.execute !== 'function' || typeof operation.rollback !== 'function') {
+      throw new TypeError('Operation must be an object with execute and rollback functions');
     }
     try {
       if (this.isCommitted) {
@@ -5503,6 +6048,9 @@ class MessageManager {
   static instance;
   static logger;
   static getInstance(logger) {
+    if (!(logger instanceof Logger)) {
+      throw new TypeError('Logger must be an instance of Logger');
+    }
     if (!MessageManager.instance) {
       MessageManager.instance = new MessageManager();
       MessageManager.logger = logger;
@@ -5513,6 +6061,9 @@ class MessageManager {
   static socket;
   static setSocket(socketInstance) {
     try {
+      if (!(socketInstance instanceof Socket)) {
+        throw new TypeError('Socket instance must be an instance of Socket');
+      }
       this.socket = socketInstance;
     } catch (error) {
       this.logger.error('Error setting socket instance:', { error });
@@ -5521,6 +6072,15 @@ class MessageManager {
   // Notify a player with a message
   static notify(entity, message, type) {
     try {
+      if (!(entity instanceof Player || entity instanceof Npc)) {
+        throw new TypeError('Entity must be an instance of Player or Npc');
+      }
+      if (typeof message !== 'string') {
+        throw new TypeError('Message must be a string');
+      }
+      if (typeof type !== 'string') {
+        throw new TypeError('Type must be a string');
+      }
       if (entity instanceof Player) {
         this.logger.info(`Notifying Player: ${entity.getName()} - ${message}`);
       } else if (entity instanceof Npc) {
@@ -5536,6 +6096,15 @@ class MessageManager {
   // Notify all players in a specific location with a message
   static notifyPlayersInLocation({ location, message, type = '' }) {
     try {
+      if (!(location instanceof Location)) {
+        throw new TypeError('Location must be an instance of Location');
+      }
+      if (typeof message !== 'string') {
+        throw new TypeError('Message must be a string');
+      }
+      if (typeof type !== 'string') {
+        throw new TypeError('Type must be a string');
+      }
       if (!location || !location.playersInLocation) return;
       for (const player of location.playersInLocation) {
         this.notify(player, message, type);
@@ -5547,6 +6116,18 @@ class MessageManager {
   // Notify a player about a specific action performed on a target
   static notifyAction({ player, action, targetName, type }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
+      if (typeof action !== 'string') {
+        throw new TypeError('Action must be a string');
+      }
+      if (typeof targetName !== 'string') {
+        throw new TypeError('Target name must be a string');
+      }
+      if (typeof type !== 'string') {
+        throw new TypeError('Type must be a string');
+      }
       return this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
     } catch (error) {
       this.logger.error('Error notifying action:', { error });
@@ -5555,6 +6136,9 @@ class MessageManager {
   // Notify a player of a successful login
   static notifyLoginSuccess({ player }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
       return this.notifyAction({ player, action: 'has logged in!', targetName: '', type: 'loginSuccess' });
     } catch (error) {
       this.logger.error('Error notifying login success:', { error });
@@ -5563,6 +6147,9 @@ class MessageManager {
   // Notify a player of an incorrect password attempt
   static notifyIncorrectPassword({ player }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
       return this.notify(player, `Incorrect password. Please try again.`, 'incorrectPassword');
     } catch (error) {
       this.logger.error('Error notifying incorrect password:', { error });
@@ -5571,6 +6158,9 @@ class MessageManager {
   // Notify a player of disconnection due to too many failed login attempts
   static notifyDisconnectionDueToFailedAttempts({ player }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
       return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, 'disconnectionFailedAttempts');
     } catch (error) {
       this.logger.error('Error notifying disconnection due to failed attempts:', { error });
@@ -5579,6 +6169,12 @@ class MessageManager {
   // Notify a player when they pick up an item
   static notifyPickupItem({ player, itemName }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
+      if (typeof itemName !== 'string') {
+        throw new TypeError('Item name must be a string');
+      }
       return this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
     } catch (error) {
       this.logger.error('Error notifying pickup item:', { error });
@@ -5587,6 +6183,12 @@ class MessageManager {
   // Notify a player when they drop an item
   static notifyDropItem({ player, itemName }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
+      if (typeof itemName !== 'string') {
+        throw new TypeError('Item name must be a string');
+      }
       return this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
     } catch (error) {
       this.logger.error('Error notifying drop item:', { error });
@@ -5595,6 +6197,15 @@ class MessageManager {
   // Notify players in a location about an Npc's movement
   static notifyNpcMovement(npc, direction, isArrival) {
     try {
+      if (!(npc instanceof Npc)) {
+        throw new TypeError('NPC must be an instance of Npc');
+      }
+      if (typeof direction !== 'string') {
+        throw new TypeError('Direction must be a string');
+      }
+      if (typeof isArrival !== 'boolean') {
+        throw new TypeError('Is arrival must be a boolean');
+      }
       const action = isArrival ? 'arrives' : 'leaves';
       const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
       this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
@@ -5605,6 +6216,12 @@ class MessageManager {
   // Get a template message for combat initiation
   static getCombatInitiationTemplate({ initiatorName, targetName }) {
     try {
+      if (typeof initiatorName !== 'string') {
+        throw new TypeError('Initiator name must be a string');
+      }
+      if (typeof targetName !== 'string') {
+        throw new TypeError('Target name must be a string');
+      }
       return `${initiatorName} initiates combat with ${targetName}!`;
     } catch (error) {
       this.logger.error('Error getting combat initiation template:', { error });
@@ -5613,6 +6230,9 @@ class MessageManager {
   // Get a template message for an Npc joining combat
   static getCombatJoinTemplate({ npcName }) {
     try {
+      if (typeof npcName !== 'string') {
+        throw new TypeError('NPC name must be a string');
+      }
       return `${npcName} joins the combat!`;
     } catch (error) {
       this.logger.error('Error getting combat join template:', { error });
@@ -5621,6 +6241,12 @@ class MessageManager {
   // Get a template message for a victory announcement
   static getVictoryTemplate({ playerName, defeatedName }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
+      if (typeof defeatedName !== 'string') {
+        throw new TypeError('Defeated name must be a string');
+      }
       return `${playerName} has defeated ${defeatedName}!`;
     } catch (error) {
       this.logger.error('Error getting victory template:', { error });
@@ -5629,6 +6255,12 @@ class MessageManager {
   // Get a template message for a target not found
   static getTargetNotFoundTemplate({ playerName, target }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
+      if (typeof target !== 'string') {
+        throw new TypeError('Target must be a string');
+      }
       return `${playerName} doesn't see ${target} here.`;
     } catch (error) {
       this.logger.error('Error getting target not found template:', { error });
@@ -5637,6 +6269,9 @@ class MessageManager {
   // Get a template message for no conscious enemies
   static getNoConsciousEnemiesTemplate({ playerName }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
       return `${playerName} doesn't see any conscious enemies here.`;
     } catch (error) {
       this.logger.error('Error getting no conscious enemies template:', { error });
@@ -5645,6 +6280,12 @@ class MessageManager {
   // Get a template message for an Npc already in a specific status
   static getNpcAlreadyInStatusTemplate({ npcName, status }) {
     try {
+      if (typeof npcName !== 'string') {
+        throw new TypeError('NPC name must be a string');
+      }
+      if (typeof status !== 'string') {
+        throw new TypeError('Status must be a string');
+      }
       return `${npcName} is already ${status}.`;
     } catch (error) {
       this.logger.error('Error getting Npc already in status template:', { error });
@@ -5653,6 +6294,9 @@ class MessageManager {
   // Get a template message for an unknown location
   static getUnknownLocationTemplate({ playerName }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
       return `${playerName} is in an unknown location.`;
     } catch (error) {
       this.logger.error('Error getting unknown location template:', { error });
@@ -5661,6 +6305,15 @@ class MessageManager {
   // Get a template message for looting an Npc
   static getLootedNpcTemplate({ playerName, npcName, lootedItems }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
+      if (typeof npcName !== 'string') {
+        throw new TypeError('NPC name must be a string');
+      }
+      if (!Array.isArray(lootedItems)) {
+        throw new TypeError('Looted items must be an array');
+      }
       return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
     } catch (error) {
       this.logger.error('Error getting looted Npc template:', { error });
@@ -5669,6 +6322,12 @@ class MessageManager {
   // Get a template message for finding nothing to loot from an Npc
   static getNoLootTemplate({ playerName, npcName }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
+      if (typeof npcName !== 'string') {
+        throw new TypeError('NPC name must be a string');
+      }
       return `${playerName} found nothing to loot from ${npcName}.`;
     } catch (error) {
       this.logger.error('Error getting no loot template:', { error });
@@ -5677,6 +6336,12 @@ class MessageManager {
   // Get a template message for being unable to loot an Npc
   static getCannotLootNpcTemplate({ playerName, npcName }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
+      if (typeof npcName !== 'string') {
+        throw new TypeError('NPC name must be a string');
+      }
       return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
     } catch (error) {
       this.logger.error('Error getting cannot loot Npc template:', { error });
@@ -5685,6 +6350,12 @@ class MessageManager {
   // Get a template message for no Npc to loot
   static getNoNpcToLootTemplate({ playerName, target }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
+      if (typeof target !== 'string') {
+        throw new TypeError('Target must be a string');
+      }
       return `${playerName} doesn't see ${target} here to loot.`;
     } catch (error) {
       this.logger.error('Error getting no Npc to loot template:', { error });
@@ -5693,6 +6364,9 @@ class MessageManager {
   // Get a template message for no Npcs to loot
   static getNoNpcsToLootTemplate({ playerName }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
       return `${playerName} doesn't see any Npcs to loot here.`;
     } catch (error) {
       this.logger.error('Error getting no Npcs to loot template:', { error });
@@ -5701,6 +6375,9 @@ class MessageManager {
   // Get a template message for finding nothing to loot from any Npcs
   static getNothingToLootFromNpcsTemplate({ playerName }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
       return `${playerName} found nothing to loot from any Npcs here.`;
     } catch (error) {
       this.logger.error('Error getting nothing to loot from Npcs template:', { error });
@@ -5709,6 +6386,15 @@ class MessageManager {
   // Get a template message for looting all Npcs
   static getLootedAllNpcsTemplate({ playerName, lootedNpcs, lootedItems }) {
     try {
+      if (typeof playerName !== 'string') {
+        throw new TypeError('Player name must be a string');
+      }
+      if (!Array.isArray(lootedNpcs)) {
+        throw new TypeError('Looted Npcs must be an array');
+      }
+      if (!Array.isArray(lootedItems)) {
+        throw new TypeError('Looted items must be an array');
+      }
       return `${playerName} looted ${[...lootedNpcs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
     } catch (error) {
       this.logger.error('Error getting looted all Npcs template:', { error });
@@ -5717,6 +6403,15 @@ class MessageManager {
   // Notify a player that they have no items to drop
   static notifyNoItemsToDrop({ player, type, itemType }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
+      if (typeof type !== 'string') {
+        throw new TypeError('Type must be a string');
+      }
+      if (typeof itemType !== 'string') {
+        throw new TypeError('Item type must be a string');
+      }
       return this.notify(player, `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no items to drop:', { error });
@@ -5725,6 +6420,12 @@ class MessageManager {
   // Notify a player about items they dropped
   static notifyItemsDropped({ player, items }) {
     try {
+      if (!(player instanceof Player)) {
+        throw new TypeError('Player must be an instance of Player');
+      }
+      if (!Array.isArray(items)) {
+        throw new TypeError('Items must be an array');
+      }
       return this.notify(player, `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, 'dropMessage');
     } catch (error) {
       this.logger.error('Error notifying items dropped:', { error });
@@ -5732,6 +6433,12 @@ class MessageManager {
   }
   // Notify a player about items they took
   static notifyItemsTaken({ player, items }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (!Array.isArray(items)) {
+      throw new TypeError('Items must be an array');
+    }
     try {
       return this.notify(player, `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, 'takeMessage');
     } catch (error) {
@@ -5740,6 +6447,9 @@ class MessageManager {
   }
   // Notify a player that there are no items here
   static notifyNoItemsHere({ player }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       return this.notify(player, `There are no items here.`, 'errorMessage');
     } catch (error) {
@@ -5748,6 +6458,15 @@ class MessageManager {
   }
   // Notify a player about items taken from a container
   static notifyItemsTakenFromContainer({ player, items, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (!Array.isArray(items)) {
+      throw new TypeError('Items must be an array');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, 'takeMessage');
     } catch (error) {
@@ -5756,6 +6475,15 @@ class MessageManager {
   }
   // Notify a player that there are no specific items in a container
   static notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemType !== 'string') {
+      throw new TypeError('Item type must be a string');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `There are no ${itemType} items in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5764,6 +6492,15 @@ class MessageManager {
   }
   // Notify a player that there is no item in a container
   static notifyNoItemInContainer({ player, itemName, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `There is no ${itemName} in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5772,6 +6509,12 @@ class MessageManager {
   }
   // Notify a player that there is no item here
   static notifyNoItemHere({ player, itemName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
     try {
       return this.notify(player, `There is no ${itemName} here.`, 'errorMessage');
     } catch (error) {
@@ -5780,6 +6523,12 @@ class MessageManager {
   }
   // Notify a player that they don't have a specific container
   static notifyNoContainer({ player, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `${player.getName()} doesn't have a ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5788,6 +6537,12 @@ class MessageManager {
   }
   // Notify a player that an item is not in their inventory
   static notifyItemNotInInventory({ player, itemName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
     try {
       return this.notify(player, `${player.getName()} doesn't have a ${itemName} in their inventory.`, 'errorMessage');
     } catch (error) {
@@ -5796,6 +6551,15 @@ class MessageManager {
   }
   // Notify a player that they put an item in a container
   static notifyItemPutInContainer({ player, itemName, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemName !== 'string') {
+      throw new TypeError('Item name must be a string');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `${player.getName()} put ${itemName} in ${containerName}.`, 'putMessage');
     } catch (error) {
@@ -5804,6 +6568,12 @@ class MessageManager {
   }
   // Notify a player that they have no items to put in a container
   static notifyNoItemsToPut({ player, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `${player.getName()} has no items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5812,6 +6582,15 @@ class MessageManager {
   }
   // Notify a player about items put in a container
   static notifyItemsPutInContainer({ player, items, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (!Array.isArray(items)) {
+      throw new TypeError('Items must be an array');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, 'putMessage');
     } catch (error) {
@@ -5820,6 +6599,15 @@ class MessageManager {
   }
   // Notify a player that they have no specific items to put in a container
   static notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemType !== 'string') {
+      throw new TypeError('Item type must be a string');
+    }
+    if (typeof containerName !== 'string') {
+      throw new TypeError('Container name must be a string');
+    }
     try {
       return this.notify(player, `${player.getName()} has no ${itemType} items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5828,6 +6616,12 @@ class MessageManager {
   }
   // Notify a player that there are no specific items here
   static notifyNoSpecificItemsHere({ player, itemType }) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof itemType !== 'string') {
+      throw new TypeError('Item type must be a string');
+    }
     try {
       return this.notify(player, `There are no ${itemType} items here.`, 'errorMessage');
     } catch (error) {
@@ -5836,6 +6630,15 @@ class MessageManager {
   }
   // Get a template message for auto-looting items from an Npc
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
+    if (typeof playerName !== 'string') {
+      throw new TypeError('Player name must be a string');
+    }
+    if (typeof npcName !== 'string') {
+      throw new TypeError('NPC name must be a string');
+    }
+    if (!Array.isArray(lootedItems)) {
+      throw new TypeError('Looted items must be an array');
+    }
     try {
       return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
     } catch (error) {
@@ -5844,6 +6647,12 @@ class MessageManager {
   }
   // Notify a player about the result of a combat
   static notifyCombatResult(player, result) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof result !== 'string') {
+      throw new TypeError('Result must be a string');
+    }
     try {
       player.server.messageManager.sendMessage(player, result, 'combatMessage');
     } catch (error) {
@@ -5852,6 +6661,12 @@ class MessageManager {
   }
   // Notify a player about the start of a combat
   static notifyCombatStart(player, npc) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (!(npc instanceof Npc)) {
+      throw new TypeError('NPC must be an instance of Npc');
+    }
     try {
       player.server.messageManager.sendMessage(player, `You engage in combat with ${npc.getName()}!`, 'combatMessage');
     } catch (error) {
@@ -5860,6 +6675,9 @@ class MessageManager {
   }
   // Notify a player about the end of a combat
   static notifyCombatEnd(player) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
     try {
       player.server.messageManager.sendMessage(player, `Combat has ended.`, 'combatMessage');
     } catch (error) {
@@ -5868,6 +6686,15 @@ class MessageManager {
   }
   // Send a message to a player
   static sendMessage(player, messageData, type) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof messageData !== 'object' || messageData === null) {
+      throw new TypeError('Message data must be an object');
+    }
+    if (typeof type !== 'string') {
+      throw new TypeError('Type must be a string');
+    }
     try {
       if (typeof messageData === 'string') {
         this.notify(player, messageData, type);
@@ -5890,6 +6717,15 @@ class MessageManager {
   }
   // Notify a player about currency changes
   static notifyCurrencyChange(player, amount, isAddition) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      throw new TypeError('Amount must be a number');
+    }
+    if (typeof isAddition !== 'boolean') {
+      throw new TypeError('Is addition must be a boolean');
+    }
     try {
       const action = isAddition ? 'gained' : 'spent';
       return this.notify(player, `You ${action} ${Math.abs(amount)} coins.`, 'currencyChange');
@@ -5899,6 +6735,12 @@ class MessageManager {
   }
   // Notify a player about experience gain
   static notifyExperienceGain(player, amount) {
+    if (!(player instanceof Player)) {
+      throw new TypeError('Player must be an instance of Player');
+    }
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      throw new TypeError('Amount must be a number');
+    }
     try {
       return this.notify(player, `You gained ${amount} experience points.`, 'experienceGain');
     } catch (error) {
@@ -5906,6 +6748,15 @@ class MessageManager {
     }
   }
   static notifyLeavingLocation(entity, oldLocationId, newLocationId) {
+    if (!(entity instanceof Player || entity instanceof Npc)) {
+      throw new TypeError('Entity must be an instance of Player or Npc');
+    }
+    if (typeof oldLocationId !== 'string') {
+      throw new TypeError('Old location ID must be a string');
+    }
+    if (typeof newLocationId !== 'string') {
+      throw new TypeError('New location ID must be a string');
+    }
     try {
       const oldLocation = entity.server.gameManager.getLocation(oldLocationId);
       const newLocation = entity.server.gameManager.getLocation(newLocationId);
