@@ -31,6 +31,8 @@ const COOKIE_SAME_SITE = 'strict';  // CSRF protection
 const TICK_RATE = 60000;       // 1000ms = 1 second, * 60 = 1 minute
 const WORLD_EVENT_INTERVAL = 1440;  //
 const NPC_MOVEMENT_INTERVAL = 15000;  // 1000ms = 1 second, * 60 = 1 minute
+const INITIAL_HEALTH = 100;
+const INITIAL_ATTACK_POWER = 10;
 const REGEN_INTERVAL = 60000;  // 1000ms = 1 second, * 60 = 1 minute
 const REGEN_RATES = new Map([
   ['IN_COMBAT', 0.125], // 12.5% per minute
@@ -67,6 +69,8 @@ const CONFIG = {
   TICK_RATE,
   WORLD_EVENT_INTERVAL,
   NPC_MOVEMENT_INTERVAL,
+  INITIAL_HEALTH,
+  INITIAL_ATTACK_POWER,
   REGEN_INTERVAL,
   REGEN_RATES,
   LEVEL_UP_XP, // Added to config

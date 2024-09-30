@@ -6,6 +6,7 @@ List of all classes in 'server.js':
 02. **ISocketEventEmitter**
 03. **IBaseManager**
 04. **IDatabaseManager**
+05. **IGameManager**
 
 ## Logging
 05. **Logger**
