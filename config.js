@@ -20,7 +20,7 @@ const NPCS_DATA_PATH = './source code/world data/npcs'; // Changed from NPC_DATA
 const ITEMS_DATA_PATH = './source code/world data/items'; // Changed from ITEM_DATA_PATH
 const GAME_DATA_PATH = './source code/world data/gameData.json';
 // Game Configuration
-const SALT_ROUNDS = 10;             // Number of salt rounds for bcrypt
+const PASSWORD_SALT_ROUNDS = 10;             // Number of salt rounds for bcrypt
 const ITEM_UID_SALT_ROUNDS = 1;     // Number of salt rounds for item UIDs
 const SESSION_SECRET = 'your-secret-key'; // Secret key for session
 const SESSION_RESAVE = false;       // Don't save session if unmodified
@@ -56,7 +56,7 @@ const CONFIG = {
   NPCS_DATA_PATH, // Updated
   ITEMS_DATA_PATH, // Updated
   GAME_DATA_PATH, // Added to config
-  SALT_ROUNDS,
+  PASSWORD_SALT_ROUNDS,
   ITEM_UID_SALT_ROUNDS,
   SESSION_SECRET,
   SESSION_RESAVE,

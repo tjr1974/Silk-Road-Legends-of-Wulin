@@ -23,61 +23,64 @@ List of all classes in 'server.js':
 
 ## Task and Queue Management
 13. **QueueManager**
-14. **TaskManager**
-15. **MessageQueueSystem**
+14. **ObjectPool**
+15. **TaskManager**
+16. **MessageQueueSystem**
 
 ## Database and Data Management
-16. **DatabaseManager**
-17. **GameDataLoader**
-18. **UidGenerator**
+17. **DatabaseManager**
+18. **GameDataLoader**
+19. **UidGenerator**
 
 ## Game Management
-19. **GameManager**
-20. **GameComponentInitializer**
-
-## Command Management
-21. **GameCommandManager**
-22. **MoveCommandHandler**
-23. **LookAtCommandHandler**
+20. **GameManager**
+21. **GameComponentInitializer**
 
 ## Entity Management
-24. **Entity**
-25. **Character**
+22. **Entity**
+23. **Character**
 
 ## Player Management
-26. **CreateNewPlayer**
-27. **Player**
+24. **CreateNewPlayer**
+25. **Player**
+26. **AuthenticationManager**
+27. **SessionManager**
 28. **HealthRegenerator**
 
-## Npc Management
-29. **Npc**
-30. **MobileNpc**
-31. **QuestNpc**
-32. **NpcMovementManager**
-
-## Item Management
-33. **BaseItem**
-34. **Item**
-35. **ConsumableItem**
-36. **ContainerItem**
-37. **WeaponItem**
-38. **ItemManager**
-39. **InventoryManager**
-40. **Currency**
-41. **TransactionManager**
-42. **TradeSession**
-43. **AtomicTransaction**
-
-## Locations and Navigation Management
-44. **Locations**
-45. **LocationCoordinateManager**
-46. **DescribeLocationManager**
-47. **DirectionManager**
+## Command Management
+29. **GameCommandManager**
+30. **LookAtCommandHandler**
 
 ## Combat Management
-48. **CombatManager**
-49. **CombatAction**
+31. **CombatManager**
+32. **CombatAction**
+
+## Locations and Navigation Management
+33. **Locations**
+34. **LocationCoordinateManager**
+35. **DescribeLocationManager**
+36. **DirectionManager**
+
+## Npc Management
+37. **Npc**
+38. **MobileNpc**
+39. **QuestNpc**
+40. **MerchantNpc**
+41. **NpcMovementManager**
+
+## Item Management
+40. **BaseItem**
+42. **Item**
+43. **ConsumableItem**
+44. **ContainerItem**
+45. **WeaponItem**
+46. **ItemManager**
+47. **InventoryManager**
+48. **Currency**
+50. **TransactionManager**
+51. **TradeSession**
+52. **AtomicTransaction**
 
 ## Messaging Management
-50. **FormatMessageManager**
-51. **MessageManager**
+53. **FormatMessageManager**
+54. **MessageManager**

@@ -32,9 +32,9 @@ class ILogger {
 }
 /**************************************************************************************************
 Event Emitter Interface Class
-The ISocketEventEmitter class defines an abstract interface for event emission and handling within the game
-system. It outlines methods for registering listeners, emitting events, and removing listeners
-without specifying the underlying implementation. This abstraction allows for flexible
+The ISocketEventEmitter class defines an abstract interface for event emission and handling within
+the game system. It outlines methods for registering listeners, emitting events, and removing
+listeners without specifying the underlying implementation. This abstraction allows for flexible
 implementation of event handling strategies across different parts of the application.
 Key features:
 1. Abstract method definitions for event emission and handling
@@ -266,6 +266,8 @@ class Server {
     this.transactionManager = new TransactionManager(this);
     this.replicationManager = new ReplicationManager(this);
     this.setupReplicationFilters();
+    this.authManager = new AuthenticationManager(this);
+    this.sessionManager = new SessionManager(this);
     Server.instance = this;
   }
   async init() {
@@ -446,6 +448,45 @@ class Server {
       this.replicationManager.replicateToPlayer(player, entityType, entityData);
     });
   }
+  handleConnection(socket) {
+    socket.on('message', async (message) => {
+      const data = JSON.parse(message);
+
+      switch (data.type) {
+        case 'login':
+          const authResult = await this.authManager.authenticateCharacter(data.characterName, data.password);
+          if (authResult.success) {
+            const sessionToken = this.sessionManager.createSession(authResult.characterData.id);
+            socket.send(JSON.stringify({ type: 'loginResult', success: true, sessionToken, playerName: authResult.characterData.playerName }));
+          } else {
+            socket.send(JSON.stringify({ type: 'loginResult', success: false, message: authResult.message }));
+          }
+          break;
+
+        case 'createNewCharacter':
+          const createResult = await this.authManager.createNewCharacter(data.data);
+          socket.send(JSON.stringify({ type: 'characterCreationResult', ...createResult }));
+          break;
+
+        case 'restoreSession':
+          const session = this.sessionManager.getSession(data.token);
+          if (session) {
+            this.sessionManager.updateSessionActivity(data.token);
+            // Restore player state and send to client
+          } else {
+            socket.send(JSON.stringify({ type: 'sessionExpired' }));
+          }
+          break;
+
+        case 'logout':
+          this.sessionManager.removeSession(data.token);
+          socket.send(JSON.stringify({ type: 'logoutConfirmation' }));
+          break;
+
+        // ... handle other message types
+      }
+    });
+  }
 }
 /**************************************************************************************************
 Server Initializer Class
@@ -509,7 +550,7 @@ necessary server configurations are properly applied before the game server beco
 Key features:
 1. Express application setup and middleware configuration
 2. HTTP/HTTPS server initialization with SSL/TLS support
-3. Socket.IO integration for real-time communication
+3. Socket.io integration for real-time communication
 4. Error handling middleware setup
 5. Queue manager initialization for task management
 The ServerConfigurator plays a crucial role in establishing the server's infrastructure,
@@ -1297,7 +1338,6 @@ Key features:
 2. Hashing for security and uniqueness
 This class ensures that all game entities have unique identifiers, facilitating proper
 management and interaction within the game.
-@ todo: one salt round variable for item uid and another for password hash
 ***************************************************************************************************/
 class UidGenerator {
   static instance;
@@ -1349,6 +1389,7 @@ class GameManager {
     this.npcs = new Map();
     this.mobileNpcs = new Map();
     this.questNpcs = new Map();
+    this.merchantNpcs = new Map(); // Add this new map for merchant NPCs
     this.SocketEventEmitter = SocketEventEmitter;
     this.logger = logger;
     this.server = server;
@@ -1559,64 +1600,36 @@ class GameManager {
     try {
       const { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, lootTable = [] } = npcData;
       let npc;
-      if (type === 'mobile') {
-        npc = new MobileNpc({
-          id,
-          name,
-          sex,
-          currHealth,
-          maxHealth,
-          attackPower,
-          csml,
-          aggro,
-          assist,
-          status,
-          currentLocation,
-          zones: npcData.zones || [],
-          aliases,
-          config: this.server.configManager,
-          server: this.server,
-          lootTable
-        });
-        this.mobileNpcs.set(id, npc);
-      } else if (type === 'quest') {
-        npc = new QuestNpc({
-          id,
-          name,
-          sex,
-          currHealth,
-          maxHealth,
-          attackPower,
-          csml,
-          aggro,
-          assist,
-          status,
-          currentLocation,
-          questId: npcData.questId,
-          zones: npcData.zones || [],
-          aliases,
-          server: this.server,
-          lootTable
-        });
-        this.questNpcs.set(id, npc);
-      } else {
-        npc = new Npc({
-          id,
-          name,
-          sex,
-          currHealth,
-          maxHealth,
-          attackPower,
-          csml,
-          aggro,
-          assist,
-          status,
-          currentLocation,
-          aliases,
-          type,
-          server: this.server,
-          lootTable
-        });
+      switch (type) {
+        case 'mobile':
+          npc = new MobileNpc({
+            id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status,
+            currentLocation, zones: npcData.zones || [], aliases, config: this.server.configManager,
+            server: this.server, lootTable
+          });
+          this.mobileNpcs.set(id, npc);
+          break;
+        case 'quest':
+          npc = new QuestNpc({
+            id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status,
+            currentLocation, questId: npcData.questId, zones: npcData.zones || [], aliases,
+            server: this.server, lootTable
+          });
+          this.questNpcs.set(id, npc);
+          break;
+        case 'merchant':
+          npc = new MerchantNpc({
+            id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status,
+            currentLocation, aliases, server: this.server, lootTable,
+            inventory: npcData.inventory || [] // Assuming merchant NPCs have an inventory
+          });
+          this.merchantNpcs.set(id, npc);
+          break;
+        default:
+          npc = new Npc({
+            id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status,
+            currentLocation, aliases, type, server: this.server, lootTable
+          });
       }
       this.npcs.set(id, npc);
       return npc;
@@ -1647,6 +1660,7 @@ class GameManager {
     this.npcs.clear();
     this.mobileNpcs.clear();
     this.questNpcs.clear();
+    this.merchantNpcs.clear();
   }
   initiateCombat(player, npcId) {
     this.combatManager.initiateCombatWithNpc({ npcId, player, playerInitiated: true });
@@ -2145,6 +2159,122 @@ class Player extends Character {
   }
 }
 /**************************************************************************************************
+Authentication Manager Class
+The AuthenticationManager class is responsible for handling user authentication and character
+management. It includes methods for creating new characters, authenticating users, and managing
+session tokens. This class plays a crucial role in ensuring secure access to the game and
+maintaining player data integrity.
+Key features:
+1. Character creation with password hashing
+2. Character authentication using password comparison
+3. Session token management for security
+***************************************************************************************************/
+class AuthenticationManager {
+  constructor(server) {
+    this.server = server;
+    this.logger = server.logger;
+    this.databaseManager = server.databaseManager;
+  }
+
+  async authenticateCharacter(characterName, password) {
+    try {
+      const character = await this.databaseManager.getCharacter(characterName);
+      if (!character) {
+        return { success: false, message: 'Character not found' };
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, character.passwordHash);
+      if (!isPasswordValid) {
+        return { success: false, message: 'Invalid password' };
+      }
+
+      return { success: true, characterData: character };
+    } catch (error) {
+      this.logger.error(`Authentication error: ${error.message}`);
+      return { success: false, message: 'An error occurred during authentication' };
+    }
+  }
+
+  async createNewCharacter(characterData) {
+    try {
+      const existingCharacter = await this.databaseManager.getCharacter(characterData.playerName);
+      if (existingCharacter) {
+        return { success: false, message: 'Character name already exists' };
+      }
+
+      const passwordHash = await bcrypt.hash(characterData.password, 10);
+      const newCharacter = {
+        ...characterData,
+        passwordHash,
+        createdAt: new Date(),
+        // Add any other default character properties here
+      };
+
+      await this.databaseManager.saveCharacter(newCharacter);
+      return { success: true, message: 'Character created successfully' };
+    } catch (error) {
+      this.logger.error(`Character creation error: ${error.message}`);
+      return { success: false, message: 'An error occurred during character creation' };
+    }
+  }
+}
+
+/**************************************************************************************************
+Session Manager Class
+The SessionManager class is responsible for managing user sessions and ensuring secure access
+to the game. It includes methods for creating sessions, retrieving sessions, updating session
+activity, and removing sessions. This class plays a crucial role in maintaining player
+connections and ensuring secure access to the game.
+Key features:
+1. Session creation with unique tokens
+2. Session storage and retrieval
+3. Session activity updates
+4. Session removal for logout
+This class ensures that players remain connected and secure while playing the game,
+enhancing the overall gaming experience.
+***************************************************************************************************/
+class SessionManager {
+  constructor(server) {
+    this.server = server;
+    this.sessions = new Map();
+    this.crypto = require('crypto');
+  }
+  createSession(characterId) {
+    const sessionToken = this.generateSessionToken();
+    const session = {
+      characterId,
+      createdAt: Date.now(),
+      lastActivity: Date.now()
+    };
+    this.sessions.set(sessionToken, session);
+    return sessionToken;
+  }
+  getSession(sessionToken) {
+    return this.sessions.get(sessionToken);
+  }
+  updateSessionActivity(sessionToken) {
+    const session = this.sessions.get(sessionToken);
+    if (session) {
+      session.lastActivity = Date.now();
+    }
+  }
+  removeSession(sessionToken) {
+    this.sessions.delete(sessionToken);
+  }
+  generateSessionToken() {
+    return this.crypto.randomBytes(32).toString('hex');
+  }
+  cleanupInactiveSessions() {
+    const now = Date.now();
+    const inactivityThreshold = 30 * 60 * 1000; // 30 minutes
+    for (const [token, session] of this.sessions.entries()) {
+      if (now - session.lastActivity > inactivityThreshold) {
+        this.sessions.delete(token);
+      }
+    }
+  }
+}
+/**************************************************************************************************
 Health Regenerator Class
 The HealthRegenerator class is responsible for managing the health regeneration process for
 player characters. It includes logic for determining regeneration rates and applying health
@@ -2339,7 +2469,7 @@ class GameCommandManager {
     if (!location || !location.npcs) return null;
     for (const npcId of location.npcs) {
       const npc = this.server.gameManager.getNpc(npcId);
-      if (npc instanceof Merchant) return npc;
+      if (npc instanceof MerchantNpc) return npc;
     }
     return null;
   }
@@ -3289,7 +3419,7 @@ class QuestNpc extends Npc {
     }
   }
 }
-class Merchant extends Npc {
+class MerchantNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'merchant', server, lootTable });
     this.inventory = new Map();
@@ -4347,233 +4477,3 @@ Key features:
 The class works closely with the FormatMessageManager to ensure consistent message formatting
 and styling across the game. It also interacts with the server's logger for error tracking and
 debugging purposes.***************************************************************************************************/
-class MessageManager {
-  static instance;
-  static getInstance() {
-    if (!MessageManager.instance) {
-      MessageManager.instance = new MessageManager();
-    }
-    return MessageManager.instance;
-  }
-  // Set the socket instance
-  static socket;
-  static setSocket(socketInstance) {
-    this.socket = socketInstance;
-  }
-  // Notify a player with a message
-  static notify({ player, message, type = '' }) {
-    try {
-      player.server.logger.info(`Message to ${player.getName()}: ${message}`);
-      const cssid = FormatMessageManager.getIdForMessage(type);
-      const messageData = FormatMessageManager.createMessageData({ cssid, message });
-      if (this.socket) {
-        this.socket.emit('message', { playerId: player.getId(), messageData });
-      }
-      return messageData;
-    } catch (error) {
-      player.server.logger.error(`Notifying player ${player.getName()}:`, error, error.stack);
-    }
-  }
-  // Notify all players in a specific location with a message
-  static notifyPlayersInLocation({ location, message, type = '' }) {
-    if (!location || !location.playersInLocation) return;
-    for (const player of location.playersInLocation) {
-      this.notify({ player, message, type });
-    }
-  }
-  // Notify a player about a specific action performed on a target
-  static notifyAction({ player, action, targetName, type }) {
-    return this.notify({ player, message: `${player.getName()} ${action} ${targetName}.`, type });
-  }
-  // Notify a player of a successful login
-  static notifyLoginSuccess({ player }) {
-    return this.notifyAction({ player, action: 'has logged in!', targetName: '', type: 'loginSuccess' });
-  }
-  // Notify a player of an incorrect password attempt
-  static notifyIncorrectPassword({ player }) {
-    return this.notify({ player, message: `Incorrect password. Please try again.`, type: 'incorrectPassword' });
-  }
-  // Notify a player of disconnection due to too many failed login attempts
-  static notifyDisconnectionDueToFailedAttempts({ player }) {
-    return this.notify({ player, message: `${player.getName()} has been disconnected due to too many failed login attempts.`, type: 'disconnectionFailedAttempts' });
-  }
-  // Notify a player when they pick up an item
-  static notifyPickupItem({ player, itemName }) {
-    return this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
-  }
-  // Notify a player when they drop an item
-  static notifyDropItem({ player, itemName }) {
-    return this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
-  }
-  // Notify players in a location about an Npc's movement
-  static notifyNpcMovement(npc, direction, isArrival) {
-    const action = isArrival ? 'arrives' : 'leaves';
-    const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
-    this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
-  }
-  // Get a template message for combat initiation
-  static getCombatInitiationTemplate({ initiatorName, targetName }) {
-    return `${initiatorName} initiates combat with ${targetName}!`;
-  }
-  // Get a template message for an Npc joining combat
-  static getCombatJoinTemplate({ npcName }) {
-    return `${npcName} joins the combat!`;
-  }
-  // Get a template message for a victory announcement
-  static getVictoryTemplate({ playerName, defeatedName }) {
-    return `${playerName} has defeated ${defeatedName}!`;
-  }
-  // Get a template message for a target not found
-  static getTargetNotFoundTemplate({ playerName, target }) {
-    return `${playerName} doesn't see ${target} here.`;
-  }
-  // Get a template message for no conscious enemies
-  static getNoConsciousEnemiesTemplate({ playerName }) {
-    return `${playerName} doesn't see any conscious enemies here.`;
-  }
-  // Get a template message for an Npc already in a specific status
-  static getNpcAlreadyInStatusTemplate({ npcName, status }) {
-    return `${npcName} is already ${status}.`;
-  }
-  // Get a template message for an unknown location
-  static getUnknownLocationTemplate({ playerName }) {
-    return `${playerName} is in an unknown location.`;
-  }
-  // Get a template message for looting an Npc
-  static getLootedNpcTemplate({ playerName, npcName, lootedItems }) {
-    return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
-  }
-  // Get a template message for finding nothing to loot from an Npc
-  static getNoLootTemplate({ playerName, npcName }) {
-    return `${playerName} found nothing to loot from ${npcName}.`;
-  }
-  // Get a template message for being unable to loot an Npc
-  static getCannotLootNpcTemplate({ playerName, npcName }) {
-    return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
-  }
-  // Get a template message for no Npc to loot
-  static getNoNpcToLootTemplate({ playerName, target }) {
-    return `${playerName} doesn't see ${target} here to loot.`;
-  }
-  // Get a template message for no Npcs to loot
-  static getNoNpcsToLootTemplate({ playerName }) {
-    return `${playerName} doesn't see any Npcs to loot here.`;
-  }
-  // Get a template message for finding nothing to loot from any Npcs
-  static getNothingToLootFromNpcsTemplate({ playerName }) {
-    return `${playerName} found nothing to loot from any Npcs here.`;
-  }
-  // Get a template message for looting all Npcs
-  static getLootedAllNpcsTemplate({ playerName, lootedNpcs, lootedItems }) {
-    return `${playerName} looted ${[...lootedNpcs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
-  }
-  // Notify a player that they have no items to drop
-  static notifyNoItemsToDrop({ player, type, itemType }) {
-    return this.notify({ player, message: `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, type: 'errorMessage' });
-  }
-  // Notify a player about items they dropped
-  static notifyItemsDropped({ player, items }) {
-    return this.notify({ player, message: `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, type: 'dropMessage' });
-  }
-  // Notify a player about items they took
-  static notifyItemsTaken({ player, items }) {
-    return this.notify({ player, message: `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, type: 'takeMessage' });
-  }
-  // Notify a player that there are no items here
-  static notifyNoItemsHere({ player }) {
-    return this.notify({ player, message: `There are no items here.`, type: 'errorMessage' });
-  }
-  // Notify a player about items taken from a container
-  static notifyItemsTakenFromContainer({ player, items, containerName }) {
-    return this.notify({ player, message: `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, type: 'takeMessage' });
-  }
-  // Notify a player that there are no specific items in a container
-  static notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
-    return this.notify({ player, message: `There are no ${itemType} items in ${containerName}.`, type: 'errorMessage' });
-  }
-  // Notify a player that there is no item in a container
-  static notifyNoItemInContainer({ player, itemName, containerName }) {
-    return this.notify({ player, message: `There is no ${itemName} in ${containerName}.`, type: 'errorMessage' });
-  }
-  // Notify a player that there is no item here
-  static notifyNoItemHere({ player, itemName }) {
-    return this.notify({ player, message: `There is no ${itemName} here.`, type: 'errorMessage' });
-  }
-  // Notify a player that they don't have a specific container
-  static notifyNoContainer({ player, containerName }) {
-    return this.notify({ player, message: `${player.getName()} doesn't have a ${containerName}.`, type: 'errorMessage' });
-  }
-  // Notify a player that an item is not in their inventory
-  static notifyItemNotInInventory({ player, itemName }) {
-    return this.notify({ player, message: `${player.getName()} doesn't have a ${itemName} in their inventory.`, type: 'errorMessage' });
-  }
-  // Notify a player that they put an item in a container
-  static notifyItemPutInContainer({ player, itemName, containerName }) {
-    return this.notify({ player, message: `${player.getName()} put ${itemName} in ${containerName}.`, type: 'putMessage' });
-  }
-  // Notify a player that they have no items to put in a container
-  static notifyNoItemsToPut({ player, containerName }) {
-    return this.notify({ player, message: `${player.getName()} has no items to put in ${containerName}.`, type: 'errorMessage' });
-  }
-  // Notify a player about items put in a container
-  static notifyItemsPutInContainer({ player, items, containerName }) {
-    return this.notify({ player, message: `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, type: 'putMessage' });
-  }
-  // Notify a player that they have no specific items to put in a container
-  static notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
-    return this.notify({ player, message: `${player.getName()} has no ${itemType} items to put in ${containerName}.`, type: 'errorMessage' });
-  }
-  // Notify a player that there are no specific items here
-  static notifyNoSpecificItemsHere({ player, itemType }) {
-    return this.notify({ player, message: `There are no ${itemType} items here.`, type: 'errorMessage' });
-  }
-  // Get a template message for auto-looting items from an Npc
-  static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
-    return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
-  }
-  // Notify a player about the result of a combat
-  static notifyCombatResult(player, result) {
-    player.server.messageManager.sendMessage(player, result, 'combatMessage');
-  }
-  // Notify a player about the start of a combat
-  static notifyCombatStart(player, npc) {
-    player.server.messageManager.sendMessage(player, `You engage in combat with ${npc.getName()}!`, 'combatMessage');
-  }
-  // Notify a player about the end of a combat
-  static notifyCombatEnd(player) {
-    player.server.messageManager.sendMessage(player, `Combat has ended.`, 'combatMessage');
-  }
-  // Send a message to a player
-  static sendMessage(player, messageData, type) {
-    if (typeof messageData === 'string') {
-      this.notify({ player, message: messageData, type });
-    } else {
-      // Assuming messageData is an object with multiple fields
-      for (const [key, value] of Object.entries(messageData)) {
-        if (typeof value === 'string') {
-          this.notify({ player, message: value, type: key });
-        } else if (Array.isArray(value)) {
-          for (const item of value) {
-            this.notify({ player, message: item.text, type: item.cssid });
-          }
-        } else if (typeof value === 'object') {
-          this.notify({ player, message: value.text, type: value.cssid });
-        }
-      }
-    }
-  }
-  // Notify a player about currency changes
-  static notifyCurrencyChange(player, amount, isAddition) {
-    const action = isAddition ? 'gained' : 'spent';
-    return this.notify({ player, message: `You ${action} ${Math.abs(amount)} coins.`, type: 'currencyChange' });
-  }
-  // Notify a player about experience gain
-  static notifyExperienceGain(player, amount) {
-    return this.notify({ player, message: `You gained ${amount} experience points.`, type: 'experienceGain' });
-  }
-}
-/**************************************************************************************************
-Start Server Code
-***************************************************************************************************/
-const serverInitializer = ServerInitializer.getInstance({ config: CONFIG });
-serverInitializer.initialize();

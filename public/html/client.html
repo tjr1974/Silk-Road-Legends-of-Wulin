@@ -5,51 +5,339 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Silk Road: Legends of Wulin</title>
   <link rel="icon" type="image/x-icon" href="../images/favicon/favicon.ico">
-  <link rel="stylesheet" href="../css/user interface.css">
   <style>
+    @font-face {
+      font-family: 'Ubuntu Mono';
+      src: url('../fonts/Ubuntu Mono.ttf') format('truetype');
+    }
+    body {
+      font-family: 'Ubuntu Mono';
+      background-color: #000;
+      color: #ff0000;
+      margin: 0;
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 7px);
+      overflow: hidden;
+    }
+    /* CSS for main user interface */
+    #score-container {
+      display: flex;
+      justify-content: space-between;
+      font-size: 18px;
+      margin-right: 10px;
+    }
+    #game-container {
+      color: #00ff00;
+      flex-grow: 1;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 5px;
+      margin-bottom: 5px;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+    }
+    #input-container {
+      display: flex;
+    }
+    #user-input {
+      background-color: #0000aa;
+      font-size: 22px;
+      flex-grow: 1;
+      color: #fff;
+      padding: 5px;
+      outline: none;
+      border: none;
+      border-radius: 10px;
+    }
+    #customize-colors-container {
+      display: none;
+    }
+    #customize-colors-container a:link,
+    #customize-colors-container a:visited {
+      color: magenta;
+    }
+    #customize-colors-container a:hover {
+      color: #fff;
+    }
+    #set-all-text-to-single-color-container {
+      display: flex;
+      align-items: center;
+      margin-top: 5px;
+    }
+    #set-all-text-to-single-color-container input[type="text"] {
+      margin-top: 5px;
+      margin-bottom: 5px;
+    }
+    #set-all-text-to-single-color-container button {
+      margin-left: 10px;
+    }
+    #customize-individual-color-columns-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      width: 100%;
+    }
+    #color-column {
+      display: flex;
+      flex-direction: column;
+      width: 32%;
+    }
+    #color-column input[type="text"] {
+      margin-top: 5px;
+    }
+    #customize-individual-colors-button-container {
+      margin-top: 10px;
+    }
     /* CSS for game container messages from server */
-    #location-title { color: yellow; font-weight: bold; }
-    #location-description { color: magenta; margin-left: 20px; }
-    #item-name { color: cyan; }
-    #exits { color: #33ff33; }
-    #exit-to-location { color: yellow; }
-    #exits-list, #inventory-list, #items-list { margin-left: 20px; }
-    #npc-name { color: #ff0000; }
-    #npc-description, #npc-stats { color: #cccccc; margin-left: 20px; }
-    #player-name { color: magenta; }
-    #other-player-name { color: #fff; }
-    #combat-message-player { color: #00ff00; }
-    #combat-message-npc { color: #ff0000; }
-    #combat-message-health, #combat-message, #error-message { color: magenta; }
+    #location-title {
+      color: yellow;
+      font-weight: bold;
+    }
+    #location-description {
+      color: magenta;
+      margin-left: 20px;
+    }
+    #item-name {
+      color: cyan;
+    }
+    #exits {
+      color: #33ff33;
+    }
+    #exit-to-location {
+      color: yellow;
+    }
+    #exits-list,
+    #inventory-list,
+    #items-list {
+      margin-left: 20px;
+    }
+    #npc-name {
+      color: #ff0000;
+    }
+    #npc-description,
+    #npc-stats {
+      color: #cccccc;
+      margin-left: 20px;
+    }
+    #player-name {
+      color: magenta;
+    }
+    #combat-message-player {
+      color: #00ff00;
+    }
+    #combat-message-npc {
+      color: #ff0000;
+    }
+    #combat-message-health,
+    #combat-message,
+    #error-message {
+      color: magenta;
+    }
+    /* CSS for login */
+    #login-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    #login-container input[type="text"],
+    #login-container input[type="password"],
+    button {
+      background-color: #000;
+      color: #ff0000;
+      padding: 5px;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+      outline: none;
+      cursor: pointer;
+      margin: 5px;
+    }
+    #login-container input[type="text"]:hover,
+    #login-container input[type="password"]:hover,
+    button:hover,
+    #login-container input[type="text"]:focus,
+    #login-container input[type="password"]:focus,
+    button:focus {
+      border-color: #fff;
+      color: #fff;
+    }
+    #login-container input::placeholder {
+      color: magenta;
+    }
+    /* CSS for create new chracter */
+    #create-character-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+      padding: 10px 20px;
+    }
+    #create-character-title {
+      color: magenta;
+      font-size: 24px;
+      text-align: center;
+    }
+    #create-character-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 16px;
+    }
+    label {
+      display: none;
+    }
+    #create-character-form input[type="text"],
+    #create-character-form input[type="password"],
+    #create-character-form input[type="email"],
+    textarea,
+    select {
+      background-color: #000;
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+      color: #fff;
+      margin: 5px 0;
+      padding: 5px;
+      width: 100%;
+    }
+    #create-character-form input::placeholder,
+    #create-character-form textarea::placeholder {
+      color: magenta;
+    }
+    #create-character-form .button-container {
+      display: flex;
+    }
+    #create-character-form button {
+      background-color: #0058b1;
+      border: 2px solid #0058b1;
+      color: #fff;
+      flex: 1;
+      margin: 10px 5px 0;
+      padding: 5px 10px;
+      min-width: 250px;
+    }
+    #create-character-form button:hover,
+    #create-character-form button:focus {
+      background-color: #d32f2f;
+      border: 2px solid #fff;
+    }
+    #form-note {
+      color: #bbb;
+      font-size: 16px;
+      margin: 0 10px;
+      text-align: center;
+    }
+    #character-name-error {
+      display: none;
+      color: #ff0000;
+      margin-bottom: 10px;
+    }
   </style>
 <body>
-  <!-- Score container -->
+  <!--*********************************************************************************************
+  Login container
+  **********************************************************************************************-->
+  <div id="login-container">
+    <div class="login-note">By what name do you wish to be known?</div>
+    <input type="text" id="character-name" placeholder="Character Name" autocomplete="off">
+    <input type="password" id="password" placeholder="Password">
+    <button id="login-button">Login</button>
+    <div class="login-note">or</div>
+    <button id="create-new-character-button">Create New Character</button>
+  </div>
+  <!--*********************************************************************************************
+    New character creation container
+  **********************************************************************************************-->
+  <div id="create-character-container">
+    <div id="create-character-title">Create New Character</div>
+    <form id="create-character-form">
+      <label for="new-character-name">Character Name:</label>
+      <input type="text" id="new-character-name" placeholder="Character Name" required autofocus>
+      <div id="form-note">* Name is case sensitive and must be unique *</div>
+      <div id="form-note">* Required *</div>
+      <div id="character-name-error">* Character name already exists!</div>
+      <label for="new-character-password">Password:</label>
+      <input type="password" id="new-character-password" placeholder="Password" required>
+      <div id="form-note">* Password is case sensitive *</div>
+      <div id="form-note">* Required *</div>
+      <label for="confirm-password">Confirm Password:</label>
+      <input type="password" id="confirm-password" placeholder="Confirm Password" required>
+      <div id="form-note">* Required *</div>
+      <label for="character-email">Email:</label>
+      <input type="email" id="character-email" placeholder="Email">
+      <div id="form-note">* Optional: for password recovery purposes only *</div>
+      <label for="character-age">Age:</label>
+      <input type="text" id="character-age" placeholder="Age">
+      <label>Sex:</label>
+      <div>
+        <input type="radio" id="male" name="sex" value="male" required>
+        <label for="male">Male</label> Male <input type="radio" id="female" name="sex" value="female">
+        <label for="female">Female</label> Female <div id="form-note">* Required *</div>
+      </div>
+      <label for="character-title">Title:</label>
+      <input type="text" id="character-title" placeholder="Title">
+      <label>Reputation:</label>
+      <div>
+        <input type="radio" id="famous" name="reputation" value="famous" required>
+        <label for="famous">Famous</label> Famous <input type="radio" id="infamous" name="reputation" value="infamous">
+        <label for="infamous">Infamous</label> Infamous
+      </div>
+      <label for="character-profession">Profession:</label>
+      <input type="text" id="character-profession" placeholder="Profession">
+      <label for="character-description">Description:</label>
+      <textarea id="character-description" rows="14" placeholder="Description"></textarea>
+      <div id="form-note">* All information, except character name, can be changed later *</div>
+      <div class="button-container">
+        <button type="button" id="submit-new-character">Create Character</button>
+        <button type="button" id="back-to-login">Back to Login</button>
+      </div>
+    </form>
+  </div>
+  <!--*********************************************************************************************
+  Score container
+  **********************************************************************************************-->
   <div id="score-container">
     <div class="score" id="health-score">HEALTH: </div>
     <div class="score" id="level-score">LEVEL: </div>
     <div class="score" id="xp-score">XP: </div>
     <div class="score" id="coordinates-score">X: Y: Z: </div>
   </div>
-  <!-- Game container -->
+  <!--*********************************************************************************************
+  Game container
+  **********************************************************************************************-->
   <div id="game-container"></div>
-  <!-- Input container -->
+  <!--*********************************************************************************************
+  Input container
+  **********************************************************************************************-->
   <div id="input-container">
     <input type="text" id="user-input" placeholder="Enter your command..." autocomplete="off">
   </div>
-  <!-- End game containers -->
-  <!-- Customize color container -->
+  <!--*********************************************************************************************
+  Customize color container
+  **********************************************************************************************-->
   <div id="customize-colors-container">
     <br>
     <div class="centered-text">SET CUSTOM COLOR PREFERENCES</div> Input accepts <a
       href="https://htmlcolorcodes.com/color-names/" target="_blank">HTML color names</a> or <a
-      href="https://www.w3schools.com/colors/colors_picker.asp" target="_blank">Hexadecimal color codes</a>. <br>
-    <!-- Set all text to single color container -->
+      href="https://www.w3schools.com/colors/colors_picker.asp" target="_blank">Hexadecimal color codes</a>.<br>
+    <!--*********************************************************************************************
+    Set all text to single color container
+    **********************************************************************************************-->
     <div id="set-all-text-to-single-color-container">
       <input type="text" id="all-text-color" placeholder="Set All Text to Single Color">
       <button onclick="viewChanges()">View Changes</button>
       <button onclick="saveChanges()">Save Changes</button>
     </div>
-    <!-- Customize individual color settings --> Alternatively, you may customize individual color settings: <br>
+    <!--*********************************************************************************************
+    Customize individual color settings
+    **********************************************************************************************--> Alternatively,
+    you may customize individual color settings: <br>
     <div id="customize-individual-color-columns-container">
       <div id="color-column">
         <input type="text" id="body-bg-color" placeholder="Background Color">
@@ -82,11 +370,220 @@
     </div>
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
-  <script type="module">
-    import socket from '../javascript/server functions/shared socket connection.js';
-  </script>
   <script>
-    // Client Side Error Message Manager **************************************************************
+    class GameClient {
+      constructor() {
+        this.socket = null;
+        this.sessionToken = null;
+        this.connect();
+      }
+
+      connect() {
+        const isSecure = window.location.protocol === 'https:';
+        const wsProtocol = isSecure ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const url = `${wsProtocol}//${host}`;
+
+        this.socket = new WebSocket(url);
+
+        this.socket.onopen = () => {
+          console.log('Connected to server');
+          this.restoreSession();
+        };
+
+        this.socket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          if (isSecure) {
+            console.log('Falling back to insecure WebSocket');
+            this.fallbackToInsecure();
+          }
+        };
+
+        this.socket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          this.handleServerMessage(data);
+        };
+      }
+
+      fallbackToInsecure() {
+        const insecureUrl = `ws://${window.location.host}`;
+        this.socket = new WebSocket(insecureUrl);
+
+        this.socket.onopen = () => {
+          console.log('Connected to server using insecure WebSocket');
+          this.restoreSession();
+        };
+
+        this.socket.onerror = (error) => {
+          console.error('Insecure WebSocket error:', error);
+        };
+
+        this.socket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          this.handleServerMessage(data);
+        };
+      }
+
+      async login(characterName, password) {
+        this.socket.send(JSON.stringify({
+          type: 'login',
+          characterName,
+          password
+        }));
+      }
+
+      createNewCharacter(characterData) {
+        this.socket.send(JSON.stringify({
+          type: 'createNewCharacter',
+          data: characterData
+        }));
+      }
+
+      restoreSession() {
+        const storedToken = localStorage.getItem('sessionToken');
+        if (storedToken) {
+          this.sessionToken = storedToken;
+          this.socket.send(JSON.stringify({ type: 'restoreSession', token: this.sessionToken }));
+        }
+      }
+
+      logout() {
+        this.socket.send(JSON.stringify({ type: 'logout', token: this.sessionToken }));
+        localStorage.removeItem('sessionToken');
+        this.sessionToken = null;
+        // Redirect to login page or show login UI
+      }
+
+      handleServerMessage(data) {
+        switch (data.type) {
+          case 'loginResult':
+            this.handleLoginResult(data);
+            break;
+          case 'characterCreationResult':
+            this.handleCharacterCreationResult(data);
+            break;
+          // ... handle other message types ...
+        }
+      }
+
+      handleLoginResult(data) {
+        if (data.success) {
+          console.log('Login successful');
+          this.sessionToken = data.sessionToken;
+          localStorage.setItem('sessionToken', this.sessionToken);
+          localStorage.setItem('playerName', data.playerName);
+          this.showContainer('game-container');
+        } else {
+          console.error('Login failed:', data.message);
+          alert(data.message || 'Login failed. Please try again.');
+        }
+      }
+
+      handleCharacterCreationResult(data) {
+        if (data.success) {
+          alert("Character created successfully!");
+          this.showContainer('login-container');
+        } else {
+          alert("Character creation failed: " + data.message);
+        }
+      }
+
+      showContainer(containerId) {
+        ['login-container', 'create-character-container', 'game-container'].forEach(id => {
+          document.getElementById(id).style.display = id === containerId ? 'block' : 'none';
+        });
+      }
+    }
+
+    class LoginManager {
+      constructor(gameClient) {
+        this.gameClient = gameClient;
+        this.elements = {
+          loginButton: document.getElementById('login-button'),
+          passwordInput: document.getElementById('password'),
+          characterNameInput: document.getElementById('character-name'),
+          createNewCharacterButton: document.getElementById('create-new-character-button')
+        };
+        this.setupEventListeners();
+      }
+      setupEventListeners() {
+        this.elements.loginButton.addEventListener('click', this.handleLogin.bind(this));
+        this.elements.passwordInput.addEventListener('keypress', this.handleEnterKeyPress.bind(this));
+        this.elements.createNewCharacterButton.addEventListener('click', () => this.gameClient.showContainer('create-character-container'));
+      }
+      async handleLogin() {
+        const { characterNameInput, passwordInput } = this.elements;
+        const characterName = characterNameInput.value.trim();
+        const password = passwordInput.value.trim();
+        if (characterName && password) {
+          console.log('Attempting login for:', characterName);
+          await this.gameClient.login(characterName, password);
+        } else {
+          alert('Please enter both character name and password.');
+        }
+      }
+      handleEnterKeyPress(e) {
+        if (e.key === 'Enter') this.handleLogin();
+      }
+    }
+    class CharacterCreationManager {
+      constructor(gameClient) {
+        this.gameClient = gameClient;
+        this.initializeInputs();
+        this.setupEventListeners();
+      }
+      initializeInputs() {
+        const inputIds = ['new-character-name', 'new-character-password', 'confirm-password', 'character-email', 'character-age', 'character-title', 'character-profession', 'character-description', 'submit-new-character', 'back-to-login'];
+        this.inputs = Object.fromEntries(inputIds.map(id => [id, document.getElementById(id)]));
+      }
+      setupEventListeners() {
+        this.inputs['submit-new-character'].addEventListener('click', this.handleSubmitNewCharacter.bind(this));
+        this.inputs['back-to-login'].addEventListener('click', () => this.gameClient.showContainer('login-container'));
+      }
+      handleSubmitNewCharacter(event) {
+        event.preventDefault();
+        const characterData = this.gatherCharacterData();
+        const missingFields = this.validateRequiredFields(characterData);
+        if (missingFields.length > 0) {
+          this.displayMissingFieldsAlert(missingFields);
+        } else if (characterData.password !== characterData.confirmPassword) {
+          alert("Passwords do not match!");
+        } else {
+          this.gameClient.createNewCharacter(characterData);
+        }
+      }
+      gatherCharacterData() {
+        const { inputs } = this;
+        return {
+          playerName: inputs['new-character-name'].value.trim(),
+          password: inputs['new-character-password'].value.trim(),
+          confirmPassword: inputs['confirm-password'].value.trim(),
+          email: inputs['character-email'].value.trim(),
+          age: inputs['character-age'].value.trim(),
+          sex: document.querySelector('input[name="sex"]:checked')?.value,
+          title: inputs['character-title'].value.trim(),
+          reputation: document.querySelector('input[name="reputation"]:checked')?.value,
+          profession: inputs['character-profession'].value.trim(),
+          description: inputs['character-description'].value.trim()
+        };
+      }
+      validateRequiredFields(data) {
+        const requiredFields = [
+          { name: 'Character Name', value: data.playerName },
+          { name: 'Password', value: data.password },
+          { name: 'Confirm Password', value: data.confirmPassword },
+          { name: 'Sex', value: data.sex }
+        ];
+        return requiredFields.filter(field => !field.value);
+      }
+      displayMissingFieldsAlert(missingFields) {
+        const missingFieldNames = missingFields.map(field => field.name).join(', ');
+        alert(`Please fill in the following required fields: ${missingFieldNames}`);
+      }
+    }
+    /**************************************************************************************************
+    Client Side Error Message Manager
+    **************************************************************************************************/
     class ErrorMessageManager {
       constructor() {
         this.errorMessages = [
@@ -111,7 +608,9 @@
         outputFunction(`<br><span class="error-message">${this.errorMessages[randomIndex]}</span><br>`);
       }
     }
-    // Client Side Game Manager ***********************************************************************
+    /**************************************************************************************************
+    Client Side Game Manager
+    **************************************************************************************************/
     class GameManager {
       handleGameJoined(player) {
         this.displayMessageFromServer(`Welcome, ${player.name}!`);
@@ -145,45 +644,40 @@
         coordinatesScore.textContent = `X: ${player.coordinates.x || 0} Y: ${player.coordinates.y || 0} Z: ${player.coordinates.z || 0}`;
       }
     }
-    // Client Side Command Manager ********************************************************************
+    /**************************************************************************************************
+    Client Side Command Manager
+    **************************************************************************************************/
     class CommandManager {
-      constructor() {
+      constructor(gameClient) {
+        this.gameClient = gameClient;
         this.errorMessageManager = new ErrorMessageManager();
         this.commands = {
           MOVE: 'move',
           ATTACK: 'attack',
-          DROP: 'drop',
-          GET: 'get',
+          DROP: 'dropItem',
+          GET: 'getItem',
           SHOW_INVENTORY: 'showInventory',
           DESCRIBE_LOCATION: 'describeLocation',
-          LOOT: 'lootSpecifiedNpc',
+          LOOT: 'lootNpc',
           MEDITATE: 'meditate',
           SIT: 'sit',
           SLEEP: 'sleep',
           STAND: 'stand',
           STOP: 'stop',
           WAKE: 'wake',
-          AUTO_LOOT: 'autoLootToggle',
+          AUTO_LOOT: 'toggleAutoLoot',
         };
       }
-      // Client Side Command Manager Methods **********************************************************
-      sendMethodCallToServer() {
-        const words = this.inputElement.value.trim().toLowerCase().split(" ");
-        const [action, ...serverArgs] = words;
-        const commandMap = new Map([
-          ...this.navigationCommands(),
-          ...this.actionCommands(),
-        ]);
-        const serverAction = commandMap.get(action) || this.errorMessageManager.displayRandomErrorMessage(this.appendMessage.bind(this));
-        if (serverAction) {
-          this.serverCommunication.callMethod(serverAction, serverArgs);
-          console.log(`Action sent: ${serverAction}, Args: ${serverArgs}`);
-        }
-        this.updateCommandHistory(words);
+      /**************************************************************************************************
+      Client Side Command Manager Methods
+      **************************************************************************************************/
+      sendMethodCallToServer(action, args) {
+        this.gameClient.socket.emit(action, ...args);
+        console.log(`Action sent: ${action}, Args: ${args}`);
       }
       navigationCommands() {
         return [['n', this.commands.MOVE], ['e', this.commands.MOVE], ['w', this.commands.MOVE], ['s', this.commands.MOVE],
-                ['u', this.commands.MOVE], ['d', this.commands.MOVE]];
+        ['u', this.commands.MOVE], ['d', this.commands.MOVE]];
       }
       actionCommands() {
         return [
@@ -275,11 +769,14 @@
         console.log('Action sent: autoLootToggle');
       }
     }
-    // User Input Manager *****************************************************************************
+    /**************************************************************************************************
+    User Input Manager
+    **************************************************************************************************/
     class UserInputManager {
-      constructor(inputElement, serverCommunication) {
-        this.inputElement = inputElement;
-        this.serverCommunication = serverCommunication;
+      constructor(gameClient) {
+        this.gameClient = gameClient;
+        this.inputElement = document.getElementById('user-input');
+        this.commandManager = new CommandManager(gameClient);
         this.commandHistory = [];
         this.historyIndex = -1;
       }
@@ -291,27 +788,38 @@
       }
       handleKeyDown(e) {
         if (e.key === 'Enter') {
-          this.sendMethodCallToServer();
+          const input = this.inputElement.value.trim();
+          if (input) {
+            const [command, ...args] = input.split(' ');
+            const action = this.commandManager.commands[command.toUpperCase()] || command;
+            this.commandManager.sendMethodCallToServer(action, args);
+            this.updateCommandHistory(input);
+          }
         } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
           e.preventDefault();
           this.navigateHistory(e.key === 'ArrowUp' ? -1 : 1);
         }
       }
     }
-    function toggleInputContainer(isVisible) {
-      const inputContainer = document.getElementById('input-container');
-      if (isVisible) {
-        inputContainer.style.display = 'block';
-        userInputManager.addEventListeners(); // Add listeners when displayed
-      } else {
-        userInputManager.removeEventListeners(); // Remove listeners before hiding
-        inputContainer.style.display = 'none';
+    /**************************************************************************************************
+    Client Side Start Game
+    **************************************************************************************************/
+    // Initialize the game
+    window.addEventListener('load', () => {
+      const gameClient = new GameClient();
+      const loginManager = new LoginManager(gameClient);
+      const characterCreationManager = new CharacterCreationManager(gameClient);
+      console.log('Page loaded, game client and managers initialized');
+      if (window.location.protocol === 'http:') {
+        console.warn('Warning: This connection is not secure');
+        // Display a warning message to the user
+        const warningElement = document.createElement('div');
+        warningElement.id = 'security-warning';
+        warningElement.textContent = 'Warning: This connection is not secure.';
+        warningElement.style.cssText = 'background-color: #ffcccc; color: #cc0000; padding: 10px; text-align: center;';
+        document.body.insertBefore(warningElement, document.body.firstChild);
       }
-    }
-    // Client Side Start Game *************************************************************************
-    const serverComm = new ServerCommunication(socket);
-    const userInputManager = new UserInputManager(inputElement, serverComm);
-    const gameManager = new GameManager();
+    });
   </script>
 </body>
 </html>
