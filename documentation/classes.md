@@ -21,6 +21,8 @@ List of all classes in 'server.js':
 10. **SocketEventManager**
 11. **SocketEventEmitter**
 12. **ReplicationManager**
+13. **AsyncLock**
+
 
 ## Task and Queue Management
 13. **QueueManager**
