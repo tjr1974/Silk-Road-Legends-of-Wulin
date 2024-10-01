@@ -12,16 +12,6 @@ import CONFIG from './config.js';
 import bcrypt from 'bcrypt';
 /**************************************************************************************************
 Logger Interface Class
-The ILogger class defines an abstract interface for logging operations within the game system.
-It establishes a contract for implementing various logging levels (debug, info, warn, error)
-without specifying the underlying logging mechanism. This abstraction allows for flexible
-implementation of logging strategies across different parts of the application.
-Key features:
-1. Abstract method definitions for different log levels
-2. Standardized logging interface for consistent usage throughout the codebase
-3. Extensibility for custom logging implementations
-By providing a common interface, ILogger ensures that logging can be uniformly applied and
-easily modified or extended across the entire game system.
 ***************************************************************************************************/
 class ILogger {
   log() {}
@@ -32,16 +22,6 @@ class ILogger {
 }
 /**************************************************************************************************
 Event Emitter Interface Class
-The ISocketEventEmitter class defines an abstract interface for event emission and handling within
-the game system. It outlines methods for registering listeners, emitting events, and removing
-listeners without specifying the underlying implementation. This abstraction allows for flexible
-implementation of event handling strategies across different parts of the application.
-Key features:
-1. Abstract method definitions for event emission and handling
-2. Standardized interface for event management
-3. Separation of concerns between event emission and handling
-By providing a common interface, ISocketEventEmitter ensures that event handling can be consistently
-implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
 class ISocketEventEmitter {
   on(event, callback) {}
@@ -50,16 +30,6 @@ class ISocketEventEmitter {
 }
 /**************************************************************************************************
 Base Manager Interface Class
-The IBaseManager class is an abstract base class that provides a common interface for managing
-various components of the game server. It outlines methods for initializing and managing
-components without specifying the underlying implementation. This abstraction allows for
-flexible implementation of component management strategies.
-Key features:
-1. Abstract method definitions for component initialization and management
-2. Standardized interface for component management
-3. Separation of concerns between component management and game logic
-By providing a common interface, IBaseManager ensures that component management can be consistently
-implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
 class IBaseManager {
   constructor({ logger, server }) {
@@ -69,16 +39,6 @@ class IBaseManager {
 }
 /**************************************************************************************************
 Database Manager Interface Class
-The IDatabaseManager class defines an abstract interface for database operations within the game
-system. It outlines methods for loading and saving various types of game data (locations, Npcs,
-items) without specifying the underlying database technology. This abstraction allows for
-flexible implementation of data persistence strategies.
-Key features:
-1. Abstract method definitions for data loading and saving operations
-2. Standardized interface for database interactions
-3. Separation of concerns between data access and game logic
-By providing a common interface, IDatabaseManager ensures that database operations can be
-consistently implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
 class IDatabaseManager {
   constructor({ logger, server }) {
@@ -93,14 +53,6 @@ class IDatabaseManager {
 }
 /**************************************************************************************************
 Game Manager Interface Class
-The IGameManager class defines an abstract interface for managing game entities and locations within
-the game system. It outlines methods for retrieving and moving entities, as well as accessing
-specific locations without specifying the underlying implementation. This abstraction allows
-for flexible implementation of game entity management strategies.
-Key features:
-1. Abstract method definitions for entity retrieval and movement
-2. Standardized interface for game entity management
-3. Separation of concerns between game entity management and game logic
 ***************************************************************************************************/
 class IGameManager {
   getLocation(locationId) {}
@@ -109,17 +61,6 @@ class IGameManager {
 }
 /**************************************************************************************************
 Logger Class
-The Logger class is a concrete implementation of the ILogger interface, providing robust logging
-functionality for the game system. It implements a Singleton pattern to ensure a single, globally
-accessible logging instance. This class handles formatting, prioritization, and output of log
-messages across various severity levels.
-Key features:
-1. Singleton pattern implementation for global access
-2. Configurable log levels with color-coded output
-3. Conditional logging based on severity thresholds
-4. Formatted log output with timestamps and log level indicators
-The Logger class plays a critical role in system diagnostics, error tracking, and runtime
-monitoring, facilitating easier debugging and maintenance of the game system.
 ***************************************************************************************************/
 class Logger extends ILogger {
   static instance;
@@ -183,17 +124,6 @@ class Logger extends ILogger {
 }
 /**************************************************************************************************
 Config Manager Class
-The ConfigManager class is responsible for managing the game's configuration settings. It implements
-the Singleton pattern to ensure a single, globally accessible instance of configuration data.
-This class handles loading configuration from external sources, providing access to configuration
-values, and maintaining the integrity of the game's settings.
-Key features:
-1. Singleton pattern implementation for global access
-2. Configuration loading from external sources (e.g., JSON files)
-3. Getter methods for accessing specific configuration values
-4. Error handling for configuration loading failures
-The ConfigManager plays a crucial role in centralizing and standardizing access to game settings,
-facilitating easier maintenance and modification of game parameters.
 ***************************************************************************************************/
 class ConfigManager {
   static instance;
@@ -245,265 +175,130 @@ class ConfigManager {
 }
 /**************************************************************************************************
 Server Class
-The Server class serves as the central orchestrator for the game server application. It initializes
-and manages core components of the server, including database connections, socket communications,
-game state management, and player sessions. This class implements a modular architecture to
-coordinate various subsystems and ensure smooth operation of the game server.
-Key features:
-1. Initialization of core server components (database, sockets, game manager)
-2. Management of active player sessions
-3. Coordination of game loops and event processing
-4. SSL/TLS support for secure communications
-5. Error handling and graceful shutdown procedures
-The Server class acts as the backbone of the game system, providing a robust foundation for
-multiplayer gameplay and server-side game logic execution.
 ***************************************************************************************************/
 class Server {
-  static instance;
-  static getInstance({ logger, configManager }) {
-    if (!Server.instance) {
-      Server.instance = new Server({ logger, configManager });
-    }
-    return Server.instance;
-  }
-  constructor({ logger, configManager }) {
-    if (Server.instance) {
-      return Server.instance;
-    }
-    this.SocketEventEmitter = new SocketEventEmitter();
-    this.configManager = configManager || ConfigManager.getInstance();
+  constructor({ config, logger, bcrypt }) {
+    this.config = config;
     this.logger = logger;
-    this.databaseManager = null;
-    this.socketEventManager = null;
-    this.serverConfigurator = null;
-    this.activeSessions = new Map();
+    this.bcrypt = bcrypt;
     this.gameManager = null;
-    this.isHttps = false;
-    this.app = null;
-    this.queueManager = new QueueManager();
-    this.messageManager = new MessageManager();
-    this.messageQueueSystem = new MessageQueueSystem(this);
-    this.gameComponentInitializer = null;
-    this.itemManager = new ItemManager({ logger, configManager, bcrypt });
-    this.transactionManager = new TransactionManager(this);
-    this.replicationManager = new ReplicationManager(this);
-    this.setupReplicationFilters();
-    this.authManager = new AuthenticationManager(this, bcrypt);
-    this.sessionManager = new SessionManager(this, bcrypt);
+    this.combatManager = null;
+    this.itemManager = null;
+    this.npcManager = null;
+    this.playerManager = null;
+    this.locationManager = null;
+    this.messageManager = null;
+    this.transactionManager = null;
     this.npcMovementManager = null;
-    Server.instance = this;
+    this.socketManager = null;
   }
-  async init() {
-    const initSteps = [
-      { name: 'Configure Server Components', action: this.configureServerComponents.bind(this) },
-      { name: 'Initialize Socket Event Manager', action: this.initializeSocketEventManager.bind(this) },
-      { name: 'Configure Server', action: this.serverConfigurator.configureServer.bind(this.serverConfigurator) },
-      { name: 'Initialize Game Manager', action: this.initializeGameManager.bind(this) },
-      { name: 'Setup Game Components', action: this.setupGameComponents.bind(this) },
-      { name: 'Start Game', action: this.startGame.bind(this) }
+  async initialize() {
+    this.logger.info('Initializing server...');
+    const initializationSteps = [
+      this.initializeManagers,
+      this.loadGameData,
+      this.setupSocketServer,
+      this.startNpcMovement,
     ];
-    for (const step of initSteps) {
-      try {
-        this.logger.info(`- ${step.name.toUpperCase()} STARTED`);
-        await step.action();
-        this.logger.info(`- ${step.name.toUpperCase()} FINISHED`);
-      } catch (error) {
-        this.logger.error(`Error during ${step.name}: ${error.message}`, { error });
-        // Depending on the severity, you might want to exit the process here
-        // process.exit(1);
-      }
+    await this.executeSteps(initializationSteps);
+    this.logger.info('Server initialization complete.');
+  }
+  async executeSteps(steps) {
+    for (const step of steps) {
+      await step.call(this);
     }
   }
-  handlePlayerConnected(player) {
-    this.logger.info(`Player connected: ${player.getName()}`);
+  async initializeManagers() {
+    const managerInitializations = [
+      { name: 'GameManager', factory: () => GameManager.getInstance(this) },
+      { name: 'CombatManager', factory: () => new CombatManager({ server: this, config: this.config }) },
+      { name: 'ItemManager', factory: () => ItemManager.getInstance({ logger: this.logger, configManager: this.config, bcrypt: this.bcrypt }) },
+      { name: 'NpcManager', factory: () => NpcManager.getInstance(this) },
+      { name: 'PlayerManager', factory: () => PlayerManager.getInstance(this) },
+      { name: 'LocationManager', factory: () => LocationManager.getInstance(this) },
+      { name: 'MessageManager', factory: () => MessageManager.getInstance(this.logger) },
+      { name: 'TransactionManager', factory: () => new TransactionManager(this) },
+      { name: 'NpcMovementManager', factory: () => NpcMovementManager.getInstance({ logger: this.logger, configManager: this.config, gameManager: this.gameManager }) },
+      { name: 'SocketManager', factory: () => new SocketManager(this) },
+    ];
+    await this.initializeManagersSequentially(managerInitializations);
   }
-  async setupHttpServer() {
+  async initializeManagersSequentially(managerInitializations) {
+    for (const { name, factory } of managerInitializations) {
+      this[name.charAt(0).toLowerCase() + name.slice(1)] = await factory();
+      this.logger.info(`${name} initialized.`);
+    }
+  }
+  async loadGameData() {
+    const dataLoaders = [
+      { name: 'Items', loader: () => this.itemManager.initialize(this.config.items) },
+      { name: 'Locations', loader: () => this.locationManager.initialize(this.config.locations) },
+      { name: 'NPCs', loader: () => this.npcManager.initialize(this.config.npcs) },
+    ];
+    await this.executeDataLoaders(dataLoaders);
+  }
+  async executeDataLoaders(dataLoaders) {
+    for (const { name, loader } of dataLoaders) {
+      await loader();
+      this.logger.info(`${name} data loaded.`);
+    }
+  }
+  setupSocketServer() {
+    this.socketManager.initialize();
+    this.logger.info('Socket server set up.');
+  }
+  startNpcMovement() {
+    this.npcMovementManager.startMovement();
+    this.logger.info('NPC movement started.');
+  }
+  async handlePlayerConnection(socket) {
     try {
-      const sslOptions = await this.loadSslOptions();
-      this.isHttps = sslOptions.key && sslOptions.cert;
-      const httpModule = this.isHttps ? https : http;
-      this.server = httpModule.createServer(this.isHttps ? sslOptions : this.app);
-      this.logger.info(`- Configure Server As - ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
-      return this.server;
-    } catch (error) {
-      this.logger.error(`Error during HTTP server configuration: ${error.message}`, { error });
-      throw error; // Re-throw the error to be handled by the caller
-    }
-  }
-  async loadSslOptions() {
-    const sslOptions = { key: null, cert: null };
-    const SSL_CERT_PATH = this.configManager.get('SSL_CERT_PATH');
-    const SSL_KEY_PATH = this.configManager.get('SSL_KEY_PATH');
-    try {
-      if (SSL_CERT_PATH && SSL_KEY_PATH) {
-        sslOptions.cert = await fs.readFile(SSL_CERT_PATH);
-        sslOptions.key = await fs.readFile(SSL_KEY_PATH);
-      } else if (SSL_CERT_PATH || SSL_KEY_PATH) {
-        this.logger.error(`Both SSL_CERT_PATH & SSL_KEY_PATH Must Be Provided For SSL Configuration`);
+      const player = await this.playerManager.handlePlayerConnection(socket);
+      if (player) {
+        await this.setupPlayerEventHandlers(socket, player);
       }
     } catch (error) {
-      this.logger.warn(`Failed To Load SSL Options: ${error.message}`, { error });
+      this.logger.error('Error handling player connection:', error);
     }
-    return sslOptions;
+  }
+  setupPlayerEventHandlers(socket, player) {
+    const eventHandlers = [
+      { event: 'disconnect', handler: () => this.handlePlayerDisconnect(player) },
+      { event: 'chat', handler: (message) => this.handleChatMessage(player, message) },
+      { event: 'command', handler: (command) => this.handleCommand(player, command) },
+    ];
+    eventHandlers.forEach(({ event, handler }) => {
+      socket.on(event, handler);
+    });
+  }
+  async handlePlayerDisconnect(player) {
+    await this.playerManager.handlePlayerDisconnect(player);
+  }
+  async handleChatMessage(player, message) {
+    await this.messageManager.broadcastChatMessage(player, message);
+  }
+  async handleCommand(player, command) {
+    await this.gameManager.handleCommand(player, command);
   }
   cleanup() {
-    this.databaseManager = null;
-    this.socketEventManager = null;
-    this.serverConfigurator = null;
-    this.activeSessions.clear();
+    const cleanupTasks = [
+      () => this.socketManager.cleanup(),
+      () => this.npcMovementManager.cleanup(),
+      () => this.playerManager.cleanup(),
+      () => this.npcManager.cleanup(),
+      () => this.locationManager.cleanup(),
+      () => this.itemManager.cleanup(),
+      () => this.messageManager.cleanup(),
+    ];
+    this.executeCleanupTasks(cleanupTasks);
+    this.logger.info('Server cleaned up.');
   }
-  startGame() {
-    try {
-      if (this.isGameRunning()) {
-        this.logger.debug('Game Is Already Running.');
-        return;
-      }
-      this.gameManager.startGameLoop();
-      this.isRunning = true;
-    } catch (error) {
-      this.logger.error(`Error Starting Game Manager: ${error.message}`, { error });
-    }
-  }
-  logServerRunningMessage() {
-    const protocol = this.isHttps ? 'https' : 'http';
-    const host = this.configManager.get('HOST');
-    const port = this.configManager.get('PORT');
-    this.logger.info(`SERVER IS RUNNING AT: ${protocol}://${host}:${port}`);
-  }
-  isGameRunning() {
-    return this.isRunning;
-  }
-  processTasks() {
-    this.queueManager.processQueue();
-  }
-  async addTask(task) {
-    await this.queueManager.enqueue(task);
-  }
-  setupReplicationFilters() {
-    // Filter for items
-    this.replicationManager.addFilter('item', (item, player) => {
-      const baseInfo = {
-        id: item.id,
-        name: item.name,
-        description: item.description,
-      };
-      // Only send detailed info if the player owns the item
-      if (player.inventory.has(item.id)) {
-        return {
-          ...baseInfo,
-          type: item.type,
-          price: item.price,
-          // Add other properties as needed
-        };
-      }
-      return baseInfo;
-    });
-    // Filter for Npcs
-    this.replicationManager.addFilter('npc', (npc, player) => {
-      const baseInfo = {
-        id: npc.id,
-        name: npc.name,
-        status: npc.status,
-        currentLocation: npc.currentLocation
-      };
-      // Only send detailed info if the Npc is in the same location as the player
-      if (npc.currentLocation === player.currentLocation) {
-        return {
-          ...baseInfo,
-          health: npc.health,
-          maxHealth: npc.maxHealth,
-          // Add other properties as needed
-        };
-      }
-      return baseInfo;
-    });
-    // Filter for locations
-    this.replicationManager.addFilter('location', (location, player) => {
-      const baseInfo = {
-        id: location.id,
-        name: location.name,
-        description: location.description,
-        exits: location.exits,
-      };
-      // Only send detailed info if it's the player's current location
-      if (location.id === player.currentLocation) {
-        return {
-          ...baseInfo,
-          items: Array.from(location.items),
-          npcs: Array.from(location.npcs),
-          // Add other properties as needed
-        };
-      }
-      return baseInfo;
-    });
-  }
-  // Update this method to use replication filters
-  fullStateSync(player) {
-    const playerData = this.replicationManager.applyFilters('player', player, player);
-    const locationData = this.replicationManager.applyFilters('location', this.getLocation(player.currentLocation), player);
-    const inventoryData = Array.from(player.inventory).map(itemId =>
-      this.replicationManager.applyFilters('item', this.getItem(itemId), player)
-    );
-    const nearbyNpcs = this.getNpcsInLocation(player.currentLocation);
-    const npcData = nearbyNpcs.map(npc => this.replicationManager.applyFilters('npc', npc, player));
-    this.socket.emit('fullStateSync', {
-      playerId: player.getId(),
-      playerData,
-      locationData,
-      inventoryData,
-      npcData
-    });
-  }
-  // Use this method when updating specific entities
-  updateEntity(entityType, entityData) {
-    this.players.forEach(player => {
-      this.replicationManager.replicateToPlayer(player, entityType, entityData);
-    });
-  }
-  handleConnection(socket) {
-    socket.on('message', async (message) => {
-      const data = JSON.parse(message);
-      switch (data.type) {
-        case 'login':
-          const authResult = await this.authManager.authenticateCharacter(data.characterName, data.password);
-          if (authResult.success) {
-            const sessionToken = this.sessionManager.createSession(authResult.characterData.id);
-            socket.send(JSON.stringify({ type: 'loginResult', success: true, sessionToken }));
-          } else {
-            socket.send(JSON.stringify({ type: 'loginResult', success: false, message: authResult.message }));
-          }
-          break;
-        case 'restoreSession':
-          const session = this.sessionManager.getSession(data.token);
-          if (session) {
-            this.sessionManager.updateSessionActivity(data.token);
-            // Restore player state and send to client
-          } else {
-            socket.send(JSON.stringify({ type: 'sessionExpired' }));
-          }
-          break;
-        case 'logout':
-          this.sessionManager.removeSession(data.token);
-          socket.send(JSON.stringify({ type: 'logoutConfirmation' }));
-          break;
-        // ... handle other message types
-      }
-    });
+  executeCleanupTasks(tasks) {
+    tasks.forEach(task => task());
   }
 }
 /**************************************************************************************************
 Server Initializer Class
-The ServerInitializer class is responsible for initializing and configuring the game server.
-It implements the Singleton pattern to ensure only one instance of the server is created.
-Key features:
-1. Singleton instance management
-2. Logger initialization
-3. Server instance creation
-4. Server configuration
-5. Game component initialization
-This class serves as the entry point for setting up the entire game environment, coordinating
-the initialization of various subsystems and managers. It handles potential errors during
-the initialization process and ensures proper logging of the server's startup sequence.
 ***************************************************************************************************/
 class ServerInitializer {
   static instance;
@@ -530,79 +325,83 @@ class ServerInitializer {
     ServerInitializer.instance = this;
   }
   async initialize() {
-    try {
-      this.logger.info("");
-      this.logger.info("INITIALIZE SERVER STARTED");
-      this.logger.debug("- Initialize Server Instance");
-      await this.server.init();
-      this.logger.debug("- Initialize Server Instance Finished");
-      this.logger.info("INITIALIZE SERVER FINISHED");
-      this.server.logServerRunningMessage();
-    } catch (error) {
-      this.logger.error(`Initializing Server: ${error.message}`, { error });
+    const initializationSteps = [
+      this.initializeServer,
+      this.configureServer,
+      this.initializeGameComponents,
+      this.logServerRunning
+    ];
+    await this.executeSteps(initializationSteps);
+  }
+  async executeSteps(steps) {
+    for (const step of steps) {
+      try {
+        await step.call(this);
+      } catch (error) {
+        this.handleInitializationError(error, step.name);
+      }
     }
   }
+  async initializeServer() {
+    this.logger.info("INITIALIZE SERVER STARTED");
+    this.logger.debug("- Initialize Server Instance");
+    await this.server.init();
+    this.logger.debug("- Initialize Server Instance Finished");
+  }
+  async configureServer() {
+    await this.serverConfigurator.configureServer();
+  }
+  async initializeGameComponents() {
+    await this.gameComponentInitializer.setupGameComponents();
+  }
+  logServerRunning() {
+    this.logger.info("INITIALIZE SERVER FINISHED");
+    this.server.logServerRunningMessage();
+  }
+  handleInitializationError(error, stepName) {
+    this.logger.error(`Error during ${stepName}: ${error.message}`, { error });
+  }
   async cleanup() {
-    try {
-      // Cleanup NpcMovementManager
-      if (this.server.npcMovementManager) {
-        this.server.npcMovementManager.cleanup();
+    const cleanupTasks = [
+      { name: 'NpcMovementManager', task: () => this.server.npcMovementManager?.cleanup() },
+      { name: 'ItemManager', task: () => this.server.itemManager?.cleanup() },
+      { name: 'TransactionManager', task: () => this.server.transactionManager?.cleanup() },
+      { name: 'MessageManager', task: () => MessageManager.cleanup() },
+      { name: 'PlayerInventories', task: () => this.cleanupPlayerInventories() },
+      { name: 'Database', task: () => this.server.db?.close() },
+      { name: 'SocketConnection', task: () => this.closeSocketConnection() }
+    ];
+    await this.executeCleanupTasks(cleanupTasks);
+    this.logger.info('Server cleanup completed');
+  }
+  async executeCleanupTasks(tasks) {
+    for (const { name, task } of tasks) {
+      try {
+        await task();
+        this.logger.info(`${name} cleaned up successfully`);
+      } catch (error) {
+        this.logger.error(`Error during ${name} cleanup: ${error.message}`, { error });
       }
-      // Cleanup ItemManager
-      if (this.server.itemManager) {
-        this.server.itemManager.cleanup();
+    }
+  }
+  cleanupPlayerInventories() {
+    this.server.players.forEach(player => {
+      if (player.inventoryManager) {
+        player.inventoryManager.cleanup();
       }
-      // Cleanup TransactionManager
-      if (this.server.transactionManager) {
-        this.server.transactionManager.cleanup();
-      }
-      // Cleanup MessageManager
-      MessageManager.cleanup();
-      // Cleanup player inventories
-      for (const player of this.server.players.values()) {
-        if (player.inventoryManager) {
-          player.inventoryManager.cleanup();
-        }
-      }
-      // Close database connection
-      if (this.server.db) {
-        await this.server.db.close();
-        this.logger.info('Database connection closed');
-      }
-      // Close socket connection
-      if (this.server.io) {
-        await new Promise(resolve => this.server.io.close(resolve));
-        this.logger.info('Socket connection closed');
-      }
-      this.logger.info('Server cleanup completed');
-    } catch (error) {
-      this.logger.error('Error during server cleanup:', error);
+    });
+  }
+  async closeSocketConnection() {
+    if (this.server.io) {
+      await new Promise(resolve => this.server.io.close(resolve));
+      this.logger.info('Socket connection closed');
     }
   }
 }
 /**************************************************************************************************
 Server Configurator Class
-The ServerConfigurator class is responsible for setting up and configuring the game server
-environment. It handles the initialization of various server components, including Express
-middleware, HTTP/HTTPS server setup, and socket connections. This class ensures that all
-necessary server configurations are properly applied before the game server becomes operational.
-Key features:
-1. Express application setup and middleware configuration
-2. HTTP/HTTPS server initialization with SSL/TLS support
-3. Socket.io integration for real-time communication
-4. Error handling middleware setup
-5. Queue manager initialization for task management
-The ServerConfigurator plays a crucial role in establishing the server's infrastructure,
-enabling secure and efficient communication between clients and the game server.
 ***************************************************************************************************/
 class ServerConfigurator extends IBaseManager {
-  static instance;
-  static getInstance({ logger, config, server, socketEventManager }) {
-    if (!ServerConfigurator.instance) {
-      ServerConfigurator.instance = new ServerConfigurator({ logger, config, server, socketEventManager });
-    }
-    return ServerConfigurator.instance;
-  }
   constructor({ logger, config, server, socketEventManager }) {
     super({ server, logger });
     this.config = config;
@@ -610,139 +409,79 @@ class ServerConfigurator extends IBaseManager {
     this.server.app = null;
   }
   async configureServer() {
-    const { logger, server } = this;
-    try {
-      await this.setupExpress();
-    } catch (error) {
-      logger.error(`During Express Configuration: ${error.message}`, { error });
-      logger.error(error.stack);
-    }
-    try {
-      await server.setupHttpServer();
-    } catch (error) {
-      logger.error(`During Http Server Configuration: ${error.message}`, { error });
-    }
-    try {
-      this.configureMiddleware();
-    } catch (error) {
-      logger.error(`During Middleware Configuration: ${error.message}`, { error });
-      logger.error(error.stack);
-    }
-    try {
-      server.queueManager = new QueueManager();
-    } catch (error) {
-      logger.error(`During Queue Manager Configuration: ${error.message}`, { error });
+    const configurationSteps = [
+      this.setupExpress,
+      this.setupHttpServer,
+      this.configureMiddleware,
+      this.setupQueueManager
+    ];
+    await this.executeConfigurationSteps(configurationSteps);
+  }
+  async executeConfigurationSteps(steps) {
+    for (const step of steps) {
+      try {
+        await step.call(this);
+      } catch (error) {
+        this.logger.error(`Error during ${step.name}: ${error.message}`, { error });
+      }
     }
   }
   async setupExpress() {
-    try {
-      this.server.app = express();
-    } catch (error) {
-      this.logger.error(`Error Setting Up Express: ${error.message}`, { error });
-      throw error;
-    }
+    this.server.app = express();
+  }
+  async setupHttpServer() {
+    await this.server.setupHttpServer();
   }
   configureMiddleware() {
-    try {
-      this.server.app.use(express.static('public'));
-      this.server.app.use((err, req, res, next) => {
-        this.logger.error(`Middleware Error: ${err.message}`, { error: err });
-        res.status(500).send('An Unexpected Error Occurred. Please Try Again Later.');
-      });
-    } catch (error) {
-      this.logger.error(`Error Configuring Middleware: ${error.message}`, { error });
-      throw error;
-    }
+    const middlewares = [
+      express.static('public'),
+      this.errorHandlerMiddleware
+    ];
+    middlewares.forEach(middleware => this.server.app.use(middleware));
+  }
+  errorHandlerMiddleware(err, req, res, next) {
+    this.logger.error(`Middleware Error: ${err.message}`, { error: err });
+    res.status(500).send('An Unexpected Error Occurred. Please Try Again Later.');
+  }
+  setupQueueManager() {
+    this.server.queueManager = new QueueManager();
   }
   async cleanup() {
     this.logger.info("Starting server cleanup...");
-    try {
-      // Stop the game loop
-      if (this.gameManager) {
-        this.gameManager.stopGameLoop();
+    const cleanupTasks = [
+      { name: 'GameManager', task: () => this.server.gameManager?.cleanup() },
+      { name: 'DatabaseManager', task: () => this.server.databaseManager?.cleanup() },
+      { name: 'SocketEventManager', task: () => this.server.socketEventManager?.cleanup() },
+      { name: 'QueueManager', task: () => this.server.queueManager?.cleanup() },
+      { name: 'MessageManager', task: () => MessageManager.cleanup() },
+      { name: 'ItemManager', task: () => this.server.itemManager?.cleanup() },
+      { name: 'TransactionManager', task: () => this.server.transactionManager?.cleanup() },
+      { name: 'ReplicationManager', task: () => this.server.replicationManager?.cleanup() },
+      { name: 'AuthManager', task: () => this.server.authManager?.cleanup() },
+      { name: 'SessionManager', task: () => this.server.sessionManager?.cleanup() },
+      { name: 'NpcMovementManager', task: () => this.server.npcMovementManager?.cleanup() },
+      { name: 'Database', task: () => this.server.db?.close() },
+      { name: 'SocketConnection', task: () => new Promise(resolve => this.server.io?.close(resolve)) }
+    ];
+    await this.executeCleanupTasks(cleanupTasks);
+    this.server.activeSessions.clear();
+    this.logger.info("Server cleanup completed successfully.");
+  }
+  async executeCleanupTasks(tasks) {
+    for (const { name, task } of tasks) {
+      try {
+        await task();
+        this.logger.info(`${name} cleaned up successfully.`);
+      } catch (error) {
+        this.logger.error(`Error during ${name} cleanup: ${error.message}`, { error });
       }
-      // Cleanup GameManager
-      if (this.gameManager) {
-        await this.gameManager.cleanup();
-      }
-      // Cleanup DatabaseManager
-      if (this.databaseManager) {
-        await this.databaseManager.cleanup();
-      }
-      // Cleanup SocketEventManager
-      if (this.socketEventManager) {
-        await this.socketEventManager.cleanup();
-      }
-      // Cleanup QueueManager
-      if (this.queueManager) {
-        await this.queueManager.cleanup();
-      }
-      // Cleanup MessageManager
-      MessageManager.cleanup();
-      // Cleanup ItemManager
-      if (this.itemManager) {
-        await this.itemManager.cleanup();
-      }
-      // Cleanup TransactionManager
-      if (this.transactionManager) {
-        await this.transactionManager.cleanup();
-      }
-      // Cleanup ReplicationManager
-      if (this.replicationManager) {
-        await this.replicationManager.cleanup();
-      }
-      // Cleanup AuthManager
-      if (this.authManager) {
-        await this.authManager.cleanup();
-      }
-      // Cleanup SessionManager
-      if (this.sessionManager) {
-        await this.sessionManager.cleanup();
-      }
-      // Cleanup NpcMovementManager
-      if (this.npcMovementManager) {
-        await this.npcMovementManager.cleanup();
-      }
-      // Close database connection
-      if (this.db) {
-        await this.db.close();
-        this.logger.info('Database connection closed');
-      }
-      // Close socket connection
-      if (this.io) {
-        await new Promise(resolve => this.io.close(resolve));
-        this.logger.info('Socket connection closed');
-      }
-      // Clear all active sessions
-      this.activeSessions.clear();
-      this.logger.info("Server cleanup completed successfully.");
-    } catch (error) {
-      this.logger.error(`Error during server cleanup: ${error.message}`, { error });
     }
   }
 }
 /**************************************************************************************************
 Socket Event Manager Class
-The SocketEventManager class is responsible for managing socket events and interactions within
-the game server. It handles the setup and configuration of socket.io, including event listeners
-and dispatchers for various socket events. This class ensures that all socket-related
-interactions are properly managed and executed.
-Key features:
-1. Socket.io setup and configuration
-2. Event listener setup for socket events
-3. Socket event dispatching and handling
-4. Integration with the GameCommandManager for command processing
-The SocketEventManager plays a crucial role in facilitating real-time interactions between
-clients and the game server, ensuring that all socket-related functionality operates smoothly.
 ***************************************************************************************************/
 class SocketEventManager extends IBaseManager {
-  static instance;
-  static getInstance({ logger, server, gameCommandManager }) {
-    if (!SocketEventManager.instance) {
-      SocketEventManager.instance = new SocketEventManager({ logger, server, gameCommandManager });
-    }
-    return SocketEventManager.instance;
-  }
   constructor({ logger, server, gameCommandManager }) {
     super({ server, logger });
     this.io = null;
@@ -753,57 +492,45 @@ class SocketEventManager extends IBaseManager {
   initializeSocketEvents() {
     try {
       this.io = new SocketIOServer(this.server.httpServer);
-      this.io.on('connection', (socket) => {
-        this.logger.info(`New client connected: ${socket.id}`);
-        this.setupSocketListeners(socket);
-      });
+      this.io.on('connection', this.handleNewConnection.bind(this));
     } catch (error) {
       this.logger.error(`Error Initializing Socket Events: ${error.message}`, { error });
     }
   }
+  handleNewConnection(socket) {
+    this.logger.info(`New client connected: ${socket.id}`);
+    this.setupSocketListeners(socket);
+  }
   setupSocketListeners(socket) {
-    try {
-      socket.on('playerAction', (data) => {
-        const { actionType, payload } = data;
-        const task = new TaskManager({
-          server: this.server,
-          execute: async () => {
-            try {
-              await this.gameCommandManager.handleCommand(socket, actionType, payload);
-            } catch (error) {
-              this.logger.error(`Error Handling Player Action: ${error.message}`, { error });
-            }
-          }
-        });
-        this.queueManager.enqueue(task);
-      });
-      socket.on('disconnect', () => this.handleDisconnect(socket));
-    } catch (error) {
-      this.logger.error(`Error Setting Up Socket Listeners: ${error.message}`, { error });
-    }
+    const listeners = [
+      { event: 'playerAction', handler: this.handlePlayerAction.bind(this) },
+      { event: 'disconnect', handler: () => this.handleDisconnect(socket) }
+    ];
+    listeners.forEach(({ event, handler }) => {
+      socket.on(event, handler);
+    });
+  }
+  handlePlayerAction(data) {
+    const { actionType, payload } = data;
+    const task = new TaskManager({
+      server: this.server,
+      execute: async () => {
+        try {
+          await this.gameCommandManager.handleCommand(socket, actionType, payload);
+        } catch (error) {
+          this.logger.error(`Error Handling Player Action: ${error.message}`, { error });
+        }
+      }
+    });
+    this.queueManager.enqueue(task);
   }
   handleDisconnect(socket) {
-    try {
-      this.logger.info(`Client disconnected: ${socket.id}`);
-      // Clean up any necessary game state
-    } catch (error) {
-      this.logger.error(`Error Handling Disconnect: ${error.message}`, { error });
-    }
+    this.logger.info(`Client disconnected: ${socket.id}`);
+    // Clean up any necessary game state
   }
 }
 /**************************************************************************************************
 SocketEvent Emitter Class
-The SocketEventEmitter class provides a robust implementation of the publish-subscribe pattern,
-facilitating event-driven communication within the game system. It allows components to register
-listeners for specific events and emit events to trigger those listeners. This class serves
-as a cornerstone for decoupled, event-based interactions between various parts of the game.
-Key features:
-1. Event registration and listener management
-2. Asynchronous event emission with multiple argument support
-3. Listener removal functionality
-4. Support for multiple listeners per event type
-The SocketEventEmitter class enables flexible and scalable communication between game components,
-promoting loose coupling and enhancing the overall modularity of the system.
 ***************************************************************************************************/
 class SocketEventEmitter extends ISocketEventEmitter {
   constructor() {
@@ -831,15 +558,6 @@ class SocketEventEmitter extends ISocketEventEmitter {
 }
 /**************************************************************************************************
 Replication Manager Class
-The ReplicationManager class is responsible for managing data replication between the server
-and clients. It ensures that only the necessary data is sent to each client, optimizing network
-traffic and reducing server resource usage.
-Key features:
-1. Data filtering and replication
-2. Integration with the SocketEventEmitter for real-time data updates
-3. Efficient data management for game state synchronization
-This class is essential for maintaining a responsive and synchronized game environment,
-ensuring that all clients have up-to-date information about the game state.
 ***************************************************************************************************/
 class ReplicationManager {
   constructor(server) {
@@ -865,13 +583,6 @@ class ReplicationManager {
 }
 /**************************************************************************************************
 AsyncLock Class
-The AsyncLock class provides a mechanism to manage asynchronous locks, ensuring that
-concurrent access to shared resources is properly synchronized.
-Key features:
-1. Lock management using Promises
-2. Asynchronous lock acquisition and release
-3. Support for nested lock acquisition
-4. Error handling during lock operations
 ***************************************************************************************************/
 class AsyncLock {
   constructor() {
@@ -891,15 +602,6 @@ class AsyncLock {
 }
 /**************************************************************************************************
 Queue Manager Class
-The QueueManager class is responsible for managing a queue of tasks, ensuring orderly
-execution of game operations and preventing system overload.
-Key features:
-1. Task queue management
-2. Concurrent task execution control
-3. Dynamic queue processing
-4. Task cleanup and error handling
-This class works in conjunction with the TaskManager to provide a robust system for
-handling multiple game tasks efficiently, maintaining system stability and performance.
 ***************************************************************************************************/
 class QueueManager {
   static instance;
@@ -993,15 +695,6 @@ class QueueManager {
 }
 /**************************************************************************************************
 Object Pool Class
-The ObjectPool class provides a reusable pool of objects to improve performance and reduce
-memory allocation overhead. It manages the creation and reuse of objects, particularly
-useful for frequently created and destroyed objects like combat actions.
-Key features:
-1. Object creation and management
-2. Efficient reuse of objects
-3. Customizable object initialization and reset
-This class enhances performance by reducing the need for frequent object creation and
-garbage collection, particularly beneficial in high-frequency operations like combat.
 ***************************************************************************************************/
 class ObjectPool {
   constructor(createFunc, initialSize = 10) {
@@ -1027,16 +720,6 @@ class ObjectPool {
 }
 /**************************************************************************************************
 Task Manager Class
-The TaskManager class is responsible for managing individual tasks within the game system.
-It provides a structure for creating, executing, and monitoring the status of various game-related
-tasks.
-Key features:
-1. Task creation and naming
-2. Asynchronous task execution
-3. Task status tracking
-4. Error handling and callback management
-This class allows for better organization and management of game operations, enabling the
-system to handle complex sequences of actions in a controlled and monitored manner.
 ***************************************************************************************************/
 class TaskManager {
   static instance;
@@ -1096,16 +779,6 @@ class TaskManager {
 }
 /**************************************************************************************************
 Message Queue System Class
-The MessageQueueSystem class is responsible for managing a priority-based queue of messages
-within the game system, ensuring efficient and orderly processing of game communications.
-Key features:
-1. Priority-based message queuing (high, medium, low)
-2. Asynchronous message processing
-3. Integration with server's message manager
-4. Error handling and logging
-This class plays a crucial role in managing the flow of information within the game,
-prioritizing critical messages and ensuring smooth communication between different
-components of the system.
 ***************************************************************************************************/
 class MessageQueueSystem {
   static instance;
@@ -1170,17 +843,6 @@ class MessageQueueSystem {
 }
 /**************************************************************************************************
 Database Manager Class
-The DatabaseManager class is a concrete implementation of the IDatabaseManager interface,
-providing methods for loading and saving game data. It handles interactions with the file system
-to read and write game data, ensuring data persistence across game sessions. This class is
-responsible for managing the data lifecycle, including validation and error handling.
-Key features:
-1. Loading and saving game data (locations, Npcs, items)
-2. File system interactions for data persistence
-3. Data validation and error handling during loading and saving operations
-4. Management of data paths and configuration settings
-The DatabaseManager is essential for maintaining the integrity of game data and ensuring
-consistent access to game state information.
 ***************************************************************************************************/
 class DatabaseManager extends IDatabaseManager {
   static instance;
@@ -1433,16 +1095,6 @@ class DatabaseManager extends IDatabaseManager {
 }
 /**************************************************************************************************
 Game Data Loader Class
-The GameDataLoader class is responsible for loading and managing game data from the database.
-It handles the retrieval and initialization of crucial game elements such as locations, Npcs,
-and items.
-Key features:
-1. Asynchronous data fetching
-2. Location data processing and coordinate assignment
-3. Npc and item data loading and instantiation
-4. Error handling and logging during data loading
-This class plays a critical role in populating the game world with the necessary entities and
-ensuring that all game data is properly loaded and structured for use by other game systems.
 ***************************************************************************************************/
 class GameDataLoader {
   static instance;
@@ -1600,13 +1252,6 @@ class GameDataLoader {
 }
 /**************************************************************************************************
 UID Generator Class
-The UidGenerator class provides functionality for generating unique identifiers for game
-entities. It includes methods for creating hashed UIDs to ensure uniqueness and security.
-Key features:
-1. Unique identifier generation logic
-2. Hashing for security and uniqueness
-This class ensures that all game entities have unique identifiers, facilitating proper
-management and interaction within the game.
 ***************************************************************************************************/
 class UidGenerator {
   static instance;
@@ -1629,17 +1274,6 @@ class UidGenerator {
 }
 /**************************************************************************************************
 Game Manager Class
-The GameManager class is responsible for managing the overall game state and player interactions.
-It coordinates game loops, event processing, and player actions, ensuring that the game world
-remains consistent and responsive. This class serves as the central hub for game logic and
-state management.
-Key features:
-1. Management of active players and Npcs
-2. Game loop execution and event handling
-3. Coordination of game state updates and notifications
-4. Integration with the SocketEventEmitter for event-driven architecture
-The GameManager is crucial for maintaining the flow of the game and ensuring that player
-actions have meaningful impacts on the game world.
 ***************************************************************************************************/
 class GameManager extends IGameManager {
   static instance;
@@ -2067,16 +1701,6 @@ class GameManager extends IGameManager {
 }
 /**************************************************************************************************
 Game Component Initializer Class
-The GameComponentInitializer class is responsible for setting up and initializing various
-game components and subsystems required for the game to function properly.
-Key features:
-1. Database initialization
-2. Game manager setup
-3. Location coordinate management
-4. Game data loading
-This class works closely with the ServerInitializer to ensure all game-specific components
-are properly set up and ready for use. It handles the sequential initialization of interdependent
-components and manages potential errors during the setup process.
 ***************************************************************************************************/
 class GameComponentInitializer extends IBaseManager {
   static instance;
@@ -2168,15 +1792,6 @@ class GameComponentInitializer extends IBaseManager {
 }
 /**************************************************************************************************
 Entity Class
-The Entity class serves as a base class for all entities within the game, providing common
-properties and methods for managing entity state and behavior. It includes functionality for
-tracking health and status changes.
-Key features:
-1. Common properties for all entities (name, health, status)
-2. State change detection for health and status
-3. Base functionality for derived entity classes
-This class provides a foundation for all game entities, ensuring consistent management of
-entity state and behavior across the game.
 ***************************************************************************************************/
 class Entity {
   constructor(name) {
@@ -2196,15 +1811,6 @@ class Entity {
 }
 /**************************************************************************************************
 Character Class
-The Character class serves as a base class for all characters within the game, providing
-common properties and methods for managing character state and behavior. It includes
-functionality for tracking health and status changes.
-Key features:
-1. Common properties for all characters (name, health)
-2. State change detection for health and status
-3. Base functionality for derived character classes
-This class provides a foundation for all character types, ensuring consistent management of
-character state and behavior across the game.
 ***************************************************************************************************/
 class Character extends Entity {
   constructor({ name, health }) {
@@ -2214,14 +1820,6 @@ class Character extends Entity {
 }
 /**************************************************************************************************
 Create New Player Class
-The CreateNewPlayer class is responsible for encapsulating the creation of new player instances.
-It provides methods for initializing player data and updating player attributes as needed.
-Key features:
-1. Player instance creation with specified attributes
-2. Static method for creating a player from existing data
-3. Asynchronous updates to player attributes
-This class facilitates the creation and management of player instances within the game,
-ensuring that player data is correctly initialized and maintained.
 ***************************************************************************************************/
 class CreateNewPlayer {
   constructor({ name, age }) {
@@ -2241,15 +1839,6 @@ class CreateNewPlayer {
 }
 /**************************************************************************************************
 Player Class
-The Player class is a concrete implementation of the Character class, representing player
-characters within the game. It includes properties specific to players, such as inventory
-and experience, and provides methods for player actions and interactions.
-Key features:
-1. Specific properties for player characters (UID, inventory, experience)
-2. Methods for player actions (movement, combat, inventory management)
-3. Integration with game systems for player interactions
-This class serves as the primary representation of players within the game, ensuring that
-player actions and state are managed effectively.
 ***************************************************************************************************/
 class Player extends Character {
   constructor({ uid, name, bcrypt, server, configManager, inventoryManager, gameCommandManager }) {
@@ -2614,14 +2203,6 @@ class Player extends Character {
 }
 /**************************************************************************************************
 Authentication Manager Class
-The AuthenticationManager class is responsible for handling user authentication and character
-management. It includes methods for creating new characters, authenticating users, and managing
-session tokens. This class plays a crucial role in ensuring secure access to the game and
-maintaining player data integrity.
-Key features:
-1. Character creation with password hashing
-2. Character authentication using password comparison
-3. Session token management for security
 ***************************************************************************************************/
 class AuthenticationManager {
   constructor(server, bcrypt) {
@@ -2649,17 +2230,6 @@ class AuthenticationManager {
 }
 /**************************************************************************************************
 Session Manager Class
-The SessionManager class is responsible for managing user sessions and ensuring secure access
-to the game. It includes methods for creating sessions, retrieving sessions, updating session
-activity, and removing sessions. This class plays a crucial role in maintaining player
-connections and ensuring secure access to the game.
-Key features:
-1. Session creation with unique tokens
-2. Session storage and retrieval
-3. Session activity updates
-4. Session removal for logout
-This class ensures that players remain connected and secure while playing the game,
-enhancing the overall gaming experience.
 ***************************************************************************************************/
 class SessionManager {
   constructor(server, bcrypt) {
@@ -2700,15 +2270,6 @@ class SessionManager {
 }
 /**************************************************************************************************
 Health Regenerator Class
-The HealthRegenerator class is responsible for managing the health regeneration process for
-player characters. It includes logic for determining regeneration rates and applying health
-restoration over time.
-Key features:
-1. Health regeneration logic based on player status
-2. Interval management for regeneration timing
-3. Integration with player health management
-This class ensures that player health is restored appropriately based on game mechanics,
-enhancing the gameplay experience.
 ***************************************************************************************************/
 class HealthRegenerator {
   constructor({ player }) {
@@ -2755,18 +2316,6 @@ class HealthRegenerator {
 }
 /**************************************************************************************************
 Game Command Manager Class
-The GameCommandManager class is responsible for processing and executing player-initiated game commands.
-It utilizes a command pattern to handle various types of actions such as movement, combat, item
-manipulation, and character state changes. This class acts as a central hub for routing player
-inputs to the appropriate handler methods, ensuring proper execution of game mechanics and
-maintaining game state consistency.
-Key features:
-1. Command routing based on action type
-2. Extensible architecture for adding new command types
-3. Integration with the game's core systems (e.g., combat, inventory)
-4. Error handling for invalid or unauthorized commands
-This class plays a crucial role in translating player intentions into game world effects, serving
-as a bridge between the user interface and the game's internal logic.
 ***************************************************************************************************/
 class GameCommandManager {
   static instance;
@@ -2956,16 +2505,7 @@ class GameCommandManager {
   }
 }
 /**************************************************************************************************
-Look At Command HandlerClass
-The LookAtCommandHandler class provides functionality for players to examine their surroundings and
-interact with objects and entities within the game world. It includes methods for looking
-at specific targets and determining their properties.
-Key features:
-1. Target examination logic for players
-2. Interaction with game entities and items
-3. Notification management for look actions
-This class enhances player immersion by allowing them to interact meaningfully with the
-game world through examination and observation.
+Look At Command Handler Class
 ***************************************************************************************************/
 class LookAtCommandHandler {
   constructor({ player }) {
@@ -3016,15 +2556,6 @@ class LookAtCommandHandler {
 }
 /**************************************************************************************************
 Combat Manager Class
-The CombatManager class is responsible for managing combat interactions between players and Npcs.
-It coordinates combat turns, handles combat actions, and tracks combat state. This class
-ensures that combat mechanics are applied correctly and efficiently.
-Key features:
-1. Turn-based combat management for players and Npcs
-2. Combat action execution and outcome determination
-3. Integration with the logger for combat event tracking
-The CombatManager is essential for maintaining the integrity of combat interactions,
-ensuring that all combat-related actions are processed in a structured manner.
 ***************************************************************************************************/
 class CombatManager {
   static COMBAT_INTERVAL = 1500;
@@ -3485,13 +3016,6 @@ class CombatManager {
 }
 /**************************************************************************************************
 Combat Action Class
-The CombatAction class is designed to handle the execution of combat actions between
-attacker and defender entities. It includes methods for initializing the combat,
-selecting a technique, calculating attack values, and determining outcomes.
-Key features:
-1. Initialization of combat action
-2. Random selection of techniques
-3. Calculation of attack values
 ***************************************************************************************************/
 class CombatAction {
   constructor({ logger }) {
@@ -3533,17 +3057,7 @@ class CombatAction {
   }
 }
 /**************************************************************************************************
-Locations Class
-The Locations class is intended to be used with OLC (online creation system).
-Each location represents a specific area within the game world. It includes properties
-for managing exits, items, Npcs, and players within the location, facilitating interactions
-and navigation.
-Key features:
-1. Properties for managing exits, items, and Npcs
-2. Methods for adding and removing entities from the location
-3. Description management for the location
-This class serves as the foundation for all locations within the game, ensuring that
-interactions and navigation are managed effectively.
+Npc Class
 ***************************************************************************************************/
 class Npc extends Character {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server, lootTable = [] }) {
@@ -3595,14 +3109,6 @@ class Npc extends Character {
 }
 /**************************************************************************************************
 Mobile Npc Class
-The MobileNpc class is a concrete implementation of the Npc class, representing Npcs that
-can move within the game world. It includes logic for determining movement behavior and
-interactions with the environment.
-Key features:
-1. Movement logic for mobile Npcs
-2. Direction management for movement actions
-This class enhances the game world by providing dynamic Npcs that can interact with players
-and the environment through movement.
 ***************************************************************************************************/
 class MobileNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
@@ -3618,13 +3124,6 @@ class MobileNpc extends Npc {
 }
 /**************************************************************************************************
 Quest Npc Class
-The QuestNpc class is a concrete implementation of the Npc class, representing Npcs that
-offer quests to players. It includes logic for managing quest interactions and completions.
-Key features:
-1. Quest management for Npcs
-2. Interaction logic for providing and completing quests
-This class enriches the gameplay experience by providing players with quests and objectives
-through Npc interactions.
 ***************************************************************************************************/
 class QuestNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, questId, zones = [], aliases, server, lootTable = [] }) {
@@ -3674,14 +3173,6 @@ class MerchantNpc extends Npc {
 }
 /**************************************************************************************************
 Npc Movement Manager Class
-The NpcMovementManager class is responsible for managing the movement of mobile Npcs within
-the game world. It includes logic for determining movement intervals and executing movement
-actions for all mobile Npcs.
-Key features:
-1. Movement interval management for Npcs
-2. Logic for executing movement actions
-This class enhances the game world by ensuring that mobile Npcs behave dynamically and
-realistically, contributing to a more immersive gameplay experience.
 ***************************************************************************************************/
 class NpcMovementManager {
   static #instance = null;
@@ -3809,14 +3300,6 @@ class NpcMovementManager {
 }
 /**************************************************************************************************
 Base Item Class
-The BaseItem class serves as a foundational class for all item types within the game,
-providing common properties and methods for item management. It includes functionality for
-describing items and managing aliases.
-Key features:
-1. Common properties for all items (name, description, aliases)
-2. Base functionality for derived item classes
-This class provides a foundation for all item types, ensuring consistent management of
-item properties and behavior across the game.
 ***************************************************************************************************/
 class BaseItem {
   constructor({ name, description, aliases }) {
@@ -3827,15 +3310,6 @@ class BaseItem {
 }
 /**************************************************************************************************
 Item Class
-The Item class is a concrete implementation of the BaseItem class, representing a generic
-item within the game. It includes properties specific to items, such as type and server
-reference, and provides methods for item initialization.
-Key features:
-1. Specific properties for items (type, server reference)
-2. Initialization logic for item instances
-3. Integration with the server for item management
-This class serves as the base for all item types, ensuring that items are properly initialized
-and managed within the game.
 ***************************************************************************************************/
 class Item extends BaseItem {
   constructor({ id, name, description, aliases, type, price = 0, server }) {
@@ -3855,14 +3329,6 @@ class Item extends BaseItem {
 }
 /**************************************************************************************************
 Consumable Item Class
-The ConsumableItem class is a concrete implementation of the Item class, representing items
-that can be consumed by players. It includes methods for using consumable items and managing
-their effects.
-Key features:
-1. Specific properties and behavior for consumable items
-2. Logic for item usage and effect management
-This class provides functionality for consumable items, ensuring that they can be used
-effectively within the game.
 ***************************************************************************************************/
 class ConsumableItem extends Item {
   constructor({ id, name, description, aliases, server }) {
@@ -3876,14 +3342,6 @@ class ConsumableItem extends Item {
 }
 /**************************************************************************************************
 Container Item Class
-The ContainerItem class is a concrete implementation of the Item class, representing items
-that can hold other items. It includes functionality for managing the inventory of contained
-items.
-Key features:
-1. Specific properties and behavior for container items
-2. Inventory management for contained items
-This class provides functionality for container items, ensuring that they can hold and manage
-other items effectively within the game.
 ***************************************************************************************************/
 class ContainerItem extends Item {
   constructor({ id, name, description, aliases, server }) {
@@ -3893,14 +3351,6 @@ class ContainerItem extends Item {
 }
 /**************************************************************************************************
 Weapon Item Class
-The WeaponItem class is a concrete implementation of the Item class, representing weapons
-that can be used by characters in the game. It includes properties specific to weapons,
-such as damage, and provides methods for weapon actions and interactions.
-Key features:
-1. Specific properties for weapon items (damage)
-2. Methods for weapon actions (attack, defense)
-3. Integration with game systems for weapon management
-This class serves as the base for all weapon types, ensuring that weapons are properly
 ***************************************************************************************************/
 class WeaponItem extends Item {
   constructor({ id, name, description, aliases, damage, server }) {
@@ -3910,13 +3360,6 @@ class WeaponItem extends Item {
 }
 /**************************************************************************************************
 Item Manager Class
-The ItemManager class is responsible for managing items within the game. It includes functionality
-for checking for duplicate IDs, assigning UIDs to items, and retrieving items by UID.
-Key features:
-1. Duplicate ID checking
-2. UID assignment to items
-3. Item retrieval by UID
-This class ensures that items are properly managed and identified within the game.
 ***************************************************************************************************/
 class ItemManager {
   static instance;
@@ -4028,15 +3471,6 @@ class ItemManager {
 }
 /**************************************************************************************************
 Inventory Manager Class
-The InventoryManager class is responsible for managing a player's inventory within the game.
-It includes methods for adding, removing, and interacting with items in the inventory.
-Key features:
-1. Inventory management for player items
-2. Logic for adding and removing items
-3. Interaction with game items and containers
-This class ensures that players can effectively manage their inventory, enhancing the gameplay
-experience through item interactions.
-@ todo: explain how loot should work.
 ***************************************************************************************************/
 class InventoryManager {
   static instance;
@@ -4168,13 +3602,6 @@ class InventoryManager {
 }
 /**************************************************************************************************
 Currency Class
-The Currency class is responsible for managing the player's currency.
-It provides methods to add, subtract, and get the current amount of currency.
-Key features:
-1. Currency management
-2. Addition and subtraction of currency
-3. Getter for the current amount of currency
-This class is essential for handling the player's financial transactions within the game.
 ***************************************************************************************************/
 class Currency {
   constructor(initialAmount = 0) {
@@ -4196,15 +3623,6 @@ class Currency {
 }
 /**************************************************************************************************
 Transaction Manager Class
-The TransactionManager class is responsible for managing transactions in the game.
-It provides methods to create transactions, execute buy and sell transactions, and handle trade
-sessions.
-Key features:
-1. Transaction management
-2. Buy and sell transactions
-3. Trade session management
-This class is essential for ensuring that transactions are atomic and that trades are handled
-correctly.
 ***************************************************************************************************/
 class TransactionManager {
   constructor(server) {
@@ -4349,15 +3767,6 @@ class TransactionManager {
 }
 /**************************************************************************************************
 Trade Session Class
-The TradeSession class is responsible for managing trade sessions between players.
-It provides methods to add items to the trade, remove items from the trade, set gold amounts,
-and confirm the trade. It also handles the rollback of transactions if the trade is declined.
-Key features:
-1. Trade session management
-2. Item addition and removal
-3. Gold setting and confirmation
-4. Trade acceptance and decline
-This class is essential for managing trades between players.
 ***************************************************************************************************/
 class TradeSession {
   constructor(server, player1, player2) {
@@ -4477,15 +3886,6 @@ class TradeSession {
 }
 /**************************************************************************************************
 Atomic Transaction Class
-The AtomicTransaction class is responsible for managing atomic transactions in the game.
-It provides methods to add operations to the transaction, commit the transaction, and rollback
-if an error occurs during the commit.
-Key features:
-1. Atomic transaction management
-2. Operation addition
-3. Commit and rollback functionality
-This class is essential for ensuring that transactions are atomic and that trades are handled
-correctly.
 ***************************************************************************************************/
 class AtomicTransaction {
   constructor(server) {
@@ -4555,13 +3955,6 @@ class AtomicTransaction {
 }
 /**************************************************************************************************
 Format Message Manager Class
-The FormatMessageManager class is responsible for formatting messages for different types of game
-events.It provides methods for creating message data with appropriate CSS identifiers and content.
-Key features:
-1. Message formatting for different types of game events
-2. Integration with the socket for real-time communication
-3. Templated messages for common game events
-The FormatMessageManager is essential for ensuring that messages are displayed correctly
 ***************************************************************************************************/
 class FormatMessageManager {
   static messageIds = {
@@ -4651,19 +4044,7 @@ class FormatMessageManager {
 }
 /**************************************************************************************************
 Message Manager Class
-The MessageManager class is responsible for handling message-related operations.
-It provides methods for sending messages to players, notifying players of various events,
-and formatting messages for different types of game events. This class uses the Singleton pattern
-to ensure a single instance is used throughout the application.
-Key features:
-1. Singleton instance management
-2. Socket integration for message sending
-3. Player and location-based notifications
-4. Templated messages for common game events
-5. Error handling and logging
-The class works closely with the FormatMessageManager to ensure consistent message formatting
-and styling across the game. It also interacts with the server's logger for error tracking and
-debugging purposes.***************************************************************************************************/
+***************************************************************************************************/
 class MessageManager {
   static instance;
   static logger;
@@ -4719,13 +4100,11 @@ class MessageManager {
       }
     };
   }
-
   static notifyLoginSuccess = this.createNotificationMethod('LoginSuccess');
   static notifyIncorrectPassword = this.createNotificationMethod('IncorrectPassword');
   static notifyDisconnectionDueToFailedAttempts = this.createNotificationMethod('DisconnectionDueToFailedAttempts');
   static notifyPickupItem = this.createNotificationMethod('PickupItem');
   static notifyDropItem = this.createNotificationMethod('DropItem');
-
   static createTemplateMethod(templateFunction) {
     return (args) => {
       try {
@@ -4735,27 +4114,21 @@ class MessageManager {
       }
     };
   }
-
   static getLoginSuccessTemplate = this.createTemplateMethod(
     ({ player }) => `${player.getName()} has logged in!`
   );
-
   static getIncorrectPasswordTemplate = this.createTemplateMethod(
     () => `Incorrect password. Please try again.`
   );
-
   static getDisconnectionDueToFailedAttemptsTemplate = this.createTemplateMethod(
     ({ player }) => `${player.getName()} has been disconnected due to too many failed login attempts.`
   );
-
   static getPickupItemTemplate = this.createTemplateMethod(
     ({ player, itemName }) => `${player.getName()} picks up ${itemName}.`
   );
-
   static getDropItemTemplate = this.createTemplateMethod(
     ({ player, itemName }) => `${player.getName()} drops ${itemName}.`
   );
-
   // Notify a player when they pick up an item
   static async notifyPickupItem({ player, itemName }) {
     try {
