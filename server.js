@@ -476,11 +476,11 @@ class Server {
   processTasks() {
     this.queueManager.processQueue();
   }
-  addTask(task) {
+  async addTask(task) {
     if (!(task instanceof TaskManager)) {
       throw new TypeError('Task must be an instance of TaskManager');
     }
-    this.queueManager.enqueue(task);
+    await this.queueManager.enqueue(task);
   }
   setupReplicationFilters() {
     // Filter for items
@@ -1959,7 +1959,7 @@ class GameManager extends IGameManager {
       this.SocketEventEmitter.emit("newDay");
     }
   }
-  moveEntity(entity, newLocationId) {
+  async moveEntity(entity, newLocationId) {
     if (!(entity instanceof Player) && !(entity instanceof Npc)) {
       throw new TypeError('Entity must be an instance of Player or Npc');
     }
@@ -1968,8 +1968,8 @@ class GameManager extends IGameManager {
     }
     try {
       const oldLocationId = entity.currentLocation;
-      const oldLocation = this.getLocation(oldLocationId);
-      const newLocation = this.getLocation(newLocationId);
+      const oldLocation = await this.getLocation(oldLocationId);
+      const newLocation = await this.getLocation(newLocationId);
       if (!oldLocation || !newLocation) {
         throw new Error(`Invalid location for entity movement: oldLocation=${oldLocationId}, newLocation=${newLocationId}`);
       }
@@ -1999,7 +1999,7 @@ class GameManager extends IGameManager {
       // If the entity is a player, send them the new location description
       if (entity instanceof Player) {
         const describeLocationManager = new DescribeLocationManager({ player: entity, server: this.server });
-        describeLocationManager.describe();
+        await describeLocationManager.describe();
       }
       return true;
     } catch (error) {
@@ -2154,11 +2154,11 @@ class GameManager extends IGameManager {
     }
     return this.npcs.get(npcId);
   }
-  getLocation(locationId) {
+  async getLocation(locationId) {
     if (typeof locationId !== 'string') {
       throw new TypeError('Location ID must be a string');
     }
-    const location = this.locations.get(locationId);
+    const location = await this.locations.get(locationId);
     if (!location) {
       this.logger.error(`Location not found - ID : ${locationId}`, { error: new Error(`Location not found - ID : ${locationId}`) });
       return null;
@@ -2168,11 +2168,11 @@ class GameManager extends IGameManager {
     }
     return location;
   }
-  handlePlayerAction(action) {
+  async handlePlayerAction(action) {
     if (!(action instanceof TaskManager)) {
       throw new TypeError('Action must be an instance of TaskManager');
     }
-    this.server.addTask(action);
+    await this.server.addTask(action);
   }
   cleanup() {
     this.npcs.clear();
@@ -2500,11 +2500,11 @@ class Player extends Character {
   getInventoryCapacity() {
     return this.configManager.get('INVENTORY_CAPACITY');
   }
-  authenticate(password) {
+  async authenticate(password) {
     if (typeof password !== 'string') {
       throw new TypeError('Password must be a string');
     }
-    const isPasswordValid = this.bcrypt.compare(password, this.password);
+    const isPasswordValid = await this.bcrypt.compare(password, this.password);
     if (isPasswordValid) {
       this.resetFailedLoginAttempts();
       return true;
@@ -2612,17 +2612,17 @@ class Player extends Character {
     }
     return new CreateNewPlayer({ name, age });
   }
-  moveToLocation(direction) {
+  async moveToLocation(direction) {
     if (typeof direction !== 'string') {
       throw new TypeError('Direction must be a string');
     }
-    this.gameCommandManager.executeCommand(this, 'move', [direction]);
+    await this.gameCommandManager.executeCommand(this, 'move', [direction]);
   }
-  attack(target) {
+  async attack(target) {
     if (!(target instanceof Character)) {
       throw new TypeError('Target must be a Character instance');
     }
-    this.gameCommandManager.executeCommand(this, 'attack', [target]);
+    await this.gameCommandManager.executeCommand(this, 'attack', [target]);
   }
   receiveDamage(damage) {
     if (typeof damage !== 'number' || isNaN(damage)) {
@@ -2638,8 +2638,8 @@ class Player extends Character {
     this.server.gameManager.endCombat(this);
     this.server.messageManager.notifyPlayerDeath(this);
   }
-  showInventory() {
-    this.gameCommandManager.executeCommand(this, 'showInventory');
+  async showInventory() {
+    await this.gameCommandManager.executeCommand(this, 'showInventory');
   }
   lootSpecifiedNpc(target) {
     if (typeof target !== 'string') {
@@ -2671,8 +2671,8 @@ class Player extends Character {
     }
     this.gameCommandManager.executeCommand(this, 'lookIn', [containerName]);
   }
-  describeCurrentLocation() {
-    this.describeLocationManager.describe();
+  async describeCurrentLocation() {
+    await this.describeLocationManager.describe();
   }
   LookAtCommandHandler(target) {
     if (typeof target !== 'string') {
@@ -3082,7 +3082,7 @@ class GameCommandManager {
       confirmTrade: this.handleConfirmTrade.bind(this),
     };
   }
-  executeCommand(player, command, args = []) {
+  async executeCommand(player, command, args = []) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -3095,126 +3095,126 @@ class GameCommandManager {
     const handler = this.commandHandlers[command];
     if (handler) {
       try {
-        handler(player, ...args);
+        await handler(player, ...args);
       } catch (error) {
         this.logger.error(`Error executing command ${command}: ${error.message}`, { error });
-        this.server.messageManager.sendMessage(player, `Error executing command: ${command}`, 'error');
+        await this.server.messageManager.sendMessage(player, `Error executing command: ${command}`, 'error');
       }
     } else {
-      this.logger.error(`Unknown command: ${command}`, { error: new Error(`Unknown command: ${command}`) });
-      this.server.messageManager.sendMessage(player, `Unknown command: ${command}`, 'error');
+      this.logger.error(`Unknown command: ${command}`);
+      await this.server.messageManager.sendMessage(player, `Unknown command: ${command}`, 'error');
     }
   }
-  handleMove(player, direction) {
+  async handleMove(player, direction) {
     if (typeof direction !== 'string') {
       throw new TypeError('Direction must be a string');
     }
     const validDirections = ['n', 'e', 'w', 's', 'u', 'd'];
     if (!validDirections.includes(direction)) {
-      this.server.messageManager.sendMessage(player, `Invalid direction: ${direction}`, 'error');
+      await this.server.messageManager.sendMessage(player, `Invalid direction: ${direction}`, 'error');
       return;
     }
-    this.server.gameManager.moveEntity(player, direction);
+    await this.server.gameManager.moveEntity(player, direction);
   }
-  handleAttack(player, target) {
+  async handleAttack(player, target) {
     if (!(target instanceof Character)) {
       throw new TypeError('Target must be a Character instance');
     }
-    const npc = this.server.gameManager.getNpc(target);
+    const npc = await this.server.gameManager.getNpc(target);
     if (npc) {
-      player.attack(npc.id);
+      await player.attack(npc.id);
     } else {
-      this.server.messageManager.sendMessage(player, `You don't see ${target} here.`, 'error');
+      await this.server.messageManager.sendMessage(player, `You don't see ${target} here.`, 'error');
     }
   }
-  handleShowInventory(player) {
+  async handleShowInventory(player) {
     const inventoryList = player.getInventoryList();
-    this.server.messageManager.sendMessage(player, `Your inventory: ${inventoryList}`, 'inventory');
+    await this.server.messageManager.sendMessage(player, `Your inventory: ${inventoryList}`, 'inventory');
   }
-  handleLookAt(player, target) {
+  async handleLookAt(player, target) {
     const lookAtHandler = new LookAtCommandHandler({ player });
-    lookAtHandler.execute(target);
+    await lookAtHandler.execute(target);
   }
-  handleDescribeLocation(player) {
-    player.describeCurrentLocation();
+  async handleDescribeLocation(player) {
+    await player.describeCurrentLocation();
   }
-  handleBuy(player, itemName) {
+  async handleBuy(player, itemName) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     if (typeof itemName !== 'string') {
       throw new TypeError('Item name must be a string');
     }
-    const merchant = this.findMerchantInLocation(player.currentLocation);
+    const merchant = await this.findMerchantInLocation(player.currentLocation);
     if (!merchant) {
-      this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
+      await this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
       return;
     }
     const item = merchant.getInventory().find(i => i.name.toLowerCase() === itemName.toLowerCase());
     if (!item) {
-      this.server.messageManager.sendMessage(player, `The merchant doesn't have ${itemName}.`, 'errorMessage');
+      await this.server.messageManager.sendMessage(player, `The merchant doesn't have ${itemName}.`, 'errorMessage');
       return;
     }
     if (merchant.sellItem(item.id, player)) {
-      this.server.messageManager.sendMessage(player, `You bought ${item.name} for ${item.price} coins.`, 'buyMessage');
+      await this.server.messageManager.sendMessage(player, `You bought ${item.name} for ${item.price} coins.`, 'buyMessage');
     } else {
-      this.server.messageManager.sendMessage(player, `You don't have enough money to buy ${item.name}.`, 'errorMessage');
+      await this.server.messageManager.sendMessage(player, `You don't have enough money to buy ${item.name}.`, 'errorMessage');
     }
   }
-  handleSell(player, itemName) {
-    const merchant = this.findMerchantInLocation(player.currentLocation);
+  async handleSell(player, itemName) {
+    const merchant = await this.findMerchantInLocation(player.currentLocation);
     if (!merchant) {
-      this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
+      await this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
       return;
     }
     const item = player.inventory.find(i => i.name.toLowerCase() === itemName.toLowerCase());
     if (!item) {
-      this.server.messageManager.sendMessage(player, `You don't have ${itemName} in your inventory.`, 'errorMessage');
+      await this.server.messageManager.sendMessage(player, `You don't have ${itemName} in your inventory.`, 'errorMessage');
       return;
     }
     if (merchant.buyItem(item, player)) {
       const sellPrice = Math.floor(item.price * 0.5);
-      this.server.messageManager.sendMessage(player, `You sold ${item.name} for ${sellPrice} coins.`, 'sellMessage');
+      await this.server.messageManager.sendMessage(player, `You sold ${item.name} for ${sellPrice} coins.`, 'sellMessage');
     } else {
-      this.server.messageManager.sendMessage(player, `Failed to sell ${item.name}.`, 'errorMessage');
+      await this.server.messageManager.sendMessage(player, `Failed to sell ${item.name}.`, 'errorMessage');
     }
   }
-  handleListMerchantItems(player) {
-    const merchant = this.findMerchantInLocation(player.currentLocation);
+  async handleListMerchantItems(player) {
+    const merchant = await this.findMerchantInLocation(player.currentLocation);
     if (!merchant) {
-      this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
+      await this.server.messageManager.sendMessage(player, "There's no merchant here.", 'errorMessage');
       return;
     }
     const itemList = merchant.getInventory().map(item => `${item.name} - ${item.price} coins`).join('\n');
-    this.server.messageManager.sendMessage(player, `Merchant's inventory:\n${itemList}`, 'merchantInventory');
+    await this.server.messageManager.sendMessage(player, `Merchant's inventory:\n${itemList}`, 'merchantInventory');
   }
-  findMerchantInLocation(locationId) {
-    const location = this.server.gameManager.getLocation(locationId);
+  async findMerchantInLocation(locationId) {
+    const location = await this.server.gameManager.getLocation(locationId);
     if (!location || !location.npcs) return null;
     for (const npcId of location.npcs) {
-      const npc = this.server.gameManager.getNpc(npcId);
+      const npc = await this.server.gameManager.getNpc(npcId);
       if (npc instanceof MerchantNpc) return npc;
     }
     return null;
   }
-  handleInitiateTrade(player, targetPlayerName) {
-    const targetPlayer = this.server.gameManager.getPlayerByName(targetPlayerName);
+  async handleInitiateTrade(player, targetPlayerName) {
+    const targetPlayer = await this.server.gameManager.getPlayerByName(targetPlayerName);
     if (!targetPlayer) {
-      this.server.messageManager.sendMessage(player, `Player ${targetPlayerName} not found.`, 'error');
+      await this.server.messageManager.sendMessage(player, `Player ${targetPlayerName} not found.`, 'error');
       return;
     }
     player.initiateTrade(targetPlayer);
   }
-  handleAddItemToTrade(player, itemName) {
+  async handleAddItemToTrade(player, itemName) {
     player.addItemToTrade(itemName);
   }
-  handleRemoveItemFromTrade(player, itemName) {
+  async handleRemoveItemFromTrade(player, itemName) {
     player.removeItemFromTrade(itemName);
   }
-  handleSetTradeGold(player, amount) {
+  async handleSetTradeGold(player, amount) {
     player.setTradeGold(amount);
   }
-  handleConfirmTrade(player) {
+  async handleConfirmTrade(player) {
     player.confirmTrade();
   }
 }
@@ -3238,17 +3238,17 @@ class LookAtCommandHandler {
     this.player = player;
     this.server = player.server;
   }
-  look(target) {
+  async look(target) {
     if (typeof target !== 'string') {
       throw new TypeError('Target must be a string');
     }
     const { currentLocation } = this.player;
-    const location = this.server.gameManager.getLocation(currentLocation);
+    const location = await this.server.gameManager.getLocation(currentLocation);
     if (!location) return;
     const targetLower = target.toLowerCase();
     const playerNameLower = this.player.getName().toLowerCase();
     if (this.isSelfLook(targetLower, playerNameLower)) {
-      this.lookAtSelfCommandHandler();
+      await this.lookAtSelfCommandHandler();
       return;
     }
     const lookTargets = [
@@ -3260,27 +3260,27 @@ class LookAtCommandHandler {
     for (const { check, notify } of lookTargets) {
       const result = check();
       if (result) {
-        notify(this.player, result);
+        await notify(this.player, result);
         return;
       }
     }
-    this.server.messageManager.notifyTargetNotFoundInLocation(this.player, target);
+    await this.server.messageManager.notifyTargetNotFoundInLocation(this.player, target);
   }
   isSelfLook(targetLower, playerNameLower) {
     return targetLower === 'self' || targetLower === playerNameLower || playerNameLower.startsWith(targetLower);
   }
-  findNpc(location, targetLower) {
+  async findNpc(location, targetLower) {
     const npcId = location.npcs.find(id => {
       const npc = this.server.gameManager.getNpc(id);
       return npc && npc.aliases.includes(targetLower);
     });
-    return npcId ? this.server.gameManager.getNpc(npcId) : null;
+    return npcId ? await this.server.gameManager.getNpc(npcId) : null;
   }
-  lookAtSelfCommandHandler() {
-    this.server.messageManager.notifyLookAtSelfCommandHandler(this.player);
+  async lookAtSelfCommandHandler() {
+    await this.server.messageManager.notifyLookAtSelfCommandHandler(this.player);
   }
-  execute(player, target) {
-    this.look(target);
+  async execute(player, target) {
+    await this.look(target);
   }
 }
 /**************************************************************************************************
@@ -3357,7 +3357,7 @@ class CombatManager {
     ]);
     this.combatParticipants = new Map();
   }
-  initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
+  async initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
     if (typeof npcId !== 'string') {
       throw new TypeError('NPC ID must be a string');
     }
@@ -3369,20 +3369,20 @@ class CombatManager {
     }
     try {
       this.logger.debug(`- Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}`);
-      const npc = this.gameManager.getNpc(npcId);
+      const npc = await this.gameManager.getNpc(npcId);
       if (!npc) {
         throw new Error(`Npc with ID ${npcId} not found`);
       }
-      this.startCombat({ npc, player, playerInitiated });
+      await this.startCombat({ npc, player, playerInitiated });
       this.addCombatParticipant(npc, player);
     } catch (error) {
       this.logger.error(`Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}:`, { error });
     }
   }
-  endCombatForPlayer({ player }) {
-    this.endCombat(player);
+  async endCombatForPlayer({ player }) {
+    await this.endCombat(player);
   }
-  startCombat({ npc, player, playerInitiated }) {
+  async startCombat({ npc, player, playerInitiated }) {
     try {
       this.logger.debug(`- Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npc.getName()}`);
       if (this.combatOrder.has(npc.id)) {
@@ -3391,98 +3391,98 @@ class CombatManager {
       }
       this.combatOrder.set(npc.id, { state: 'engaged' });
       player.status !== "in combat"
-        ? this.initiateCombat({ player, npc, playerInitiated })
-        : this.notifyCombatJoin({ npc, player });
+        ? await this.initiateCombat({ player, npc, playerInitiated })
+        : await this.notifyCombatJoin({ npc, player });
       npc.status = "engaged in combat";
     } catch (error) {
       this.logger.error(`Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npc.getName()}:`, { error });
     }
   }
-  initiateCombat({ player, npc, playerInitiated }) {
+  async initiateCombat({ player, npc, playerInitiated }) {
     player.status = "in combat";
     const message = playerInitiated
       ? MessageManager.getCombatInitiationTemplate(player.getName(), npc.getName())
       : MessageManager.getCombatInitiationTemplate(npc.getName(), player.getName());
-    this.notifyPlayersInLocation(player.currentLocation, message);
+    await this.notifyPlayersInLocation(player.currentLocation, message);
     if (!playerInitiated) {
       player.lastAttacker = npc.id;
       this.combatInitiatedNpcs.add(npc.id);
     }
-    this.startCombatLoop(player);
+    await this.startCombatLoop(player);
   }
-  notifyCombatJoin({ npc, player }) {
-    this.notifyPlayersInLocation(player.currentLocation,
+  async notifyCombatJoin({ npc, player }) {
+    await this.notifyPlayersInLocation(player.currentLocation,
       MessageManager.getCombatJoinTemplate(npc.getName())
     );
     this.combatInitiatedNpcs.add(npc.id);
   }
-  startCombatLoop(player) {
+  async startCombatLoop(player) {
     if (player.status === "in combat" && !player.combatInterval) {
-      player.combatInterval = setInterval(() => {
+      player.combatInterval = setInterval(async () => {
         if (player.status !== "in combat") {
-          this.endCombat(player);
+          await this.endCombat(player);
           return;
         }
-        const npc = this.getNextNpcInCombatOrder();
+        const npc = await this.getNextNpcInCombatOrder();
         if (npc) {
           const action = this.objectPool.acquire();
           action.perform({ attacker: player, defender: npc });
           this.objectPool.release(action);
-          this.notifyHealthStatus(player, npc);
-          const result = this.performCombatAction(player, npc, true);
-          MessageManager.notifyCombatResult(player, result);
+          await this.notifyHealthStatus(player, npc);
+          const result = await this.performCombatAction(player, npc, true);
+          await MessageManager.notifyCombatResult(player, result);
           if (npc.health <= 0) {
-            this.handleNpcDefeat(npc, player);
+            await this.handleNpcDefeat(npc, player);
           }
         }
         if (player.health <= 0) {
-          this.handlePlayerDefeat(npc, player);
+          await this.handlePlayerDefeat(npc, player);
         }
       }, this.config.COMBAT_INTERVAL);
     }
   }
-  handlePlayerDefeat(npc, player) {
+  async handlePlayerDefeat(npc, player) {
     player.status = "lying unconscious";
-    this.endCombat(player);
+    await this.endCombat(player);
     this.logger.info(`${player.getName()} has been defeated by ${npc.getName()}.`, { playerId: player.getId(), npcId: npc.id });
   }
-  handleNpcDefeat(npc, player) {
+  async handleNpcDefeat(npc, player) {
     npc.status = player.killer ? "lying dead" : "lying unconscious";
     player.status = "standing";
-    this.distributeExperience(npc, player);
-    const messages = this.generateDefeatMessages(player, npc);
-    this.notifyPlayersInLocation(this.gameManager.getLocation(player.currentLocation), messages);
+    await this.distributeExperience(npc, player);
+    const messages = await this.generateDefeatMessages(player, npc);
+    await this.notifyPlayersInLocation(await this.gameManager.getLocation(player.currentLocation), messages);
     this.combatParticipants.delete(npc.id);
   }
-  distributeExperience(defeatedNpc, mainPlayer) {
-    const participants = this.getCombatParticipants(defeatedNpc.id);
+  async distributeExperience(defeatedNpc, mainPlayer) {
+    const participants = await this.getCombatParticipants(defeatedNpc.id);
     if (participants.length === 0) {
-      this.awardExperience(mainPlayer, defeatedNpc.experienceReward);
+      await this.awardExperience(mainPlayer, defeatedNpc.experienceReward);
       return;
     }
     const experiencePerParticipant = Math.floor(defeatedNpc.experienceReward / participants.length);
     for (const participantId of participants) {
-      const player = this.gameManager.getPlayer(participantId);
+      const player = await this.gameManager.getPlayer(participantId);
       if (player) {
-        this.awardExperience(player, experiencePerParticipant);
+        await this.awardExperience(player, experiencePerParticipant);
       }
     }
     const remainingXP = defeatedNpc.experienceReward - (experiencePerParticipant * participants.length);
     if (remainingXP > 0) {
-      this.awardExperience(mainPlayer, remainingXP);
+      await this.awardExperience(mainPlayer, remainingXP);
     }
   }
-  awardExperience(player, amount) {
+  async awardExperience(player, amount) {
     player.addExperience(amount);
-    this.server.messageManager.notifyExperienceGain(player, amount);
-    const levelUpMessage = this.gameManager.checkLevelUp(player);
+    await this.server.messageManager.notifyExperienceGain(player, amount);
+    const levelUpMessage = await this.gameManager.checkLevelUp(player);
     if (levelUpMessage) {
-      this.server.messageManager.sendMessage(player, levelUpMessage, 'levelUp');
+      await this.server.messageManager.sendMessage(player, levelUpMessage, 'levelUp');
     }
   }
-  generateDefeatMessages(player, npc) {
+  async generateDefeatMessages(player, npc) {
     const messages = [MessageManager.getVictoryTemplate(player.getName(), npc.getName())];
-    const levelUpMessage = this.gameManager.checkLevelUp(player);
+    const levelUpMessage = await this.gameManager.checkLevelUp(player);
     if (levelUpMessage) {
       messages.push(levelUpMessage);
       this.logger.info(`${player.getName()} leveled up after defeating ${npc.getName()}.`, {
@@ -3494,7 +3494,7 @@ class CombatManager {
     if (player.autoLoot) {
       const loot = npc.getLoot();
       if (loot.length > 0) {
-        const lootMessage = this.gameManager.handleLoot(player, loot);
+        const lootMessage = await this.gameManager.handleLoot(player, loot);
         if (lootMessage) {
           messages.push(lootMessage);
           this.logger.info(`${player.getName()} looted ${npc.getName()}.`, {
@@ -3509,7 +3509,7 @@ class CombatManager {
     this.defeatedNpcs.add(npc.id);
     return messages.join("<br>");
   }
-  endCombat(player) {
+  async endCombat(player) {
     if (player.combatInterval) {
       clearInterval(player.combatInterval);
       player.combatInterval = null;
@@ -3518,28 +3518,28 @@ class CombatManager {
     this.defeatedNpcs.clear();
     this.combatInitiatedNpcs.clear();
     player.status = "standing";
-    this.gameManager.fullStateSync(player);
-    this.checkAggressiveNpcs(player);
+    await this.gameManager.fullStateSync(player);
+    await this.checkAggressiveNpcs(player);
     for (const [npcId, participants] of this.combatParticipants.entries()) {
       if (participants.has(player.getId())) {
-        this.removeCombatParticipant(this.gameManager.getNpc(npcId), player);
+        await this.removeCombatParticipant(await this.gameManager.getNpc(npcId), player);
       }
     }
   }
-  checkForAggressiveNpcs(player) {
+  async checkForAggressiveNpcs(player) {
     if (player.health > 0) {
-      const location = this.gameManager.getLocation(player.currentLocation);
+      const location = await this.gameManager.getLocation(player.currentLocation);
       if (location && location.npcs) {
         for (const npcId of location.npcs) {
-          const npc = this.gameManager.getNpc(npcId);
-          if (this.isAggressiveNpc(npc, player)) {
-            this.startCombat({ npcId, player, playerInitiated: false });
+          const npc = await this.gameManager.getNpc(npcId);
+          if (await this.isAggressiveNpc(npc, player)) {
+            await this.startCombat({ npcId, player, playerInitiated: false });
           }
         }
       }
     }
   }
-  isAggressiveNpc(npc, player) {
+  async isAggressiveNpc(npc, player) {
     if (!(npc instanceof Npc)) {
       throw new TypeError('NPC must be an instance of Npc');
     }
@@ -3552,7 +3552,7 @@ class CombatManager {
       player.status !== "lying unconscious" &&
       !this.defeatedNpcs.has(npc.id);
   }
-  performCombatAction(attacker, defender, isPlayer) {
+  async performCombatAction(attacker, defender, isPlayer) {
     if (!(attacker instanceof Character)) {
       throw new TypeError('Attacker must be an instance of Character');
     }
@@ -3565,17 +3565,18 @@ class CombatManager {
     const combatAction = this.objectPool.acquire();
     combatAction.initialize(attacker, defender);
     try {
-      const outcome = combatAction.execute();
-      this.processCombatOutcome(outcome, attacker, defender);
-      return this.getCombatDescription(outcome, attacker, defender, combatAction.technique);
+      const outcome = await combatAction.execute();
+      await this.processCombatOutcome(outcome, attacker, defender);
+      const result = await this.getCombatDescription(outcome, attacker, defender, combatAction.technique);
+      if (isPlayer && !(await this.isPlayerInCombatWithNpc(attacker.getId(), defender.getId()))) {
+        this.addCombatParticipant(defender, attacker);
+      }
+      return result;
     } finally {
       this.objectPool.release(combatAction);
     }
-    if (isPlayer && !this.isPlayerInCombatWithNpc(attacker.getId(), defender.getId())) {
-      this.addCombatParticipant(defender, attacker);
-    }
   }
-  processCombatOutcome(outcome, attacker, defender) {
+  async processCombatOutcome(outcome, attacker, defender) {
     if (typeof outcome !== 'string') {
       throw new TypeError('Outcome must be a string');
     }
@@ -3594,7 +3595,7 @@ class CombatManager {
       defender.health -= damage - resistDamage;
     }
   }
-  getCombatDescription(outcome, attacker, defender, technique) {
+  async getCombatDescription(outcome, attacker, defender, technique) {
     if (typeof outcome !== 'string') {
       throw new TypeError('Outcome must be a string');
     }
@@ -3611,47 +3612,51 @@ class CombatManager {
       (({ attacker, defender, technique }) => `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`);
     return FormatMessageManager.createMessageData(descriptionFunc({ attacker, defender, technique }));
   }
-  attackNpc({ player, target1 }) {
+  async attackNpc({ player, target1 }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     if (target1 && typeof target1 !== 'string') {
       throw new TypeError('Target1 must be a string');
     }
-    const location = player.server.gameManager.getLocation(player.currentLocation);
+
+    const location = await player.server.gameManager.getLocation(player.currentLocation);
     if (!location) return;
-    const npcId = target1 ? this.getNpcIdFromLocation(target1, location.npcs) : this.getAvailableNpcId(location.npcs);
+
+    const npcId = target1 ? await this.getNpcIdFromLocation(target1, location.npcs) : await this.getAvailableNpcId(location.npcs);
     if (!npcId) {
       if (target1) {
-        player.server.messageManager.sendMessage(player,
+        await player.server.messageManager.sendMessage(player,
           MessageManager.getTargetNotFoundTemplate(player.getName(), target1),
           'errorMessage'
         );
       } else {
-        player.server.messageManager.sendMessage(player,
+        await player.server.messageManager.sendMessage(player,
           MessageManager.getNoConsciousEnemiesTemplate(player.getName()),
           'errorMessage'
         );
       }
       return;
     }
-    const npc = player.server.gameManager.getNpc(npcId);
+
+    const npc = await player.server.gameManager.getNpc(npcId);
     if (!npc) return;
+
     if (npc.isUnconsciousOrDead()) {
-      player.server.messageManager.sendMessage(player,
+      await player.server.messageManager.sendMessage(player,
         MessageManager.getNpcAlreadyInStatusTemplate(npc.getName(), npc.status),
         'errorMessage'
       );
     } else {
-      this.startCombat({ npcId, player, playerInitiated: true });
+      await this.startCombat({ npcId, player, playerInitiated: true });
     }
   }
-  getAvailableNpcId(npcs) {
+  async getAvailableNpcId(npcs) {
     if (!Array.isArray(npcs)) {
       throw new TypeError('NPCs must be an array');
     }
     for (const id of npcs) {
-      const npc = this.gameManager.getNpc(id);
+      const npc = await this.gameManager.getNpc(id);
       if (npc && !npc.isUnconsciousOrDead()) {
         return id;
       }
@@ -3661,36 +3666,40 @@ class CombatManager {
   getCombatOrder() {
     return this.combatOrder;
   }
-  getNextNpcInCombatOrder() {
+  async getNextNpcInCombatOrder() {
     return this.combatOrder.keys().next().value;
   }
-  notifyPlayersInLocation(locationId, content) {
+  async notifyPlayersInLocation(locationId, content) {
     if (typeof locationId !== 'string') {
       throw new TypeError('Location ID must be a string');
     }
     if (typeof content !== 'string') {
       throw new TypeError('Content must be a string');
     }
-    MessageManager.notifyPlayersInLocation(this.gameManager.getLocation(locationId), content);
+    const location = await this.gameManager.getLocation(locationId);
+    await MessageManager.notifyPlayersInLocation(location, content);
   }
-  notifyHealthStatus(player, npc) {
+  async notifyHealthStatus(player, npc) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     if (!(npc instanceof Npc)) {
       throw new TypeError('NPC must be an instance of Npc');
     }
-    const playerHealthPercentage = this.calculateHealthPercentage(player.health, player.maxHealth);
-    const npcHealthPercentage = this.calculateHealthPercentage(npc.health, npc.maxHealth);
+
+    const playerHealthPercentage = await this.calculateHealthPercentage(player.health, player.maxHealth);
+    const npcHealthPercentage = await this.calculateHealthPercentage(npc.health, npc.maxHealth);
+
     const healthMessage = MessageManager.getCombatHealthStatusTemplate(
       player.getName(),
       playerHealthPercentage,
       npc.getName(),
       npcHealthPercentage
     );
-    this.server.messageManager.notifyPlayersInLocation(player.currentLocation, healthMessage, 'combatMessageHealth');
+
+    await this.server.messageManager.notifyPlayersInLocation(player.currentLocation, healthMessage, 'combatMessageHealth');
   }
-  calculateHealthPercentage(currentHealth, maxHealth) {
+  async calculateHealthPercentage(currentHealth, maxHealth) {
     if (typeof currentHealth !== 'number' || isNaN(currentHealth)) {
       throw new TypeError('Current health must be a number');
     }
@@ -3699,7 +3708,7 @@ class CombatManager {
     }
     return (currentHealth / maxHealth) * 100;
   }
-  calculateAttackValue(attacker, defender, roll) {
+  async calculateAttackValue(attacker, defender, roll) {
     if (!(attacker instanceof Character)) {
       throw new TypeError('Attacker must be an instance of Character');
     }
@@ -3717,7 +3726,7 @@ class CombatManager {
       return (roll + attacker.csml) + (attacker.level - defender.level);
     }
   }
-  calculateAttackOutcome(attacker, defender) {
+  async calculateAttackOutcome(attacker, defender) {
     if (!(attacker instanceof Character)) {
       throw new TypeError('Attacker must be an instance of Character');
     }
@@ -3725,7 +3734,7 @@ class CombatManager {
       throw new TypeError('Defender must be an instance of Character');
     }
     const roll = Math.floor(Math.random() * 20) + 1;
-    let value = this.calculateAttackValue(attacker, defender, roll);
+    let value = await this.calculateAttackValue(attacker, defender, roll);
     if (value >= 21 || value === 19) return "critical success";
     if (value === 20) return "knockout";
     if (value >= 13) return "attack hits";
@@ -3753,7 +3762,7 @@ class CombatManager {
     }
     this.combatParticipants.get(npc.id).add(player.getId());
   }
-  removeCombatParticipant(npc, player) {
+  async removeCombatParticipant(npc, player) {
     if (!(npc instanceof Npc)) {
       throw new TypeError('NPC must be an instance of Npc');
     }
@@ -3767,13 +3776,13 @@ class CombatManager {
       }
     }
   }
-  getCombatParticipants(npcId) {
+  async getCombatParticipants(npcId) {
     if (typeof npcId !== 'string') {
       throw new TypeError('NPC ID must be a string');
     }
     return [...(this.combatParticipants.get(npcId) || [])];
   }
-  isPlayerInCombatWithNpc(playerId, npcId) {
+  async isPlayerInCombatWithNpc(playerId, npcId) {
     if (typeof playerId !== 'string') {
       throw new TypeError('Player ID must be a string');
     }
@@ -3812,16 +3821,16 @@ class CombatAction {
     this.technique = this.selectTechnique();
     this.outcome = null;
   }
-  execute() {
+  async execute() {
     const roll = Math.floor(Math.random() * 20) + 1;
-    let value = this.calculateAttackValue(roll);
-    this.outcome = this.determineOutcome(value);
+    let value = await this.calculateAttackValue(roll);
+    this.outcome = await this.determineOutcome(value);
     return this.outcome;
   }
   selectTechnique() {
     return CombatManager.getRandomElement(CombatManager.TECHNIQUES);
   }
-  calculateAttackValue(roll) {
+  async calculateAttackValue(roll) {
     if (typeof roll !== 'number' || isNaN(roll)) {
       throw new TypeError('Roll must be a number');
     }
@@ -3833,7 +3842,7 @@ class CombatAction {
       return (roll + this.attacker.csml) + (this.attacker.level - this.defender.level);
     }
   }
-  determineOutcome(value) {
+  async determineOutcome(value) {
     if (typeof value !== 'number' || isNaN(value)) {
       throw new TypeError('Value must be a number');
     }
@@ -4086,23 +4095,23 @@ class DescribeLocationManager {
     this.logger = server.logger;
     this.description = {};
   }
-  describe() {
+  async describe() {
     try {
-      const location = this.server.gameManager.getLocation(this.player.currentLocation);
+      const location = await this.server.gameManager.getLocation(this.player.currentLocation);
       if (!location) {
-        this.server.messageManager.sendMessage(this.player,
+        await this.server.messageManager.sendMessage(this.player,
           MessageManager.getUnknownLocationTemplate(this.player.getName()),
           'errorMessage'
         );
         return;
       }
-      this.description = this.formatDescription(location);
-      this.server.messageManager.sendMessage(this.player, this.description, 'locationDescription');
+      this.description = await this.formatDescription(location);
+      await this.server.messageManager.sendMessage(this.player, this.description, 'locationDescription');
     } catch (error) {
       this.logger.error(`Describing Location For - Player: ${this.player.getName()}:`, { error });
     }
   }
-  formatDescription(location) {
+  async formatDescription(location) {
     if (!(location instanceof Locations)) {
       throw new TypeError('Location must be an instance of Locations');
     }
@@ -4110,13 +4119,13 @@ class DescribeLocationManager {
       title: { cssid: `location-title`, text: location.getName() },
       desc: { cssid: `location-description`, text: location.getDescription() },
       exits: { cssid: `location-exits`, text: 'Exits:' },
-      exitsList: this.getExitsDescription(location),
-      items: this.getItemsDescription(location),
-      npcs: this.getNpcsDescription(location),
-      players: this.getPlayersDescription(location),
+      exitsList: await this.getExitsDescription(location),
+      items: await this.getItemsDescription(location),
+      npcs: await this.getNpcsDescription(location),
+      players: await this.getPlayersDescription(location),
     };
   }
-  getExitsDescription(location) {
+  async getExitsDescription(location) {
     if (!(location instanceof Locations)) {
       throw new TypeError('Location must be an instance of Locations');
     }
@@ -4125,7 +4134,7 @@ class DescribeLocationManager {
       text: `${direction.padEnd(6, ' ')} - ${linkedLocation.getName()}`,
     }));
   }
-  getItemsDescription(location) {
+  async getItemsDescription(location) {
     if (!(location instanceof Locations)) {
       throw new TypeError('Location must be an instance of Locations');
     }
@@ -4134,16 +4143,16 @@ class DescribeLocationManager {
       text: `A ${item.name} is lying here.`,
     }));
   }
-  getNpcsDescription(location) {
+  async getNpcsDescription(location) {
     if (!(location instanceof Locations)) {
       throw new TypeError('Location must be an instance of Locations');
     }
-    return [...location.npcs].map(npcId => {
-      const npc = this.server.gameManager.getNpc(npcId);
+    return (await Promise.all([...location.npcs].map(async npcId => {
+      const npc = await this.server.gameManager.getNpc(npcId);
       return npc ? { cssid: `npc-${npc.id}`, text: `${npc.getName()} is ${npc.status} here.` } : null;
-    }).filter(npc => npc);
+    }))).filter(npc => npc);
   }
-  getPlayersDescription(location) {
+  async getPlayersDescription(location) {
     if (!(location instanceof Locations)) {
       throw new TypeError('Location must be an instance of Locations');
     }
@@ -4629,7 +4638,7 @@ class NpcMovementManager {
     }
     this.mobileNpcs.delete(npc.id);
   }
-  moveAllMobiles() {
+  async moveAllMobiles() {
     this.logger.debug(``);
     this.logger.debug(`Move Mobiles - Total Mobile Npcs: ${this.mobileNpcs.size}`);
     let movedCount = 0;
@@ -4638,7 +4647,7 @@ class NpcMovementManager {
       this.logger.debug(`- Processing Mobile: ${npcId} - ${npc.name}`);
       if (npc.canMove()) {
         this.logger.debug(`- - Mobile: ${npcId} can move. Current Location: ${npc.currentLocation}`);
-        const moved = this.moveMobile(npc);
+        const moved = await this.moveMobile(npc);
         if (moved) {
           movedCount++;
           this.logger.debug(`- - Mobile: ${npcId} moved to Location: ${npc.currentLocation}`);
@@ -4654,40 +4663,42 @@ class NpcMovementManager {
     this.logger.debug(`Mobiles Moved: ${movedCount}, Mobiles Stayed: ${stayedCount}`);
     this.logger.debug(`Move Mobiles Finished At: ${new Date().toLocaleString()}`);
   }
-  moveMobile(npc) {
+  async moveMobile(npc) {
     if (!(npc instanceof MobileNpc)) {
       throw new TypeError('NPC must be an instance of MobileNpc');
     }
-    const currentLocation = this.gameManager.getLocation(npc.currentLocation);
+    const currentLocation = await this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation) {
       this.logger.error(`Invalid location for Npc: ${npc.id} - Location: ${npc.currentLocation}`);
       return false;
     }
-    const { direction, exitId } = this.chooseRandomExit(npc);
+    const { direction, exitId } = await this.chooseRandomExit(npc);
     if (!direction || !exitId) return false;
-    const newLocation = this.gameManager.getLocation(exitId);
+    const newLocation = await this.gameManager.getLocation(exitId);
     if (!newLocation) {
       this.logger.error(`Invalid exit location for Npc: ${npc.id} - Exit ID: ${exitId}`);
       return false;
     }
-    this.gameManager.moveEntity(npc, exitId);
-    this.notifyNpcMovement(npc, currentLocation, newLocation, direction);
+    await this.gameManager.moveEntity(npc, exitId);
+    await this.notifyNpcMovement(npc, currentLocation, newLocation, direction);
     return true;
   }
-  chooseRandomExit(npc) {
+  async chooseRandomExit(npc) {
     if (!(npc instanceof MobileNpc)) {
       throw new TypeError('NPC must be an instance of MobileNpc');
     }
-    const currentLocation = this.gameManager.getLocation(npc.currentLocation);
+    const currentLocation = await this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation || !currentLocation.exits) return {};
-    const availableExits = Object.entries(currentLocation.exits).filter(([, exitId]) =>
-      this.isExitAllowed(npc, this.gameManager.getLocation(exitId))
-    );
+    const availableExits = await Promise.all(Object.entries(currentLocation.exits).map(async ([direction, exitId]) => {
+      const isAllowed = await this.isExitAllowed(npc, await this.gameManager.getLocation(exitId));
+      return isAllowed ? [direction, exitId] : null;
+    })).then(exits => exits.filter(Boolean));
+
     if (availableExits.length === 0) return {};
     const [chosenDirection, chosenExitId] = availableExits[Math.floor(Math.random() * availableExits.length)];
     return { direction: chosenDirection, exitId: chosenExitId };
   }
-  isExitAllowed(npc, exitLocation) {
+  async isExitAllowed(npc, exitLocation) {
     if (!(npc instanceof MobileNpc)) {
       throw new TypeError('NPC must be an instance of MobileNpc');
     }
@@ -4698,7 +4709,7 @@ class NpcMovementManager {
     }
     return true;
   }
-  notifyNpcMovement(npc, fromLocation, toLocation, direction) {
+  async notifyNpcMovement(npc, fromLocation, toLocation, direction) {
     if (!(npc instanceof MobileNpc)) {
       throw new TypeError('NPC must be an instance of MobileNpc');
     }
@@ -4711,8 +4722,8 @@ class NpcMovementManager {
     if (typeof direction !== 'string') {
       throw new TypeError('Direction must be a string');
     }
-    MessageManager.notifyPlayersInLocation(fromLocation, `${npc.name} leaves ${direction}.`, 'npcMovement');
-    MessageManager.notifyPlayersInLocation(toLocation, `${npc.name} arrives from the ${DirectionManager.getOppositeDirection(direction)}.`, 'npcMovement');
+    await MessageManager.notifyPlayersInLocation(fromLocation, `${npc.name} leaves ${direction}.`, 'npcMovement');
+    await MessageManager.notifyPlayersInLocation(toLocation, `${npc.name} arrives from the ${DirectionManager.getOppositeDirection(direction)}.`, 'npcMovement');
   }
 }
 /**************************************************************************************************
@@ -5258,13 +5269,13 @@ class InventoryManager {
       throw new TypeError('Target must be a string');
     }
     try {
-      const currentLocation = this.player.server.location[this.player.currentLocation];
-      const npcId = this.getNpcIdFromLocation(target, currentLocation.npcs);
+      const currentLocation = await this.player.server.gameManager.getLocation(this.player.currentLocation);
+      const npcId = await this.getNpcIdFromLocation(target, currentLocation.npcs);
       if (!npcId) {
-        this.messageManager.notifyNoNpcToLoot(this.player, target);
+        await this.messageManager.notifyNoNpcToLoot(this.player, target);
         return;
       }
-      const npc = this.player.server.npcs[npcId];
+      const npc = await this.player.server.gameManager.getNpc(npcId);
       if (!npc) {
         throw new Error(`Npc with ID ${npcId} not found`);
       }
@@ -5275,23 +5286,23 @@ class InventoryManager {
             try {
               const item = await this.createItemFromData(itemId);
               if (item) {
-                this.addToInventory(item);
+                await this.addToInventory(item);
               }
             } catch (error) {
               this.player.server.logger.error(`Error creating item ${itemId}: ${error.message}`);
             }
           }
           npc.inventory.clear();
-          this.messageManager.notifyNpcLooted(this.player, npc, Array.from(lootedItems));
+          await this.messageManager.notifyNpcLooted(this.player, npc, Array.from(lootedItems));
         } else {
-          this.messageManager.notifyNpcHasNoLoot(this.player, npc);
+          await this.messageManager.notifyNpcHasNoLoot(this.player, npc);
         }
       } else {
-        this.messageManager.notifyCannotLootNpc(this.player, npc);
+        await this.messageManager.notifyCannotLootNpc(this.player, npc);
       }
     } catch (error) {
       this.player.server.logger.error(`Error in lootNpc: ${error.message}`);
-      this.messageManager.notifyError(this.player, "An error occurred while looting.");
+      await this.messageManager.notifyError(this.player, "An error occurred while looting.");
     }
   }
   lootAllNpcs() {
@@ -5397,19 +5408,19 @@ class InventoryManager {
       if (!item) {
         throw new Error(`Failed to create item with ID ${itemId}`);
       }
-      this.addToInventory(item);
+      await this.addToInventory(item);
       if (sourceType === 'location') {
         source.items.delete(itemId);
       } else if (sourceType === 'container') {
         source.inventory.delete(itemId);
       } else if (sourceType === 'drop') {
-        this.removeFromInventory(item);
+        await this.removeFromInventory(item);
         source.items.add(itemId);
       }
-      this.messageManager.notifyItemTransfer(this.player, item.name, sourceType);
+      await this.messageManager.notifyItemTransfer(this.player, item.name, sourceType);
     } catch (error) {
       this.player.server.logger.error(`Error in transferItem: ${error.message}`);
-      this.messageManager.notifyError(this.player, "An error occurred while transferring item.");
+      await this.messageManager.notifyError(this.player, "An error occurred while transferring item.");
     }
   }
   getItemIdFromLocation(target, items) {
@@ -5620,18 +5631,18 @@ class TransactionManager {
       const transaction = this.createTransaction();
       const { player1, player2, player1Items, player2Items, player1Gold, player2Gold } = tradeSession;
       // Refactored item transfer operations
-      this.addItemTransferOperations(transaction, player1Items, player1, player2);
-      this.addItemTransferOperations(transaction, player2Items, player2, player1);
+      await this.addItemTransferOperations(transaction, player1Items, player1, player2);
+      await this.addItemTransferOperations(transaction, player2Items, player2, player1);
       // Refactored gold transfer operations
-      this.addGoldTransferOperation(transaction, player1, player2, player1Gold);
-      this.addGoldTransferOperation(transaction, player2, player1, player2Gold);
+      await this.addGoldTransferOperation(transaction, player1, player2, player1Gold);
+      await this.addGoldTransferOperation(transaction, player2, player1, player2Gold);
       await transaction.commit();
-      this.server.messageManager.notifyTradeCompleted(player1, player2);
+      await this.server.messageManager.notifyTradeCompleted(player1, player2);
     } catch (error) {
-      this.server.messageManager.notifyTradeError(player1, player2, error.message);
+      await this.server.messageManager.notifyTradeError(tradeSession.player1, tradeSession.player2, error.message);
       throw error;
     } finally {
-      this.endTradeSession(player1.getId());
+      await this.endTradeSession(tradeSession.player1.getId());
     }
   }
   addItemTransferOperations(transaction, items, fromPlayer, toPlayer) {
@@ -5710,78 +5721,78 @@ class TradeSession {
       throw error;
     }
   }
-  acceptTrade(player) {
+  async acceptTrade(player) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     try {
       if (this.accepted) return;
       if (player !== this.player2) {
-        this.server.messageManager.sendMessage(player, "You can't accept this trade.", 'error');
+        await this.server.messageManager.sendMessage(player, "You can't accept this trade.", 'error');
         return;
       }
       this.accepted = true;
-      this.server.messageManager.notifyTradeAccepted(this.player1, this.player2);
+      await this.server.messageManager.notifyTradeAccepted(this.player1, this.player2);
     } catch (error) {
       this.server.logger.error(`Error accepting trade: ${error.message}`, { error });
       throw error;
     }
   }
-  declineTrade(player) {
+  async declineTrade(player) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     try {
-      this.server.messageManager.notifyTradeDeclined(this.player1, this.player2);
-      this.server.transactionManager.endTradeSession(this.player1.getId());
+      await this.server.messageManager.notifyTradeDeclined(this.player1, this.player2);
+      await this.server.transactionManager.endTradeSession(this.player1.getId());
     } catch (error) {
       this.server.logger.error(`Error declining trade: ${error.message}`, { error });
       throw error;
     }
   }
-  addItem(player, item) {
+  async addItem(player, item) {
     if (!(player instanceof Player) || !(item instanceof Item)) {
       throw new TypeError('Invalid arguments for addItem');
     }
     try {
-      if (!this.canModifyTrade(player)) return;
+      if (!await this.canModifyTrade(player)) return;
       const itemList = player === this.player1 ? this.player1Items : this.player2Items;
       itemList.set(item.id, item);
-      this.resetConfirmations();
-      this.server.messageManager.notifyTradeItemAdded(player, item);
+      await this.resetConfirmations();
+      await this.server.messageManager.notifyTradeItemAdded(player, item);
     } catch (error) {
       this.server.logger.error(`Error adding item to trade: ${error.message}`, { error });
       throw error;
     }
   }
-  removeItem(player, itemName) {
+  async removeItem(player, itemName) {
     if (!(player instanceof Player) || typeof itemName !== 'string') {
       throw new TypeError('Invalid arguments for removeItem');
     }
     try {
-      if (!this.canModifyTrade(player)) return;
+      if (!await this.canModifyTrade(player)) return;
       const itemList = player === this.player1 ? this.player1Items : this.player2Items;
       const item = [...itemList.values()].find(i => i.name.toLowerCase() === itemName.toLowerCase());
       if (item) {
         itemList.delete(item.id);
-        this.resetConfirmations();
-        this.server.messageManager.notifyTradeItemRemoved(player, itemName);
+        await this.resetConfirmations();
+        await this.server.messageManager.notifyTradeItemRemoved(player, itemName);
       } else {
-        this.server.messageManager.sendMessage(player, `${itemName} is not in the trade.`, 'error');
+        await this.server.messageManager.sendMessage(player, `${itemName} is not in the trade.`, 'error');
       }
     } catch (error) {
       this.server.logger.error(`Error removing item from trade: ${error.message}`, { error });
       throw error;
     }
   }
-  setGold(player, amount) {
+  async setGold(player, amount) {
     if (!(player instanceof Player) || typeof amount !== 'number' || isNaN(amount)) {
       throw new TypeError('Invalid arguments for setGold');
     }
     try {
-      if (!this.canModifyTrade(player)) return;
+      if (!await this.canModifyTrade(player)) return;
       if (amount < 0 || amount > player.getCurrency()) {
-        this.server.messageManager.sendMessage(player, "Invalid gold amount.", 'error');
+        await this.server.messageManager.sendMessage(player, "Invalid gold amount.", 'error');
         return;
       }
       if (player === this.player1) {
@@ -5789,20 +5800,20 @@ class TradeSession {
       } else {
         this.player2Gold = amount;
       }
-      this.resetConfirmations();
-      this.server.messageManager.notifyTradeGoldSet(player, amount);
+      await this.resetConfirmations();
+      await this.server.messageManager.notifyTradeGoldSet(player, amount);
     } catch (error) {
       this.server.logger.error(`Error setting gold amount: ${error.message}`, { error });
       throw error;
     }
   }
-  confirmTrade(player) {
+  async confirmTrade(player) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     try {
       if (!this.accepted) {
-        this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+        await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
         return;
       }
       if (player === this.player1) {
@@ -5810,9 +5821,9 @@ class TradeSession {
       } else if (player === this.player2) {
         this.player2Confirmed = true;
       }
-      this.server.messageManager.notifyTradeConfirmed(player);
+      await this.server.messageManager.notifyTradeConfirmed(player);
       if (this.player1Confirmed && this.player2Confirmed) {
-        this.completeTrade();
+        await this.completeTrade();
       }
     } catch (error) {
       this.server.logger.error(`Error confirming trade: ${error.message}`, { error });
@@ -5827,7 +5838,7 @@ class TradeSession {
       throw error;
     }
   }
-  resetConfirmations() {
+  async resetConfirmations() {
     try {
       this.player1Confirmed = false;
       this.player2Confirmed = false;
@@ -5836,13 +5847,13 @@ class TradeSession {
       throw error;
     }
   }
-  canModifyTrade(player) {
+  async canModifyTrade(player) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     try {
       if (!this.accepted) {
-        this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+        await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
         return false;
       }
       return true;
@@ -6070,7 +6081,7 @@ class MessageManager {
     }
   }
   // Notify a player with a message
-  static notify(entity, message, type) {
+  static async notify(entity, message, type) {
     try {
       if (!(entity instanceof Player || entity instanceof Npc)) {
         throw new TypeError('Entity must be an instance of Player or Npc');
@@ -6094,7 +6105,7 @@ class MessageManager {
     }
   }
   // Notify all players in a specific location with a message
-  static notifyPlayersInLocation({ location, message, type = '' }) {
+  static async notifyPlayersInLocation({ location, message, type = '' }) {
     try {
       if (!(location instanceof Location)) {
         throw new TypeError('Location must be an instance of Location');
@@ -6107,14 +6118,14 @@ class MessageManager {
       }
       if (!location || !location.playersInLocation) return;
       for (const player of location.playersInLocation) {
-        this.notify(player, message, type);
+        await this.notify(player, message, type);
       }
     } catch (error) {
       this.logger.error('Error notifying players in location:', error);
     }
   }
   // Notify a player about a specific action performed on a target
-  static notifyAction({ player, action, targetName, type }) {
+  static async notifyAction({ player, action, targetName, type }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
@@ -6128,46 +6139,46 @@ class MessageManager {
       if (typeof type !== 'string') {
         throw new TypeError('Type must be a string');
       }
-      return this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
+      return await this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
     } catch (error) {
       this.logger.error('Error notifying action:', error);
     }
   }
   // Notify a player of a successful login
-  static notifyLoginSuccess({ player }) {
+  static async notifyLoginSuccess({ player }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
       }
-      return this.notifyAction({ player, action: 'has logged in!', targetName: '', type: 'loginSuccess' });
+      return await this.notifyAction({ player, action: 'has logged in!', targetName: '', type: 'loginSuccess' });
     } catch (error) {
       this.logger.error('Error notifying login success:', error);
     }
   }
   // Notify a player of an incorrect password attempt
-  static notifyIncorrectPassword({ player }) {
+  static async notifyIncorrectPassword({ player }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
       }
-      return this.notify(player, `Incorrect password. Please try again.`, 'incorrectPassword');
+      return await this.notify(player, `Incorrect password. Please try again.`, 'incorrectPassword');
     } catch (error) {
       this.logger.error('Error notifying incorrect password:', error);
     }
   }
   // Notify a player of disconnection due to too many failed login attempts
-  static notifyDisconnectionDueToFailedAttempts({ player }) {
+  static async notifyDisconnectionDueToFailedAttempts({ player }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
       }
-      return this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, 'disconnectionFailedAttempts');
+      return await this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, 'disconnectionFailedAttempts');
     } catch (error) {
       this.logger.error('Error notifying disconnection due to failed attempts:', error);
     }
   }
   // Notify a player when they pick up an item
-  static notifyPickupItem({ player, itemName }) {
+  static async notifyPickupItem({ player, itemName }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
@@ -6175,13 +6186,13 @@ class MessageManager {
       if (typeof itemName !== 'string') {
         throw new TypeError('Item name must be a string');
       }
-      return this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
+      return await this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
     } catch (error) {
       this.logger.error('Error notifying pickup item:', error);
     }
   }
   // Notify a player when they drop an item
-  static notifyDropItem({ player, itemName }) {
+  static async notifyDropItem({ player, itemName }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
@@ -6189,13 +6200,13 @@ class MessageManager {
       if (typeof itemName !== 'string') {
         throw new TypeError('Item name must be a string');
       }
-      return this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
+      return await this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
     } catch (error) {
       this.logger.error('Error notifying drop item:', error);
     }
   }
   // Notify players in a location about an Npc's movement
-  static notifyNpcMovement(npc, direction, isArrival) {
+  static async notifyNpcMovement(npc, direction, isArrival) {
     try {
       if (!(npc instanceof Npc)) {
         throw new TypeError('NPC must be an instance of Npc');
@@ -6208,7 +6219,7 @@ class MessageManager {
       }
       const action = isArrival ? 'arrives' : 'leaves';
       const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
-      this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
+      await this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
     } catch (error) {
       this.logger.error('Error notifying Npc movement:', error);
     }
@@ -6401,7 +6412,7 @@ class MessageManager {
     }
   }
   // Notify a player that they have no items to drop
-  static notifyNoItemsToDrop({ player, type, itemType }) {
+  static async notifyNoItemsToDrop({ player, type, itemType }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
@@ -6412,13 +6423,13 @@ class MessageManager {
       if (typeof itemType !== 'string') {
         throw new TypeError('Item type must be a string');
       }
-      return this.notify(player, `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, 'errorMessage');
+      return await this.notify(player, `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no items to drop:', error);
     }
   }
   // Notify a player about items they dropped
-  static notifyItemsDropped({ player, items }) {
+  static async notifyItemsDropped({ player, items }) {
     try {
       if (!(player instanceof Player)) {
         throw new TypeError('Player must be an instance of Player');
@@ -6426,13 +6437,13 @@ class MessageManager {
       if (!Array.isArray(items)) {
         throw new TypeError('Items must be an array');
       }
-      return this.notify(player, `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, 'dropMessage');
+      return await this.notify(player, `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, 'dropMessage');
     } catch (error) {
       this.logger.error('Error notifying items dropped:', error);
     }
   }
   // Notify a player about items they took
-  static notifyItemsTaken({ player, items }) {
+  static async notifyItemsTaken({ player, items }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6440,24 +6451,24 @@ class MessageManager {
       throw new TypeError('Items must be an array');
     }
     try {
-      return this.notify(player, `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, 'takeMessage');
+      return await this.notify(player, `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, 'takeMessage');
     } catch (error) {
       this.logger.error('Error notifying items taken:', error);
     }
   }
   // Notify a player that there are no items here
-  static notifyNoItemsHere({ player }) {
+  static async notifyNoItemsHere({ player }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
     try {
-      return this.notify(player, `There are no items here.`, 'errorMessage');
+      return await this.notify(player, `There are no items here.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no items here:', error);
     }
   }
   // Notify a player about items taken from a container
-  static notifyItemsTakenFromContainer({ player, items, containerName }) {
+  static async notifyItemsTakenFromContainer({ player, items, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6468,13 +6479,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, 'takeMessage');
+      return await this.notify(player, `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, 'takeMessage');
     } catch (error) {
       this.logger.error('Error notifying items taken from container:', error);
     }
   }
   // Notify a player that there are no specific items in a container
-  static notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
+  static async notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6485,13 +6496,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `There are no ${itemType} items in ${containerName}.`, 'errorMessage');
+      return await this.notify(player, `There are no ${itemType} items in ${containerName}.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no specific items in container:', error);
     }
   }
   // Notify a player that there is no item in a container
-  static notifyNoItemInContainer({ player, itemName, containerName }) {
+  static async notifyNoItemInContainer({ player, itemName, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6502,13 +6513,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `There is no ${itemName} in ${containerName}.`, 'errorMessage');
+      return await this.notify(player, `There is no ${itemName} in ${containerName}.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no item in container:', error);
     }
   }
   // Notify a player that there is no item here
-  static notifyNoItemHere({ player, itemName }) {
+  static async notifyNoItemHere({ player, itemName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6516,13 +6527,13 @@ class MessageManager {
       throw new TypeError('Item name must be a string');
     }
     try {
-      return this.notify(player, `There is no ${itemName} here.`, 'errorMessage');
+      return await this.notify(player, `There is no ${itemName} here.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no item here:', error);
     }
   }
   // Notify a player that they don't have a specific container
-  static notifyNoContainer({ player, containerName }) {
+  static async notifyNoContainer({ player, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6530,13 +6541,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `${player.getName()} doesn't have a ${containerName}.`, 'errorMessage');
+      return await this.notify(player, `${player.getName()} doesn't have a ${containerName}.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no container:', error);
     }
   }
   // Notify a player that an item is not in their inventory
-  static notifyItemNotInInventory({ player, itemName }) {
+  static async notifyItemNotInInventory({ player, itemName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6544,13 +6555,13 @@ class MessageManager {
       throw new TypeError('Item name must be a string');
     }
     try {
-      return this.notify(player, `${player.getName()} doesn't have a ${itemName} in their inventory.`, 'errorMessage');
+      return await this.notify(player, `${player.getName()} doesn't have a ${itemName} in their inventory.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying item not in inventory:', error);
     }
   }
   // Notify a player that they put an item in a container
-  static notifyItemPutInContainer({ player, itemName, containerName }) {
+  static async notifyItemPutInContainer({ player, itemName, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6561,13 +6572,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `${player.getName()} put ${itemName} in ${containerName}.`, 'putMessage');
+      return await this.notify(player, `${player.getName()} put ${itemName} in ${containerName}.`, 'putMessage');
     } catch (error) {
       this.logger.error('Error notifying item put in container:', error);
     }
   }
   // Notify a player that they have no items to put in a container
-  static notifyNoItemsToPut({ player, containerName }) {
+  static async notifyNoItemsToPut({ player, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6575,13 +6586,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `${player.getName()} has no items to put in ${containerName}.`, 'errorMessage');
+      return await this.notify(player, `${player.getName()} has no items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no items to put:', error);
     }
   }
   // Notify a player about items put in a container
-  static notifyItemsPutInContainer({ player, items, containerName }) {
+  static async notifyItemsPutInContainer({ player, items, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6592,13 +6603,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, 'putMessage');
+      return await this.notify(player, `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, 'putMessage');
     } catch (error) {
       this.logger.error('Error notifying items put in container:', error);
     }
   }
   // Notify a player that they have no specific items to put in a container
-  static notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
+  static async notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6609,13 +6620,13 @@ class MessageManager {
       throw new TypeError('Container name must be a string');
     }
     try {
-      return this.notify(player, `${player.getName()} has no ${itemType} items to put in ${containerName}.`, 'errorMessage');
+      return await this.notify(player, `${player.getName()} has no ${itemType} items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no specific items to put:', error);
     }
   }
   // Notify a player that there are no specific items here
-  static notifyNoSpecificItemsHere({ player, itemType }) {
+  static async notifyNoSpecificItemsHere({ player, itemType }) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6623,7 +6634,7 @@ class MessageManager {
       throw new TypeError('Item type must be a string');
     }
     try {
-      return this.notify(player, `There are no ${itemType} items here.`, 'errorMessage');
+      return await this.notify(player, `There are no ${itemType} items here.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no specific items here:', error);
     }
@@ -6646,7 +6657,7 @@ class MessageManager {
     }
   }
   // Notify a player about the result of a combat
-  static notifyCombatResult(player, result) {
+  static async notifyCombatResult(player, result) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6660,7 +6671,7 @@ class MessageManager {
     }
   }
   // Notify a player about the start of a combat
-  static notifyCombatStart(player, npc) {
+  static async notifyCombatStart(player, npc) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6674,7 +6685,7 @@ class MessageManager {
     }
   }
   // Notify a player about the end of a combat
-  static notifyCombatEnd(player) {
+  static async notifyCombatEnd(player) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6685,7 +6696,7 @@ class MessageManager {
     }
   }
   // Send a message to a player
-  static sendMessage(player, messageData, type) {
+  static async sendMessage(player, messageData, type) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6697,17 +6708,17 @@ class MessageManager {
     }
     try {
       if (typeof messageData === 'string') {
-        this.notify(player, messageData, type);
+        await this.notify(player, messageData, type);
       } else {
         for (const [key, value] of Object.entries(messageData)) {
           if (typeof value === 'string') {
-            this.notify(player, value, key);
+            await this.notify(player, value, key);
           } else if (Array.isArray(value)) {
             for (const item of value) {
-              this.notify(player, item.text, item.cssid);
+              await this.notify(player, item.text, item.cssid);
             }
           } else if (typeof value === 'object') {
-            this.notify(player, value.text, value.cssid);
+            await this.notify(player, value.text, value.cssid);
           }
         }
       }
@@ -6716,7 +6727,7 @@ class MessageManager {
     }
   }
   // Notify a player about currency changes
-  static notifyCurrencyChange(player, amount, isAddition) {
+  static async notifyCurrencyChange(player, amount, isAddition) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6728,13 +6739,13 @@ class MessageManager {
     }
     try {
       const action = isAddition ? 'gained' : 'spent';
-      return this.notify(player, `You ${action} ${Math.abs(amount)} coins.`, 'currencyChange');
+      return await this.notify(player, `You ${action} ${Math.abs(amount)} coins.`, 'currencyChange');
     } catch (error) {
       this.logger.error('Error notifying currency change:', error);
     }
   }
   // Notify a player about experience gain
-  static notifyExperienceGain(player, amount) {
+  static async notifyExperienceGain(player, amount) {
     if (!(player instanceof Player)) {
       throw new TypeError('Player must be an instance of Player');
     }
@@ -6742,12 +6753,12 @@ class MessageManager {
       throw new TypeError('Amount must be a number');
     }
     try {
-      return this.notify(player, `You gained ${amount} experience points.`, 'experienceGain');
+      return await this.notify(player, `You gained ${amount} experience points.`, 'experienceGain');
     } catch (error) {
       this.logger.error('Error notifying experience gain:', error);
     }
   }
-  static notifyLeavingLocation(entity, oldLocationId, newLocationId) {
+  static async notifyLeavingLocation(entity, oldLocationId, newLocationId) {
     if (!(entity instanceof Player || entity instanceof Npc)) {
       throw new TypeError('Entity must be an instance of Player or Npc');
     }
@@ -6758,20 +6769,20 @@ class MessageManager {
       throw new TypeError('New location ID must be a string');
     }
     try {
-      const oldLocation = entity.server.gameManager.getLocation(oldLocationId);
-      const newLocation = entity.server.gameManager.getLocation(newLocationId);
+      const oldLocation = await entity.server.gameManager.getLocation(oldLocationId);
+      const newLocation = await entity.server.gameManager.getLocation(newLocationId);
       const direction = DirectionManager.getDirectionTo(newLocationId);
       if (entity instanceof Player) {
-        this.notifyPlayersInLocation(oldLocation,
+        await this.notifyPlayersInLocation(oldLocation,
           `${entity.getName()} leaves ${direction}.`,
           'playerMovement'
         );
-        this.notify(entity,
+        await this.notify(entity,
           `You leave ${oldLocation.getName()} and move ${direction} to ${newLocation.getName()}.`,
           'playerMovement'
         );
       } else if (entity instanceof Npc) {
-        this.notifyPlayersInLocation(oldLocation,
+        await this.notifyPlayersInLocation(oldLocation,
           `${entity.name} leaves ${direction}.`,
           'npcMovement'
         );
