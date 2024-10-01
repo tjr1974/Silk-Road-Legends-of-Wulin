@@ -63,8 +63,6 @@ implemented and easily modified or extended across the entire game system.
 ***************************************************************************************************/
 class IBaseManager {
   constructor({ logger, server }) {
-    TypeChecker.assertInstanceOf(logger, ILogger, 'Logger');
-    TypeChecker.assertInstanceOf(server, Server, 'Server');
     this.server = server;
     this.logger = logger;
   }
@@ -84,13 +82,6 @@ consistently implemented and easily modified or extended across the entire game 
 ***************************************************************************************************/
 class IDatabaseManager {
   constructor({ logger, server }) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isObject]);
-    if (!TypeChecker.isLogger(logger)) {
-      throw new TypeError('Logger must be an instance of ILogger');
-    }
-    if (!TypeChecker.isServer(server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
     this.server = server;
     this.logger = logger;
   }
@@ -143,9 +134,6 @@ class Logger extends ILogger {
     if (Logger.instance) {
       return Logger.instance;
     }
-    if (typeof config !== 'object' || config === null) {
-      throw new TypeError('Config must be an object');
-    }
     this.CONFIG = config;
     this.logLevel = config.LOG_LEVEL;
     this.logLevels = {
@@ -157,7 +145,6 @@ class Logger extends ILogger {
     Logger.instance = this;
   }
   log(level, message) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString, TypeChecker.isString]);
     if (this.shouldLog(level)) {
       let coloredMessage = message;
       switch (level) {
@@ -175,30 +162,21 @@ class Logger extends ILogger {
     }
   }
   shouldLog(level) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
     return this.logLevels[level] >= this.logLevels[this.logLevel];
   }
   writeToConsole(logString) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
     console.log(logString.trim());
   }
   debug(message) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
     this.log('DEBUG', message);
   }
   info(message) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
     this.log('INFO', message);
   }
   warn(message) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
     this.log('WARN', message);
   }
   error(message, { error }) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString, TypeChecker.isObject]);
-    if (!(error instanceof Error)) {
-      throw new TypeError('Error must be an instance of Error');
-    }
     this.log('ERROR', `${message} - ${error.message}`);
     this.log('ERROR', error.stack);
   }
@@ -230,21 +208,16 @@ class ConfigManager {
     if (ConfigManager.instance) {
       return ConfigManager.instance;
     }
-    if (typeof config !== 'object' || config === null) {
-      throw new TypeError('Config must be an object');
-    }
     ConfigManager.config = config;
     ConfigManager.instance = this;
   }
   get(key) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
     if (!(key in ConfigManager.config)) {
       throw new Error(`Configuration key "${key}" not found`);
     }
     return ConfigManager.config[key];
   }
   set(key, value) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString, TypeChecker.isObject]);
     ConfigManager.config[key] = value;
   }
   // Add this new method
@@ -256,9 +229,6 @@ class ConfigManager {
     try {
       // Assuming config is imported from a separate file
       const importedConfig = await import('./config.js');
-      if (typeof importedConfig.default !== 'object' || importedConfig.default === null) {
-        throw new TypeError('Imported config must be an object');
-      }
       ConfigManager.config = importedConfig.default;
     } catch (error) {
       throw new Error(`Failed to load configuration: ${error.message}`);
@@ -266,12 +236,8 @@ class ConfigManager {
   }
   // Add this method to get multiple config values at once
   getMultiple(keys) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isArray]);
     const values = {};
     for (const key of keys) {
-      if (!TypeChecker.isString(key)) {
-        throw new TypeError('Key must be a string');
-      }
       values[key] = this.get(key);
     }
     return values;
@@ -303,12 +269,6 @@ class Server {
   constructor({ logger, configManager }) {
     if (Server.instance) {
       return Server.instance;
-    }
-    if (!(logger instanceof Logger)) {
-      throw new TypeError('Logger must be an instance of Logger');
-    }
-    if (!(configManager instanceof ConfigManager)) {
-      throw new TypeError('ConfigManager must be an instance of ConfigManager');
     }
     this.SocketEventEmitter = new SocketEventEmitter();
     this.configManager = configManager || ConfigManager.getInstance();
@@ -386,7 +346,6 @@ class Server {
     }
   }
   handlePlayerConnected(player) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isPlayer]);
     this.logger.info(`Player connected: ${player.getName()}`);
   }
   async setupHttpServer() {
@@ -449,40 +408,29 @@ class Server {
     this.queueManager.processQueue();
   }
   async addTask(task) {
-    if (!(task instanceof TaskManager)) {
-      throw new TypeError('Task must be an instance of TaskManager');
-    }
     await this.queueManager.enqueue(task);
   }
   setupReplicationFilters() {
     // Filter for items
     this.replicationManager.addFilter('item', (item, player) => {
-      if (!(item instanceof Item)) {
-        throw new TypeError('Item must be an instance of Item');
-      }
-      if (!(player instanceof Player)) {
-        throw new TypeError('Player must be an instance of Player');
-      }
-      return {
+      const baseInfo = {
         id: item.id,
         name: item.name,
         description: item.description,
-        // Only send detailed info if the player owns the item
-        ...(player.inventory.has(item.id) && {
+      };
+      // Only send detailed info if the player owns the item
+      if (player.inventory.has(item.id)) {
+        return {
+          ...baseInfo,
           type: item.type,
           price: item.price,
           // Add other properties as needed
-        })
-      };
+        };
+      }
+      return baseInfo;
     });
     // Filter for Npcs
     this.replicationManager.addFilter('npc', (npc, player) => {
-      if (!(npc instanceof Npc)) {
-        throw new TypeError('NPC must be an instance of Npc');
-      }
-      if (!(player instanceof Player)) {
-        throw new TypeError('Player must be an instance of Player');
-      }
       const baseInfo = {
         id: npc.id,
         name: npc.name,
@@ -502,29 +450,26 @@ class Server {
     });
     // Filter for locations
     this.replicationManager.addFilter('location', (location, player) => {
-      if (!(location instanceof Location)) {
-        throw new TypeError('Location must be an instance of Location');
-      }
-      if (!(player instanceof Player)) {
-        throw new TypeError('Player must be an instance of Player');
-      }
-      return {
+      const baseInfo = {
         id: location.id,
         name: location.name,
         description: location.description,
         exits: location.exits,
-        // Only send detailed info if it's the player's current location
-        ...(location.id === player.currentLocation && {
+      };
+      // Only send detailed info if it's the player's current location
+      if (location.id === player.currentLocation) {
+        return {
+          ...baseInfo,
           items: Array.from(location.items),
           npcs: Array.from(location.npcs),
           // Add other properties as needed
-        })
-      };
+        };
+      }
+      return baseInfo;
     });
   }
   // Update this method to use replication filters
   fullStateSync(player) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isPlayer]);
     const playerData = this.replicationManager.applyFilters('player', player, player);
     const locationData = this.replicationManager.applyFilters('location', this.getLocation(player.currentLocation), player);
     const inventoryData = Array.from(player.inventory).map(itemId =>
@@ -542,21 +487,15 @@ class Server {
   }
   // Use this method when updating specific entities
   updateEntity(entityType, entityData) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString, TypeChecker.isObject]);
     this.players.forEach(player => {
       this.replicationManager.replicateToPlayer(player, entityType, entityData);
     });
   }
   handleConnection(socket) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isObject]);
     socket.on('message', async (message) => {
-      TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
       const data = JSON.parse(message);
       switch (data.type) {
         case 'login':
-          if (!TypeChecker.isString(data.characterName) || !TypeChecker.isString(data.password)) {
-            throw new TypeError('Character name and password must be strings');
-          }
           const authResult = await this.authManager.authenticateCharacter(data.characterName, data.password);
           if (authResult.success) {
             const sessionToken = this.sessionManager.createSession(authResult.characterData.id);
@@ -566,9 +505,6 @@ class Server {
           }
           break;
         case 'restoreSession':
-          if (!TypeChecker.isString(data.token)) {
-            throw new TypeError('Session token must be a string');
-          }
           const session = this.sessionManager.getSession(data.token);
           if (session) {
             this.sessionManager.updateSessionActivity(data.token);
@@ -578,9 +514,6 @@ class Server {
           }
           break;
         case 'logout':
-          if (!TypeChecker.isString(data.token)) {
-            throw new TypeError('Session token must be a string');
-          }
           this.sessionManager.removeSession(data.token);
           socket.send(JSON.stringify({ type: 'logoutConfirmation' }));
           break;
@@ -615,10 +548,6 @@ class ServerInitializer {
     if (ServerInitializer.instance) {
       return ServerInitializer.instance;
     }
-    if (typeof config !== 'object' || config === null) {
-      throw new TypeError('Config must be an object');
-    }
-    const { LOG_LEVEL, ORANGE, MAGENTA, RED, RESET } = config;
     this.logger = new Logger({ LOG_LEVEL, ORANGE, MAGENTA, RED, RESET });
     this.configManager = ConfigManager.getInstance(config);
     this.server = new Server({ logger: this.logger, configManager: this.configManager });
@@ -707,12 +636,6 @@ class ServerConfigurator extends IBaseManager {
   }
   constructor({ logger, config, server, socketEventManager }) {
     super({ server, logger });
-    if (!(config instanceof ConfigManager)) {
-      throw new TypeError('Config must be an instance of ConfigManager');
-    }
-    if (!(socketEventManager instanceof SocketEventManager)) {
-      throw new TypeError('SocketEventManager must be an instance of SocketEventManager');
-    }
     this.config = config;
     this.socketEventManager = socketEventManager;
     this.server.app = null;
@@ -754,9 +677,6 @@ class ServerConfigurator extends IBaseManager {
     try {
       this.server.app.use(express.static('public'));
       this.server.app.use((err, req, res, next) => {
-        if (!(err instanceof Error)) {
-          throw new TypeError('Error must be an instance of Error');
-        }
         this.logger.error(`Middleware Error: ${err.message}`, { error: err });
         res.status(500).send('An Unexpected Error Occurred. Please Try Again Later.');
       });
@@ -857,9 +777,6 @@ class SocketEventManager extends IBaseManager {
   constructor({ logger, server, gameCommandManager }) {
     super({ server, logger });
     this.io = null;
-    if (!(gameCommandManager instanceof GameCommandManager)) {
-      throw new TypeError('GameCommandManager must be an instance of GameCommandManager');
-    }
     this.gameCommandManager = gameCommandManager;
     this.queueManager = QueueManager.getInstance();
     this.taskManager = TaskManager.getInstance({ server });
@@ -868,9 +785,6 @@ class SocketEventManager extends IBaseManager {
     try {
       this.io = new SocketIOServer(this.server.httpServer);
       this.io.on('connection', (socket) => {
-        if (!(socket instanceof Socket)) {
-          throw new TypeError('Socket must be an instance of Socket');
-        }
         this.logger.info(`New client connected: ${socket.id}`);
         this.setupSocketListeners(socket);
       });
@@ -881,11 +795,7 @@ class SocketEventManager extends IBaseManager {
   setupSocketListeners(socket) {
     try {
       socket.on('playerAction', (data) => {
-        TypeChecker.validateArgs(arguments, [TypeChecker.isObject]);
         const { actionType, payload } = data;
-        if (!TypeChecker.isString(actionType) || !TypeChecker.isObject(payload)) {
-          throw new TypeError('Action type must be a string and payload must be an object');
-        }
         const task = new TaskManager({
           server: this.server,
           execute: async () => {
@@ -905,7 +815,6 @@ class SocketEventManager extends IBaseManager {
   }
   handleDisconnect(socket) {
     try {
-      TypeChecker.validateArgs(arguments, [TypeChecker.isObject]);
       this.logger.info(`Client disconnected: ${socket.id}`);
       // Clean up any necessary game state
     } catch (error) {
@@ -917,8 +826,8 @@ class SocketEventManager extends IBaseManager {
 SocketEvent Emitter Class
 The SocketEventEmitter class provides a robust implementation of the publish-subscribe pattern,
 facilitating event-driven communication within the game system. It allows components to register
-listeners for specific events and emit events to trigger those listeners. This class serves as
-a cornerstone for decoupled, event-based interactions between various parts of the game.
+listeners for specific events and emit events to trigger those listeners. This class serves
+as a cornerstone for decoupled, event-based interactions between various parts of the game.
 Key features:
 1. Event registration and listener management
 2. Asynchronous event emission with multiple argument support
@@ -933,14 +842,12 @@ class SocketEventEmitter extends ISocketEventEmitter {
     this.listeners = new Map();
   }
   on(event, callback) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString, TypeChecker.isFunction]);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event).add(callback);
   }
   emit(event, ...args) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString]);
     if (this.listeners.has(event)) {
       for (const callback of this.listeners.get(event)) {
         callback(...args);
@@ -948,7 +855,6 @@ class SocketEventEmitter extends ISocketEventEmitter {
     }
   }
   off(event, callback) {
-    TypeChecker.validateArgs(arguments, [TypeChecker.isString, TypeChecker.isFunction]);
     if (this.listeners.has(event)) {
       this.listeners.get(event).delete(callback);
     }
@@ -968,54 +874,21 @@ ensuring that all clients have up-to-date information about the game state.
 ***************************************************************************************************/
 class ReplicationManager {
   constructor(server) {
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
     this.server = server;
     this.filters = new Map();
   }
   addFilter(entityType, filterFunction) {
-    if (typeof entityType !== 'string') {
-      throw new TypeError('Entity type must be a string');
-    }
-    if (typeof filterFunction !== 'function') {
-      throw new TypeError('Filter function must be a function');
-    }
     this.filters.set(entityType, filterFunction);
   }
   applyFilters(entityType, data, player) {
-    if (typeof entityType !== 'string') {
-      throw new TypeError('Entity type must be a string');
-    }
-    if (typeof data !== 'object' || data === null) {
-      throw new TypeError('Data must be an object');
-    }
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
     const filter = this.filters.get(entityType);
     return filter ? filter(data, player) : data;
   }
   replicateToPlayer(player, entityType, data) {
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
-    if (typeof entityType !== 'string') {
-      throw new TypeError('Entity type must be a string');
-    }
-    if (typeof data !== 'object' || data === null) {
-      throw new TypeError('Data must be an object');
-    }
     const filteredData = this.applyFilters(entityType, data, player);
     this.server.socket.emit('replicateData', { playerId: player.getId(), entityType, data: filteredData });
   }
   replicateToAllPlayers(entityType, data) {
-    if (typeof entityType !== 'string') {
-      throw new TypeError('Entity type must be a string');
-    }
-    if (typeof data !== 'object' || data === null) {
-      throw new TypeError('Data must be an object');
-    }
     this.server.players.forEach(player => {
       this.replicateToPlayer(player, entityType, data);
     });
@@ -1068,12 +941,6 @@ class QueueManager {
     return QueueManager.instance;
   }
   constructor({ logger, capacity = 1000 } = {}) {
-    if (logger && !(logger instanceof Logger)) {
-      throw new TypeError('Logger must be an instance of Logger');
-    }
-    if (typeof capacity !== 'number' || isNaN(capacity) || capacity <= 0) {
-      throw new TypeError('Capacity must be a positive number');
-    }
     this.logger = logger || console;
     this.buffer = new Array(capacity);
     this.capacity = capacity;
@@ -1085,9 +952,6 @@ class QueueManager {
     this.asyncLock = new AsyncLock();
   }
   async enqueue(task) {
-    if (!(task instanceof TaskManager)) {
-      throw new TypeError('Task must be an instance of TaskManager');
-    }
     const release = await this.asyncLock.acquire();
     try {
       if (this.size === this.capacity) {
@@ -1172,20 +1036,11 @@ garbage collection, particularly beneficial in high-frequency operations like co
 ***************************************************************************************************/
 class ObjectPool {
   constructor(createFunc, initialSize = 10) {
-    if (typeof createFunc !== 'function') {
-      throw new TypeError('Create function must be a function');
-    }
-    if (typeof initialSize !== 'number' || isNaN(initialSize) || initialSize <= 0) {
-      throw new TypeError('Initial size must be a positive number');
-    }
     this.createFunc = createFunc;
     this.pool = [];
     this.initialize(initialSize);
   }
   initialize(size) {
-    if (typeof size !== 'number' || isNaN(size) || size <= 0) {
-      throw new TypeError('Size must be a positive number');
-    }
     for (let i = 0; i < size; i++) {
       this.pool.push(this.createFunc());
     }
@@ -1197,9 +1052,6 @@ class ObjectPool {
     return this.createFunc();
   }
   release(obj) {
-    if (typeof obj !== 'object' || obj === null) {
-      throw new TypeError('Object must be an object');
-    }
     // Optionally reset the object here if needed
     this.pool.push(obj);
   }
@@ -1226,9 +1078,6 @@ class TaskManager {
     return TaskManager.instance;
   }
   constructor({ server }) {
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
     if (TaskManager.instance) {
       return TaskManager.instance;
     }
@@ -1298,9 +1147,6 @@ class MessageQueueSystem {
     return MessageQueueSystem.instance;
   }
   constructor({ server }) {
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
     this.server = server;
     this.queues = {
       high: [],
@@ -1377,12 +1223,6 @@ class DatabaseManager extends IDatabaseManager {
   }
   constructor({ logger, server }) {
     super({ logger, server });
-    if (!(logger instanceof Logger)) {
-      throw new TypeError('Logger must be an instance of Logger');
-    }
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
     this.configManager = server.configManager;
     this.DATA_PATHS = {
       LOCATIONS: this.configManager.get('LOCATIONS_DATA_PATH'),
@@ -1638,17 +1478,14 @@ ensuring that all game data is properly loaded and structured for use by other g
 class GameDataLoader {
   static instance;
   static getInstance({ server }) {
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
     if (!GameDataLoader.instance) {
       GameDataLoader.instance = new GameDataLoader({ server });
     }
     return GameDataLoader.instance;
   }
   constructor({ server }) {
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
+    if (GameDataLoader.instance) {
+      return GameDataLoader.instance;
     }
     const { configManager, logger } = server;
     this.server = server;
@@ -1857,21 +1694,6 @@ class GameManager extends IGameManager {
     if (GameManager.instance) {
       return GameManager.instance;
     }
-    if (!(SocketEventEmitter instanceof SocketEventManager)) {
-      throw new TypeError('SocketEventEmitter must be an instance of SocketEventManager');
-    }
-    if (!(logger instanceof Logger)) {
-      throw new TypeError('Logger must be an instance of Logger');
-    }
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
-    if (!(configManager instanceof ConfigManager)) {
-      throw new TypeError('ConfigManager must be an instance of ConfigManager');
-    }
-    if (!(combatManager instanceof CombatManager)) {
-      throw new TypeError('CombatManager must be an instance of CombatManager');
-    }
     this.players = new Map();
     this.locations = new Map();
     this.npcs = new Map();
@@ -2021,10 +1843,6 @@ class GameManager extends IGameManager {
     }
   }
   async moveEntity(entity, newLocationId) {
-    TypeChecker.validateArgs([entity, newLocationId], [
-      value => TypeChecker.isPlayer(value) || TypeChecker.isNpc(value),
-      TypeChecker.isString
-    ]);
     try {
       const oldLocationId = entity.currentLocation;
       const oldLocation = await this.getLocation(oldLocationId);
@@ -2127,7 +1945,6 @@ class GameManager extends IGameManager {
     this.logger.info("A new day has started!");
   }
   disconnectPlayer(uid) {
-    TypeChecker.validateArgs([uid], [TypeChecker.isString]);
     const player = this.players.get(uid);
     if (player) {
       player.status = "disconnected";
@@ -2138,7 +1955,6 @@ class GameManager extends IGameManager {
     }
   }
   createNpc(id, npcData) {
-    TypeChecker.validateArgs([id, npcData], [TypeChecker.isString, TypeChecker.isNpcData]);
     try {
       const { name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, lootTable = [] } = npcData;
       let npc;
@@ -2186,7 +2002,6 @@ class GameManager extends IGameManager {
     }
   }
   removeNpc(id) {
-    TypeChecker.validateArgs([id], [TypeChecker.isString]);
     const npc = this.npcs.get(id);
     if (TypeChecker.isNpc(npc) && npc instanceof MobileNpc) {
       this.npcMovementManager.unregisterMobileNpc(npc);
@@ -2199,11 +2014,9 @@ class GameManager extends IGameManager {
     this.npcs.delete(id);
   }
   getNpc(npcId) {
-    TypeChecker.validateArgs([npcId], [TypeChecker.isString]);
     return this.npcs.get(npcId);
   }
   async getLocation(locationId) {
-    TypeChecker.validateArgs([locationId], [TypeChecker.isString]);
     const location = await this.locations.get(locationId);
     if (!location) {
       this.logger.error(`Location not found - ID : ${locationId}`, { error: new Error(`Location not found - ID : ${locationId}`) });
@@ -2215,7 +2028,6 @@ class GameManager extends IGameManager {
     return location;
   }
   async handlePlayerAction(action) {
-    TypeChecker.validateArgs([action], [TypeChecker.isPlayerAction]);
     await this.server.addTask(new TaskManager({
       name: 'PlayerAction',
       execute: async () => {
@@ -2228,11 +2040,9 @@ class GameManager extends IGameManager {
     }));
   }
   initiateCombat(combatData) {
-    TypeChecker.validateArgs([combatData], [TypeChecker.isCombatData]);
     this.combatManager.initiateCombat(combatData);
   }
   endCombat(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     this.combatManager.endCombatForPlayer({ player });
   }
   cleanup() {
@@ -2298,7 +2108,6 @@ components and manages potential errors during the setup process.
 class GameComponentInitializer extends IBaseManager {
   static instance;
   static getInstance({ logger, server }) {
-    TypeChecker.validateArgs([logger, server], [TypeChecker.isLogger, TypeChecker.isServer]);
     if (!GameComponentInitializer.instance) {
       GameComponentInitializer.instance = new GameComponentInitializer({ logger, server });
     }
@@ -2398,7 +2207,6 @@ entity state and behavior across the game.
 ***************************************************************************************************/
 class Entity {
   constructor(name) {
-    TypeChecker.validateArgs([name], [TypeChecker.isString]);
     this.name = name;
     this.currHealth = 0;
     this.status = '';
@@ -2428,7 +2236,6 @@ character state and behavior across the game.
 class Character extends Entity {
   constructor({ name, health }) {
     super(name);
-    TypeChecker.validateArgs([health], [TypeChecker.isNumber]);
     this.health = health;
   }
 }
@@ -2445,18 +2252,15 @@ ensuring that player data is correctly initialized and maintained.
 ***************************************************************************************************/
 class CreateNewPlayer {
   constructor({ name, age }) {
-    TypeChecker.validateArgs([name, age], [TypeChecker.isString, TypeChecker.isNumber]);
     this.name = name;
     this.age = age;
   }
   static fromPlayerData({ uid, playerData, bcrypt }) {
-    TypeChecker.validateArgs([uid, playerData, bcrypt], [TypeChecker.isString, TypeChecker.isObject, TypeChecker.isObject]);
     const player = new Player({ uid, name: playerData.name, bcrypt });
     player.updateData(playerData);
     return player;
   }
   async updateData(updatedData) {
-    TypeChecker.validateArgs([updatedData], [TypeChecker.isObject]);
     if (updatedData.health !== undefined) await this.setHealth(updatedData.health);
     if (updatedData.experience !== undefined) await this.setExperience(updatedData.experience);
     if (updatedData.level !== undefined) await this.setLevel(updatedData.level);
@@ -2477,8 +2281,6 @@ player actions and state are managed effectively.
 class Player extends Character {
   constructor({ uid, name, bcrypt, server, configManager, inventoryManager, gameCommandManager }) {
     super({ name, health: 100 });
-    TypeChecker.validateArgs([uid, bcrypt, server, configManager, inventoryManager, gameCommandManager],
-      [TypeChecker.isString, TypeChecker.isObject, TypeChecker.isServer, TypeChecker.isObject, TypeChecker.isObject, TypeChecker.isObject]);
     this.uid = uid;
     this.bcrypt = bcrypt;
     this.inventory = new Map();
@@ -2531,13 +2333,9 @@ class Player extends Character {
     return this.uid;
   }
   getPossessivePronoun() {
-    if (typeof this.sex !== 'string') {
-      throw new TypeError('Sex must be a string');
-    }
     return this.sex === 'male' ? 'his' : 'her';
   }
   canAddToInventory(item) {
-    TypeChecker.validateArgs([item], [TypeChecker.isItem]);
     const INVENTORY_CAPACITY = this.configManager.get('INVENTORY_CAPACITY');
     return this.inventory.size < INVENTORY_CAPACITY && item.isValid();
   }
@@ -2545,7 +2343,6 @@ class Player extends Character {
     return this.configManager.get('INVENTORY_CAPACITY');
   }
   async authenticate(password) {
-    TypeChecker.validateArgs([password], [TypeChecker.isString]);
     const isPasswordValid = await this.bcrypt.compare(password, this.password);
     if (isPasswordValid) {
       this.resetFailedLoginAttempts();
@@ -2576,9 +2373,6 @@ class Player extends Character {
     return { name, age, health, experience, level };
   }
   static async loadBatch(playerIds) {
-    if (!Array.isArray(playerIds)) {
-      throw new TypeError('Player IDs must be an array');
-    }
     const playerDataArray = await DatabaseManager.loadPlayersData(playerIds);
     return playerDataArray.map(data => new Player({ uid: data.uid, name: data.name, bcrypt: data.bcrypt }));
   }
@@ -2587,9 +2381,6 @@ class Player extends Character {
     this.server.messageManager.sendMessage(this, stats, 'statsMessage');
   }
   updateData(updatedData) {
-    if (typeof updatedData !== 'object' || updatedData === null) {
-      throw new TypeError('Updated data must be an object');
-    }
     const { health, experience, level } = updatedData;
     if (health != null) this.setHealth(health);
     if (experience != null) this.setExperience(experience);
@@ -2603,9 +2394,6 @@ class Player extends Character {
     }
   }
   async login(inputPassword) {
-    if (typeof inputPassword !== 'string') {
-      throw new TypeError('Input password must be a string');
-    }
     try {
       const isAuthenticated = await this.authenticate(inputPassword);
       if (isAuthenticated) {
@@ -2633,43 +2421,22 @@ class Player extends Character {
     });
   }
   addWeapon(weapon) {
-    if (!(weapon instanceof WeaponItem)) {
-      throw new TypeError('Weapon must be an instance of WeaponItem');
-    }
     this.weapons.add(weapon);
     this.server.messageManager.notifyPickupItem(this, weapon.name);
   }
   removeWeapon(weapon) {
-    if (!(weapon instanceof WeaponItem)) {
-      throw new TypeError('Weapon must be an instance of WeaponItem');
-    }
     this.weapons.delete(weapon);
   }
   static async createNewPlayer({ name, age }) {
-    if (typeof name !== 'string') {
-      throw new TypeError('Name must be a string');
-    }
-    if (typeof age !== 'number' || isNaN(age)) {
-      throw new TypeError('Age must be a number');
-    }
     return new CreateNewPlayer({ name, age });
   }
   async moveToLocation(direction) {
-    if (typeof direction !== 'string') {
-      throw new TypeError('Direction must be a string');
-    }
     await this.gameCommandManager.executeCommand(this, 'move', [direction]);
   }
   async attack(target) {
-    if (!(target instanceof Character)) {
-      throw new TypeError('Target must be a Character instance');
-    }
     await this.gameCommandManager.executeCommand(this, 'attack', [target]);
   }
   receiveDamage(damage) {
-    if (typeof damage !== 'number' || isNaN(damage)) {
-      throw new TypeError('Damage must be a number');
-    }
     this.health -= damage;
     if (this.health <= 0) {
       this.die();
@@ -2684,9 +2451,6 @@ class Player extends Character {
     await this.gameCommandManager.executeCommand(this, 'showInventory');
   }
   lootSpecifiedNpc(target) {
-    if (typeof target !== 'string') {
-      throw new TypeError('Target must be a string');
-    }
     this.gameCommandManager.executeCommand(this, 'lootSpecifiedNpc', [target]);
   }
   meditate() {
@@ -2708,18 +2472,12 @@ class Player extends Character {
     this.gameCommandManager.executeCommand(this, 'autoLootToggle');
   }
   lookIn(containerName) {
-    if (typeof containerName !== 'string') {
-      throw new TypeError('Container name must be a string');
-    }
     this.gameCommandManager.executeCommand(this, 'lookIn', [containerName]);
   }
   async describeCurrentLocation() {
     await this.describeLocationManager.describe();
   }
   LookAtCommandHandler(target) {
-    if (typeof target !== 'string') {
-      throw new TypeError('Target must be a string');
-    }
     this.gameCommandManager.executeCommand(this, 'lookAt', [target]);
   }
   hasChangedState() {
@@ -2733,9 +2491,6 @@ class Player extends Character {
     return Array.from(this.inventory.values()).map(item => item.name).join(", ");
   }
   addItemToInventory(item) {
-    if (!(item instanceof Item)) {
-      throw new TypeError('Item must be an instance of Item');
-    }
     try {
       if (this.canAddToInventory(item)) {
         const itemInstance = item.createInstance();
@@ -2750,9 +2505,6 @@ class Player extends Character {
     }
   }
   removeItemFromInventory(itemUid) {
-    if (typeof itemUid !== 'string') {
-      throw new TypeError('Item UID must be a string');
-    }
     if (this.inventory.has(itemUid)) {
       const item = this.inventory.get(itemUid);
       this.inventory.delete(itemUid);
@@ -2765,21 +2517,12 @@ class Player extends Character {
     return this.currency.getAmount();
   }
   addCurrency(amount) {
-    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
-      throw new TypeError('Amount must be a non-negative number');
-    }
     this.currency.add(amount);
   }
   subtractCurrency(amount) {
-    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
-      throw new TypeError('Amount must be a non-negative number');
-    }
     return this.currency.subtract(amount);
   }
   initiateTrade(targetPlayer) {
-    if (!(targetPlayer instanceof Player)) {
-      throw new TypeError('Target player must be an instance of Player');
-    }
     const tradeSession = this.server.transactionManager.createTradeSession(this, targetPlayer);
     this.server.messageManager.notifyTradeInitiated(this, targetPlayer);
     return tradeSession;
@@ -2801,9 +2544,6 @@ class Player extends Character {
     }
   }
   addItemToTrade(itemName) {
-    if (typeof itemName !== 'string') {
-      throw new TypeError('Item name must be a string');
-    }
     const tradeSession = this.server.transactionManager.getTradeSession(this.getId());
     if (tradeSession) {
       const item = this.getItemFromInventory(itemName);
@@ -2817,9 +2557,6 @@ class Player extends Character {
     }
   }
   removeItemFromTrade(itemName) {
-    if (typeof itemName !== 'string') {
-      throw new TypeError('Item name must be a string');
-    }
     const tradeSession = this.server.transactionManager.getTradeSession(this.getId());
     if (tradeSession) {
       const item = Array.from(tradeSession.player1Items.values()).concat(Array.from(tradeSession.player2Items.values()))
@@ -2834,9 +2571,6 @@ class Player extends Character {
     }
   }
   setTradeGold(amount) {
-    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
-      throw new TypeError('Amount must be a non-negative number');
-    }
     const tradeSession = this.server.transactionManager.getTradeSession(this.getId());
     if (tradeSession) {
       if (amount > this.getCurrency()) {
@@ -2857,9 +2591,6 @@ class Player extends Character {
     }
   }
   addExperience(amount) {
-    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
-      throw new TypeError('Amount must be a non-negative number');
-    }
     this.experience += amount;
   }
 }
@@ -2876,46 +2607,26 @@ Key features:
 ***************************************************************************************************/
 class AuthenticationManager {
   constructor(server, bcrypt) {
-    TypeChecker.validateArgs([server, bcrypt], [TypeChecker.isServer, TypeChecker.isObject]);
     this.server = server;
     this.bcrypt = bcrypt;
     this.SALT_ROUNDS = CONFIG.PASSWORD_SALT_ROUNDS;
   }
   async createNewCharacter(characterData) {
-    if (typeof characterData !== 'object' || characterData === null) {
-      throw new TypeError('Character data must be an object');
-    }
-    if (typeof characterData.password !== 'string') {
-      throw new TypeError('Password must be a string');
-    }
-    try {
-      const hashedPassword = await this.bcrypt.hash(characterData.password, this.SALT_ROUNDS);
-      characterData.password = hashedPassword;
-      await this.server.databaseManager.saveCharacter(characterData);
-      return { success: true, message: 'Character created successfully' };
-    } catch (error) {
-      this.server.logger.error(`Error creating character: ${error.message}`, { error });
-      return { success: false, message: 'Failed to create character' };
-    }
+    const hashedPassword = await this.bcrypt.hash(characterData.password, this.SALT_ROUNDS);
+    characterData.password = hashedPassword;
+    await this.server.databaseManager.saveCharacter(characterData);
+    return { success: true, message: 'Character created successfully' };
   }
   async authenticateCharacter(characterName, password) {
-    if (typeof characterName !== 'string' || typeof password !== 'string') {
-      throw new TypeError('Character name and password must be strings');
+    const characterData = await this.server.databaseManager.getCharacter(characterName);
+    if (!characterData) {
+      return { success: false, message: 'Character not found' };
     }
-    try {
-      const characterData = await this.server.databaseManager.getCharacter(characterName);
-      if (!characterData) {
-        return { success: false, message: 'Character not found' };
-      }
-      const isPasswordValid = await this.bcrypt.compare(password, characterData.password);
-      if (!isPasswordValid) {
-        return { success: false, message: 'Invalid password' };
-      }
-      return { success: true, characterData };
-    } catch (error) {
-      this.server.logger.error(`Error authenticating character: ${error.message}`, { error });
-      return { success: false, message: 'Authentication failed' };
+    const isPasswordValid = await this.bcrypt.compare(password, characterData.password);
+    if (!isPasswordValid) {
+      return { success: false, message: 'Invalid password' };
     }
+    return { success: true, characterData };
   }
 }
 /**************************************************************************************************
@@ -2934,57 +2645,26 @@ enhancing the overall gaming experience.
 ***************************************************************************************************/
 class SessionManager {
   constructor(server, bcrypt) {
-    TypeChecker.validateArgs([server, bcrypt], [TypeChecker.isServer, TypeChecker.isObject]);
     this.server = server;
     this.sessions = new Map();
     this.bcrypt = bcrypt;
   }
   createSession(characterId) {
-    if (typeof characterId !== 'string') {
-      throw new TypeError('Character ID must be a string');
-    }
-    try {
-      const token = this.generateSessionToken();
-      this.sessions.set(token, { characterId, lastActivity: Date.now() });
-      return token;
-    } catch (error) {
-      this.server.logger.error(`Error creating session: ${error.message}`, { error });
-      return null;
-    }
+    const token = this.generateSessionToken();
+    this.sessions.set(token, { characterId, lastActivity: Date.now() });
+    return token;
   }
   getSession(token) {
-    if (typeof token !== 'string') {
-      throw new TypeError('Token must be a string');
-    }
-    try {
-      return this.sessions.get(token);
-    } catch (error) {
-      this.server.logger.error(`Error retrieving session: ${error.message}`, { error });
-      return null;
-    }
+    return this.sessions.get(token);
   }
   updateSessionActivity(token) {
-    if (typeof token !== 'string') {
-      throw new TypeError('Token must be a string');
-    }
-    try {
-      const session = this.sessions.get(token);
-      if (session) {
-        session.lastActivity = Date.now();
-      }
-    } catch (error) {
-      this.server.logger.error(`Error updating session activity: ${error.message}`, { error });
+    const session = this.sessions.get(token);
+    if (session) {
+      session.lastActivity = Date.now();
     }
   }
   removeSession(token) {
-    if (typeof token !== 'string') {
-      throw new TypeError('Token must be a string');
-    }
-    try {
-      this.sessions.delete(token);
-    } catch (error) {
-      this.server.logger.error(`Error removing session: ${error.message}`, { error });
-    }
+    this.sessions.delete(token);
   }
   async generateSessionToken() {
     const randomBytes = await this.bcrypt.genSalt(16);
@@ -3014,7 +2694,6 @@ enhancing the gameplay experience.
 ***************************************************************************************************/
 class HealthRegenerator {
   constructor({ player }) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     this.player = player;
     this.configManager = player.configManager;
     this.regenInterval = null;
@@ -3074,14 +2753,12 @@ as a bridge between the user interface and the game's internal logic.
 class GameCommandManager {
   static instance;
   static getInstance({ server }) {
-    TypeChecker.validateArgs([server], [TypeChecker.isServer]);
     if (!GameCommandManager.instance) {
       GameCommandManager.instance = new GameCommandManager({ server });
     }
     return GameCommandManager.instance;
   }
   constructor({ server }) {
-    TypeChecker.validateArgs([server], [TypeChecker.isServer]);
     this.server = server;
     this.logger = server.logger;
     this.commandHandlers = {
@@ -3109,7 +2786,6 @@ class GameCommandManager {
     };
   }
   async executeCommand(player, command, args = []) {
-    TypeChecker.validateArgs([player, command, args], [TypeChecker.isPlayer, TypeChecker.isString, TypeChecker.isArray]);
     const handler = this.commandHandlers[command];
     if (handler) {
       try {
@@ -3275,12 +2951,10 @@ game world through examination and observation.
 ***************************************************************************************************/
 class LookAtCommandHandler {
   constructor({ player }) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     this.player = player;
     this.server = player.server;
   }
   async look(target) {
-    TypeChecker.validateArgs([target], [TypeChecker.isString]);
     const { currentLocation } = this.player;
     const location = await this.server.gameManager.getLocation(currentLocation);
     if (!location) return;
@@ -3371,7 +3045,6 @@ class CombatManager {
     "whipping strike"
   ]);
   constructor({ server, config }) {
-    TypeChecker.validateArgs([server, config], [TypeChecker.isServer, TypeChecker.isObject]);
     this.server = server;
     this.config = config;
     this.logger = server.logger;
@@ -3392,7 +3065,6 @@ class CombatManager {
     this.combatParticipants = new Map();
   }
   async initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
-    TypeChecker.validateArgs([npcId, player, playerInitiated], [TypeChecker.isString, TypeChecker.isPlayer, TypeChecker.isBoolean]);
     try {
       this.logger.debug(`- Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}`);
       const npc = await this.gameManager.getNpc(npcId);
@@ -3581,12 +3253,6 @@ class CombatManager {
     }
   }
   async isAggressiveNpc(npc, player) {
-    if (!(npc instanceof Npc)) {
-      throw new TypeError('NPC must be an instance of Npc');
-    }
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
     return npc && npc.aggressive &&
       npc.status !== "lying unconscious" &&
       npc.status !== "lying dead" &&
@@ -3594,7 +3260,6 @@ class CombatManager {
       !this.defeatedNpcs.has(npc.id);
   }
   async performCombatAction(attacker, defender, isPlayer) {
-    TypeChecker.validateArgs([attacker, defender, isPlayer], [TypeChecker.isNpc, TypeChecker.isNpc, TypeChecker.isBoolean]);
     const combatAction = this.objectPool.acquire();
     combatAction.initialize(attacker, defender);
     try {
@@ -3610,15 +3275,6 @@ class CombatManager {
     }
   }
   async processCombatOutcome(outcome, attacker, defender) {
-    if (typeof outcome !== 'string') {
-      throw new TypeError('Outcome must be a string');
-    }
-    if (!(attacker instanceof Character)) {
-      throw new TypeError('Attacker must be an instance of Character');
-    }
-    if (!(defender instanceof Character)) {
-      throw new TypeError('Defender must be an instance of Character');
-    }
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
     if (outcome === "critical success") {
@@ -3629,29 +3285,11 @@ class CombatManager {
     }
   }
   async getCombatDescription(outcome, attacker, defender, technique) {
-    if (typeof outcome !== 'string') {
-      throw new TypeError('Outcome must be a string');
-    }
-    if (!(attacker instanceof Character)) {
-      throw new TypeError('Attacker must be an instance of Character');
-    }
-    if (!(defender instanceof Character)) {
-      throw new TypeError('Defender must be an instance of Character');
-    }
-    if (typeof technique !== 'string') {
-      throw new TypeError('Technique must be a string');
-    }
     const descriptionFunc = this.outcomeDescriptions.get(outcome) ||
       (({ attacker, defender, technique }) => `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`);
     return FormatMessageManager.createMessageData(descriptionFunc({ attacker, defender, technique }));
   }
   async attackNpc({ player, target1 }) {
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
-    if (target1 && typeof target1 !== 'string') {
-      throw new TypeError('Target1 must be a string');
-    }
     const location = await player.server.gameManager.getLocation(player.currentLocation);
     if (!location) return;
     const npcId = target1 ? await this.getNpcIdFromLocation(target1, location.npcs) : await this.getAvailableNpcId(location.npcs);
@@ -3681,9 +3319,6 @@ class CombatManager {
     }
   }
   async getAvailableNpcId(npcs) {
-    if (!Array.isArray(npcs)) {
-      throw new TypeError('NPCs must be an array');
-    }
     for (const id of npcs) {
       const npc = await this.gameManager.getNpc(id);
       if (npc && !npc.isUnconsciousOrDead()) {
@@ -3699,22 +3334,10 @@ class CombatManager {
     return this.combatOrder.keys().next().value;
   }
   async notifyPlayersInLocation(locationId, content) {
-    if (typeof locationId !== 'string') {
-      throw new TypeError('Location ID must be a string');
-    }
-    if (typeof content !== 'string') {
-      throw new TypeError('Content must be a string');
-    }
     const location = await this.gameManager.getLocation(locationId);
     await MessageManager.notifyPlayersInLocation(location, content);
   }
   async notifyHealthStatus(player, npc) {
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
-    if (!(npc instanceof Npc)) {
-      throw new TypeError('NPC must be an instance of Npc');
-    }
     const playerHealthPercentage = await this.calculateHealthPercentage(player.health, player.maxHealth);
     const npcHealthPercentage = await this.calculateHealthPercentage(npc.health, npc.maxHealth);
     const healthMessage = MessageManager.getCombatHealthStatusTemplate(
@@ -3726,24 +3349,9 @@ class CombatManager {
     await this.server.messageManager.notifyPlayersInLocation(player.currentLocation, healthMessage, 'combatMessageHealth');
   }
   async calculateHealthPercentage(currentHealth, maxHealth) {
-    if (typeof currentHealth !== 'number' || isNaN(currentHealth)) {
-      throw new TypeError('Current health must be a number');
-    }
-    if (typeof maxHealth !== 'number' || isNaN(maxHealth)) {
-      throw new TypeError('Max health must be a number');
-    }
     return (currentHealth / maxHealth) * 100;
   }
   async calculateAttackValue(attacker, defender, roll) {
-    if (!(attacker instanceof Character)) {
-      throw new TypeError('Attacker must be an instance of Character');
-    }
-    if (!(defender instanceof Character)) {
-      throw new TypeError('Defender must be an instance of Character');
-    }
-    if (typeof roll !== 'number' || isNaN(roll)) {
-      throw new TypeError('Roll must be a number');
-    }
     if (attacker.level === defender.level) {
       return roll + attacker.csml;
     } else if (attacker.level < defender.level) {
@@ -3753,12 +3361,6 @@ class CombatManager {
     }
   }
   async calculateAttackOutcome(attacker, defender) {
-    if (!(attacker instanceof Character)) {
-      throw new TypeError('Attacker must be an instance of Character');
-    }
-    if (!(defender instanceof Character)) {
-      throw new TypeError('Defender must be an instance of Character');
-    }
     const roll = Math.floor(Math.random() * 20) + 1;
     let value = await this.calculateAttackValue(attacker, defender, roll);
     if (value >= 21 || value === 19) return "critical success";
@@ -3771,30 +3373,15 @@ class CombatManager {
     return "attack hits";
   }
   static getRandomElement(array) {
-    if (!Array.isArray(array)) {
-      throw new TypeError('Array must be an array');
-    }
     return [...array][Math.floor(Math.random() * array.size)];
   }
   addCombatParticipant(npc, player) {
-    if (!(npc instanceof Npc)) {
-      throw new TypeError('NPC must be an instance of Npc');
-    }
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
     if (!this.combatParticipants.has(npc.id)) {
       this.combatParticipants.set(npc.id, new Set());
     }
     this.combatParticipants.get(npc.id).add(player.getId());
   }
   async removeCombatParticipant(npc, player) {
-    if (!(npc instanceof Npc)) {
-      throw new TypeError('NPC must be an instance of Npc');
-    }
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
     if (this.combatParticipants.has(npc.id)) {
       this.combatParticipants.get(npc.id).delete(player.getId());
       if (this.combatParticipants.get(npc.id).size === 0) {
@@ -3803,18 +3390,9 @@ class CombatManager {
     }
   }
   async getCombatParticipants(npcId) {
-    if (typeof npcId !== 'string') {
-      throw new TypeError('NPC ID must be a string');
-    }
     return [...(this.combatParticipants.get(npcId) || [])];
   }
   async isPlayerInCombatWithNpc(playerId, npcId) {
-    if (typeof playerId !== 'string') {
-      throw new TypeError('Player ID must be a string');
-    }
-    if (typeof npcId !== 'string') {
-      throw new TypeError('NPC ID must be a string');
-    }
     return this.combatParticipants.has(npcId) && this.combatParticipants.get(npcId).has(playerId);
   }
 }
@@ -3830,18 +3408,9 @@ Key features:
 ***************************************************************************************************/
 class CombatAction {
   constructor({ logger }) {
-    if (!(logger instanceof Logger)) {
-      throw new TypeError('Logger must be an instance of Logger');
-    }
     this.logger = logger;
   }
   async initialize(attacker, defender) {
-    if (!(attacker instanceof Character)) {
-      throw new TypeError('Attacker must be an instance of Character');
-    }
-    if (!(defender instanceof Character)) {
-      throw new TypeError('Defender must be an instance of Character');
-    }
     this.attacker = attacker;
     this.defender = defender;
     this.technique = await this.selectTechnique();
@@ -3857,9 +3426,6 @@ class CombatAction {
     return CombatManager.getRandomElement(CombatManager.TECHNIQUES);
   }
   async calculateAttackValue(roll) {
-    if (typeof roll !== 'number' || isNaN(roll)) {
-      throw new TypeError('Roll must be a number');
-    }
     if (this.attacker.level === this.defender.level) {
       return roll + this.attacker.csml;
     } else if (this.attacker.level < this.defender.level) {
@@ -3869,9 +3435,6 @@ class CombatAction {
     }
   }
   async determineOutcome(value) {
-    if (typeof value !== 'number' || isNaN(value)) {
-      throw new TypeError('Value must be a number');
-    }
     if (value >= 21 || value === 19) return "critical success";
     if (value === 20) return "knockout";
     if (value >= 13) return "attack hits";
@@ -3897,9 +3460,6 @@ interactions and navigation are managed effectively.
 ***************************************************************************************************/
 class Npc extends Character {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server, lootTable = [] }) {
-    TypeChecker.validateArgs([id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server, lootTable],
-      [TypeChecker.isString, TypeChecker.isString, TypeChecker.isString, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isString, TypeChecker.isString, TypeChecker.isArray, TypeChecker.isString, TypeChecker.isServer, TypeChecker.isArray]);
-
     super({ name, health: currHealth });
     this.id = id;
     this.sex = sex;
@@ -3929,9 +3489,6 @@ class Npc extends Character {
     return hasChanged;
   }
   receiveDamage(damage) {
-    if (typeof damage !== 'number' || isNaN(damage)) {
-      throw new TypeError('Damage must be a number');
-    }
     this.currHealth -= damage;
     if (this.currHealth <= 0) {
       this.die();
@@ -3943,7 +3500,6 @@ class Npc extends Character {
     // Additional logic for Npc death (e.g., loot drop, respawn timer)
   }
   attack(target) {
-    TypeChecker.validateArgs([target], [TypeChecker.isNpc]);
     this.server.combatManager.performCombatAction(this, target);
   }
   getLoot() {
@@ -3963,9 +3519,6 @@ and the environment through movement.
 ***************************************************************************************************/
 class MobileNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
-    TypeChecker.validateArgs([id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones, aliases, config, server, lootTable],
-      [TypeChecker.isString, TypeChecker.isString, TypeChecker.isString, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isString, TypeChecker.isString, TypeChecker.isArray, TypeChecker.isArray, TypeChecker.isObject, TypeChecker.isServer, TypeChecker.isArray]);
-
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'mobile', server, lootTable });
     this.zones = new Set(zones);
     this.config = config;
@@ -3988,54 +3541,6 @@ through Npc interactions.
 ***************************************************************************************************/
 class QuestNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, questId, zones = [], aliases, server, lootTable = [] }) {
-    if (typeof id !== 'string') {
-      throw new TypeError('NPC ID must be a string');
-    }
-    if (typeof name !== 'string') {
-      throw new TypeError('Name must be a string');
-    }
-    if (typeof sex !== 'string') {
-      throw new TypeError('Sex must be a string');
-    }
-    if (typeof currHealth !== 'number' || isNaN(currHealth)) {
-      throw new TypeError('Current health must be a number');
-    }
-    if (typeof maxHealth !== 'number' || isNaN(maxHealth)) {
-      throw new TypeError('Max health must be a number');
-    }
-    if (typeof attackPower !== 'number' || isNaN(attackPower)) {
-      throw new TypeError('Attack power must be a number');
-    }
-    if (typeof csml !== 'number' || isNaN(csml)) {
-      throw new TypeError('CSML must be a number');
-    }
-    if (typeof aggro !== 'number' || isNaN(aggro)) {
-      throw new TypeError('Aggro must be a number');
-    }
-    if (typeof assist !== 'number' || isNaN(assist)) {
-      throw new TypeError('Assist must be a number');
-    }
-    if (typeof status !== 'string') {
-      throw new TypeError('Status must be a string');
-    }
-    if (typeof currentLocation !== 'string') {
-      throw new TypeError('Current location must be a string');
-    }
-    if (typeof questId !== 'string') {
-      throw new TypeError('Quest ID must be a string');
-    }
-    if (!Array.isArray(zones)) {
-      throw new TypeError('Zones must be an array');
-    }
-    if (!Array.isArray(aliases)) {
-      throw new TypeError('Aliases must be an array');
-    }
-    if (!(server instanceof Server)) {
-      throw new TypeError('Server must be an instance of Server');
-    }
-    if (!Array.isArray(lootTable)) {
-      throw new TypeError('Loot table must be an array');
-    }
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'quest', server, lootTable });
     this.questId = questId;
     this.zones = zones;
@@ -4045,9 +3550,6 @@ class QuestNpc extends Npc {
     this.server.messageManager.sendMessage(this, `${this.getName()} has received a quest: ${this.quest.title}`, 'questMessage');
   }
   completeQuest(player) {
-    if (!(player instanceof Player)) {
-      throw new TypeError('Player must be an instance of Player');
-    }
     // Logic to complete the quest
     if (this.quest.isCompleted(player)) {
       this.server.messageManager.sendMessage(player, `${player.getName()} has completed the quest: ${this.quest.title}`, 'questMessage');
@@ -4059,13 +3561,10 @@ class QuestNpc extends Npc {
 }
 class MerchantNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
-    TypeChecker.validateArgs([id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, config, server, lootTable],
-      [TypeChecker.isString, TypeChecker.isString, TypeChecker.isString, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isNumber, TypeChecker.isString, TypeChecker.isString, TypeChecker.isArray, TypeChecker.isObject, TypeChecker.isServer, TypeChecker.isArray]);
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'merchant', server, lootTable });
     this.inventory = new Map();
   }
   async sellItem(itemId, player) {
-    TypeChecker.validateArgs([itemId, player], [TypeChecker.isString, TypeChecker.isPlayer]);
     try {
       const item = await this.server.transactionManager.executeBuyTransaction(player, this, itemId);
       this.server.messageManager.notifyItemPurchased(player, item);
@@ -4076,7 +3575,6 @@ class MerchantNpc extends Npc {
     }
   }
   async buyItem(itemUid, player) {
-    TypeChecker.validateArgs([itemUid, player], [TypeChecker.isString, TypeChecker.isPlayer]);
     try {
       const sellPrice = await this.server.transactionManager.executeSellTransaction(player, this, itemUid);
       this.server.messageManager.notifyItemSold(player, sellPrice);
@@ -4102,7 +3600,6 @@ class NpcMovementManager {
   static #instance = null;
   static #instanceLock = new AsyncLock();
   static async getInstance({ logger, configManager, gameManager }) {
-    TypeChecker.validateArgs([logger, configManager, gameManager], [TypeChecker.isLogger, TypeChecker.isObject, TypeChecker.isGameManager]);
     if (!NpcMovementManager.#instance) {
       await NpcMovementManager.#instanceLock.acquire('instance', async () => {
         if (!NpcMovementManager.#instance) {
@@ -4116,7 +3613,6 @@ class NpcMovementManager {
     if (NpcMovementManager.#instance) {
       return NpcMovementManager.#instance;
     }
-    TypeChecker.validateArgs([logger, configManager, gameManager], [TypeChecker.isLogger, TypeChecker.isObject, TypeChecker.isGameManager]);
     this.logger = logger;
     this.configManager = configManager;
     this.gameManager = gameManager;
@@ -4125,13 +3621,11 @@ class NpcMovementManager {
     NpcMovementManager.#instance = this;
   }
   setGameManager(gameManager) {
-    TypeChecker.validateArgs([gameManager], [TypeChecker.isGameManager]);
     this.gameManager = gameManager;
   }
   startMovement() {
     this.stopMovement();
     const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
-    TypeChecker.validateArgs([MOVEMENT_INTERVAL], [TypeChecker.isNumber]);
     this.movementInterval = setInterval(() => this.moveAllMobiles(), MOVEMENT_INTERVAL);
     this.logger.info(`- Start Mobile Movement With Interval: ${MOVEMENT_INTERVAL}ms`);
   }
@@ -4143,7 +3637,6 @@ class NpcMovementManager {
     }
   }
   registerMobileNpc(npc) {
-    TypeChecker.validateArgs([npc], [TypeChecker.isNpc]);
     if (!this.gameManager) {
       this.logger.error(`Game Manager not set in Npc Movement Manager. Unable to register Npc ID: ${npc.id}`);
       return;
@@ -4152,7 +3645,6 @@ class NpcMovementManager {
     this.logger.debug(`- Register Npc: ${npc.id} - With Npc Movement Manager`);
   }
   unregisterMobileNpc(npc) {
-    TypeChecker.validateArgs([npc], [TypeChecker.isNpc]);
     this.mobileNpcs.delete(npc.id);
   }
   async moveAllMobiles() {
@@ -4181,7 +3673,6 @@ class NpcMovementManager {
     this.logger.debug(`Move Mobiles Finished At: ${new Date().toLocaleString()}`);
   }
   async moveMobile(npc) {
-    TypeChecker.validateArgs([npc], [TypeChecker.isNpc]);
     const currentLocation = await this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation) {
       this.logger.error(`Invalid location for Npc: ${npc.id} - Location: ${npc.currentLocation}`);
@@ -4199,9 +3690,8 @@ class NpcMovementManager {
     return true;
   }
   async chooseRandomExit(npc) {
-    TypeChecker.validateArgs([npc], [TypeChecker.isNpc]);
     const currentLocation = await this.gameManager.getLocation(npc.currentLocation);
-    if (!currentLocation || !TypeChecker.isMap(currentLocation.exits)) return {};
+    if (!currentLocation || !currentLocation.exits instanceof Map) return {};
     const availableExits = new Map();
     for (const [direction, exitId] of currentLocation.exits) {
       const exitLocation = await this.gameManager.getLocation(exitId);
@@ -4215,7 +3705,6 @@ class NpcMovementManager {
     return { direction: chosenDirection, exitId: chosenExitId };
   }
   async isExitAllowed(npc, exitLocation) {
-    TypeChecker.validateArgs([npc], [TypeChecker.isNpc]);
     if (!exitLocation) return false;
     if (npc.level < exitLocation.minLevel) return false;
     if (npc.allowedZones && npc.allowedZones.length > 0) {
@@ -4224,7 +3713,6 @@ class NpcMovementManager {
     return true;
   }
   async notifyNpcMovement(npc, fromLocation, toLocation, direction) {
-    TypeChecker.validateArgs([npc, fromLocation, toLocation, direction], [TypeChecker.isNpc, TypeChecker.isLocation, TypeChecker.isLocation, TypeChecker.isString]);
     await MessageManager.notifyPlayersInLocation(fromLocation, `${npc.name} leaves ${direction}.`, 'npcMovement');
     await MessageManager.notifyPlayersInLocation(toLocation, `${npc.name} arrives from the ${DirectionManager.getOppositeDirection(direction)}.`, 'npcMovement');
   }
@@ -4247,7 +3735,6 @@ item properties and behavior across the game.
 ***************************************************************************************************/
 class BaseItem {
   constructor({ name, description, aliases }) {
-    TypeChecker.validateArgs([name, description, aliases], [TypeChecker.isString, TypeChecker.isString, TypeChecker.isArray]);
     this.name = name;
     this.description = description;
     this.aliases = aliases;
@@ -4268,7 +3755,6 @@ and managed within the game.
 class Item extends BaseItem {
   constructor({ id, name, description, aliases, type, price = 0, server }) {
     super({ name, description, aliases });
-    TypeChecker.validateArgs([id, type, price, server], [TypeChecker.isString, TypeChecker.isString, TypeChecker.isNumber, TypeChecker.isServer]);
     this.id = id;
     this.type = type;
     this.price = price;
@@ -4298,7 +3784,6 @@ class ConsumableItem extends Item {
     super({ id, name, description, aliases, type: 'consumable', server });
   }
   use(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     // Implement consumable item usage logic here
     // After the item is consumed, remove it from the game
     this.server.itemManager.removeItem(this.uid);
@@ -4335,7 +3820,6 @@ This class serves as the base for all weapon types, ensuring that weapons are pr
 class WeaponItem extends Item {
   constructor({ id, name, description, aliases, damage, server }) {
     super({ id, name, description, aliases, type: 'weapon', server });
-    TypeChecker.validateArgs([damage], [TypeChecker.isNumber]);
     this.damage = damage;
   }
 }
@@ -4352,7 +3836,6 @@ This class ensures that items are properly managed and identified within the gam
 class ItemManager {
   static instance;
   static getInstance({ logger, configManager, bcrypt }) {
-    TypeChecker.validateArgs([logger, configManager, bcrypt], [TypeChecker.isLogger, TypeChecker.isObject, TypeChecker.isObject]);
     if (!ItemManager.instance) {
       ItemManager.instance = new ItemManager({ logger, configManager, bcrypt });
     }
@@ -4362,11 +3845,6 @@ class ItemManager {
     if (ItemManager.instance) {
       return ItemManager.instance;
     }
-    TypeChecker.validateArgs([logger, configManager, bcrypt], [
-      TypeChecker.isLogger,
-      TypeChecker.isObject,
-      TypeChecker.isObject
-    ]);
     this.logger = logger;
     this.configManager = configManager;
     this.bcrypt = bcrypt;
@@ -4375,12 +3853,10 @@ class ItemManager {
     ItemManager.instance = this;
   }
   async initialize(itemData) {
-    TypeChecker.validateArgs([itemData], [TypeChecker.isObject]);
     this.checkItemsForDuplicateIds(itemData);
     await this.assignUidsToItems(itemData);
   }
   checkItemsForDuplicateIds(itemData) {
-    TypeChecker.validateArgs([itemData], [TypeChecker.isObject]);
     this.logger.debug(`Processing Item Data`);
     const itemIds = Object.keys(itemData);
     const uniqueIds = new Set(itemIds);
@@ -4396,7 +3872,6 @@ class ItemManager {
     }
   }
   async assignUidsToItems(itemData) {
-    TypeChecker.validateArgs([itemData], [TypeChecker.isObject]);
     this.logger.debug(`Assigning UIDs to Items`);
     await Promise.all(Object.entries(itemData).map(async ([id, item]) => {
       try {
@@ -4411,14 +3886,12 @@ class ItemManager {
     this.logger.debug(`Total Items with UIDs: ${this.items.size}`);
   }
   getItem(uid) {
-    TypeChecker.validateArgs([uid], [TypeChecker.isString]);
     return this.items.get(uid);
   }
   getAllItems() {
     return [...this.items.values()];
   }
   createItemInstance(itemId) {
-    TypeChecker.validateArgs([itemId], [TypeChecker.isString]);
     const itemTemplate = this.items.get(itemId);
     if (!itemTemplate) {
       this.logger.error(`Item template not found for ID: ${itemId}`);
@@ -4427,11 +3900,6 @@ class ItemManager {
     return itemTemplate.createInstance();
   }
   transferItem(sourceInventory, targetInventory, itemUid) {
-    TypeChecker.validateArgs([sourceInventory, targetInventory, itemUid], [
-      TypeChecker.isMap,
-      TypeChecker.isMap,
-      TypeChecker.isString
-    ]);
     const item = sourceInventory.get(itemUid);
     if (!item) {
       this.logger.error(`Item not found in source inventory: ${itemUid}`);
@@ -4442,7 +3910,6 @@ class ItemManager {
     return true;
   }
   removeItem(uid) {
-    TypeChecker.validateArgs([uid], [TypeChecker.isString]);
     if (this.items.has(uid)) {
       this.items.delete(uid);
       this.logger.debug(`Removed item with UID: ${uid}`);
@@ -4472,14 +3939,12 @@ experience through item interactions.
 class InventoryManager {
   static instance;
   static getInstance(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     if (!InventoryManager.instance) {
       InventoryManager.instance = new InventoryManager(player);
     }
     return InventoryManager.instance;
   }
   constructor(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     this.player = player;
     this.server = player.server;
     this.messageManager = this.server.messageManager;
@@ -4487,12 +3952,10 @@ class InventoryManager {
     this.inventory = new Map();
   }
   async addItem(item) {
-    TypeChecker.validateArgs([item], [TypeChecker.isItem]);
     this.inventory.set(item.uid, item);
     await this.messageManager.notifyPickupItem(this.player, item.name);
   }
   async removeItem(itemUid) {
-    TypeChecker.validateArgs([itemUid], [TypeChecker.isString]);
     const item = this.inventory.get(itemUid);
     if (item) {
       this.inventory.delete(itemUid);
@@ -4502,12 +3965,10 @@ class InventoryManager {
     return null;
   }
   async transferItemTo(targetInventory, itemUid) {
-    TypeChecker.validateArgs([targetInventory, itemUid], [TypeChecker.isMap, TypeChecker.isString]);
     return await this.itemManager.transferItem(this.inventory, targetInventory, itemUid);
   }
   // Create an item instance from the item data
   async createItemFromData(itemId) {
-    TypeChecker.validateArgs([itemId], [TypeChecker.isString]);
     const itemData = this.player.server.items[itemId];
     if (!itemData) {
       this.player.server.logger.error(`Item with ID ${itemId} not found`);
@@ -4536,7 +3997,6 @@ class InventoryManager {
     }
   }
   removeFromInventory(item) {
-    TypeChecker.validateArgs([item], [TypeChecker.isItem]);
     this.player.inventory.delete(item);
     if (item.type === 'weapon') {
       this.player.weapons.delete(item);
@@ -4568,14 +4028,12 @@ class InventoryManager {
     await this.getAllItemsFromSource(currentLocation.items, 'location');
   }
   async getAllItemsFromContainer(containerName) {
-    TypeChecker.validateArgs([containerName], [TypeChecker.isString]);
     const container = await this.getContainer(containerName);
     if (!container) return;
     const items = new Set([...container.inventory].filter(i => this.player.server.items[i]));
     await this.getAllItemsFromSource(items, 'container', container.name);
   }
   getSingleItemFromContainer(itemName, containerName) {
-    TypeChecker.validateArgs([itemName, containerName], [TypeChecker.isString, TypeChecker.isString]);
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemId = this.getItemIdFromContainer(itemName, container);
@@ -4586,7 +4044,6 @@ class InventoryManager {
     }
   }
   getSingleItemFromLocation(target) {
-    TypeChecker.validateArgs([target], [TypeChecker.isString]);
     const currentLocation = this.player.server.location[this.player.currentLocation];
     const itemId = this.getItemIdFromLocation(target, currentLocation.items);
     if (itemId) {
@@ -4599,12 +4056,10 @@ class InventoryManager {
     this.dropItems(this.player.inventory, 'all');
   }
   dropAllSpecificItems(itemType) {
-    TypeChecker.validateArgs([itemType], [TypeChecker.isString]);
     const itemsToDrop = new Set([...this.player.inventory].filter(item => this.itemMatchesType(item, itemType)));
     this.dropItems(itemsToDrop, 'specific', itemType);
   }
   dropSingleItem(target) {
-    TypeChecker.validateArgs([target], [TypeChecker.isString]);
     const item = [...this.player.inventory].find(i => i.name.toLowerCase() === target.toLowerCase());
     if (item) {
       this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
@@ -4613,7 +4068,6 @@ class InventoryManager {
     }
   }
   putSingleItem(itemName, containerName) {
-    TypeChecker.validateArgs([itemName, containerName], [TypeChecker.isString, TypeChecker.isString]);
     const item = this.getItemFromInventory(itemName);
     if (!item) return;
     const container = this.getContainer(containerName);
@@ -4623,7 +4077,6 @@ class InventoryManager {
     MessageManager.notifyItemPutInContainer(this.player, item.name, container.name);
   }
   putAllItems(containerName) {
-    TypeChecker.validateArgs([containerName], [TypeChecker.isString]);
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemsToPut = new Set();
@@ -4643,7 +4096,6 @@ class InventoryManager {
     MessageManager.notifyItemsPutInContainer(this.player, [...itemsToPut], container.name);
   }
   putAllSpecificItemsIntoContainer(itemType, containerName) {
-    TypeChecker.validateArgs([itemType, containerName], [TypeChecker.isString, TypeChecker.isString]);
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemsToPut = new Set();
@@ -4663,7 +4115,6 @@ class InventoryManager {
     MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
   }
   getAllSpecificItemsFromLocation(itemType) {
-    TypeChecker.validateArgs([itemType], [TypeChecker.isString]);
     const currentLocation = this.player.server.location[this.player.currentLocation];
     if (currentLocation.items && currentLocation.items.size > 0) {
       const itemsTaken = [];
@@ -4688,7 +4139,6 @@ class InventoryManager {
     }
   }
   getAllSpecificItemsFromContainer(itemType, containerName) {
-    TypeChecker.validateArgs([itemType, containerName], [TypeChecker.isString, TypeChecker.isString]);
     const container = this.getContainer(containerName);
     if (!container) return;
     const itemsTaken = [];
@@ -4710,7 +4160,6 @@ class InventoryManager {
     }
   }
   autoLootNpc(npc) {
-    TypeChecker.validateArgs([npc], [TypeChecker.isNpc]);
     if (npc.inventory && npc.inventory.size > 0) {
       const lootedItems = new Set(npc.inventory);
       lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
@@ -4720,7 +4169,6 @@ class InventoryManager {
     return null;
   }
   async lootNpc(target) {
-    TypeChecker.validateArgs([target], [TypeChecker.isString]);
     try {
       const currentLocation = await this.player.server.gameManager.getLocation(this.player.currentLocation);
       const npcId = await this.getNpcIdFromLocation(target, currentLocation.npcs);
@@ -4797,7 +4245,6 @@ class InventoryManager {
     }
   }
   async dropItems(itemsToDrop, type, itemType) {
-    TypeChecker.validateArgs([itemsToDrop, type, itemType], [TypeChecker.isSet, TypeChecker.isString, TypeChecker.isString]);
     try {
       if (itemsToDrop.size === 0) {
         await this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
@@ -4816,37 +4263,22 @@ class InventoryManager {
     }
   }
   getContainer(containerName) {
-    TypeChecker.validateArgs([containerName], [TypeChecker.isString]);
-    try {
-      const container = [...this.player.inventory].find(item =>
-        item.name.toLowerCase() === containerName.toLowerCase() && item.inventory
-      );
-      if (!container) {
-        MessageManager.notifyNoContainer(this.player, containerName);
-      }
-      return container;
-    } catch (error) {
-      this.player.server.logger.error(`Error in getContainer: ${error.message}`);
-      this.messageManager.notifyError(this.player, "An error occurred while checking for container.");
-      return null;
+    const container = [...this.player.inventory].find(item =>
+      item.name.toLowerCase() === containerName.toLowerCase() && item.inventory
+    );
+    if (!container) {
+      MessageManager.notifyNoContainer(this.player, containerName);
     }
+    return container;
   }
   getItemFromInventory(itemName) {
-    TypeChecker.validateArgs([itemName], [TypeChecker.isString]);
-    try {
-      const item = [...this.player.inventory].find(i => i.name.toLowerCase() === itemName.toLowerCase());
-      if (!item) {
-        this.messageManager.notifyNoItemInInventory(this.player, itemName);
-      }
-      return item;
-    } catch (error) {
-      this.player.server.logger.error(`Error in getItemFromInventory: ${error.message}`);
-      this.messageManager.notifyError(this.player, "An error occurred while checking inventory.");
-      return null;
+    const item = [...this.player.inventory].find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    if (!item) {
+      this.messageManager.notifyNoItemInInventory(this.player, itemName);
     }
+    return item;
   }
   async transferItem(itemId, source, sourceType) {
-    TypeChecker.validateArgs([itemId, source, sourceType], [TypeChecker.isString, TypeChecker.isSet, TypeChecker.isString]);
     try {
       const item = await this.createItemFromData(itemId);
       if (!item) {
@@ -4868,40 +4300,16 @@ class InventoryManager {
     }
   }
   getItemIdFromLocation(target, items) {
-    TypeChecker.validateArgs([target, items], [TypeChecker.isString, TypeChecker.isSet]);
-    try {
-      return [...items].find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
-    } catch (error) {
-      this.player.server.logger.error(`Error in getItemIdFromLocation: ${error.message}`);
-      return null;
-    }
+    return [...items].find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
   }
   getItemIdFromContainer(itemName, container) {
-    TypeChecker.validateArgs([itemName, container], [TypeChecker.isString, TypeChecker.isItem]);
-    try {
-      return [...container.inventory].find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
-    } catch (error) {
-      this.player.server.logger.error(`Error in getItemIdFromContainer: ${error.message}`);
-      return null;
-    }
+    return [...container.inventory].find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
   }
   getNpcIdFromLocation(npcName, npcs) {
-    TypeChecker.validateArgs([npcName, npcs], [TypeChecker.isString, TypeChecker.isSet]);
-    try {
-      return [...npcs].find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
-    } catch (error) {
-      this.player.server.logger.error(`Error in getNpcIdFromLocation: ${error.message}`);
-      return null;
-    }
+    return [...npcs].find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
   }
   itemMatchesType(item, itemType) {
-    TypeChecker.validateArgs([item, itemType], [TypeChecker.isItem, TypeChecker.isString]);
-    try {
-      return item.type.toLowerCase() === itemType.toLowerCase();
-    } catch (error) {
-      this.player.server.logger.error(`Error in itemMatchesType: ${error.message}`);
-      return false;
-    }
+    return item.type.toLowerCase() === itemType.toLowerCase();
   }
   cleanup() {
     this.inventory.clear();
@@ -4920,15 +4328,12 @@ This class is essential for handling the player's financial transactions within 
 ***************************************************************************************************/
 class Currency {
   constructor(initialAmount = 0) {
-    TypeChecker.validateArgs([initialAmount], [TypeChecker.isNumber]);
     this.amount = initialAmount;
   }
   add(value) {
-    TypeChecker.validateArgs([value], [TypeChecker.isNumber]);
     this.amount += value;
   }
   subtract(value) {
-    TypeChecker.validateArgs([value], [TypeChecker.isNumber]);
     if (this.amount < value) {
       throw new Error('Insufficient funds');
     }
@@ -4953,7 +4358,6 @@ correctly.
 ***************************************************************************************************/
 class TransactionManager {
   constructor(server) {
-    TypeChecker.validateArgs([server], [TypeChecker.isServer]);
     this.server = server;
     this.tradeSessions = new Map();
   }
@@ -4961,13 +4365,11 @@ class TransactionManager {
     return new AtomicTransaction(this.server);
   }
   async executeTransaction(operations) {
-    TypeChecker.validateArgs([operations], [TypeChecker.isArray]);
     const transaction = this.createTransaction();
     operations.forEach(operation => transaction.addOperation(operation));
     await transaction.commit();
   }
   async executeBuyTransaction(player, merchant, itemId) {
-    TypeChecker.validateArgs([player, merchant, itemId], [TypeChecker.isPlayer, TypeChecker.isNpc, TypeChecker.isString]);
     try {
       const item = merchant.inventory.get(itemId);
       if (!item) throw new Error("Item not found in merchant's inventory");
@@ -4991,7 +4393,6 @@ class TransactionManager {
     }
   }
   async executeSellTransaction(player, merchant, itemUid) {
-    TypeChecker.validateArgs([player, merchant, itemUid], [TypeChecker.isPlayer, TypeChecker.isNpc, TypeChecker.isString]);
     try {
       const item = player.getItemFromInventory(itemUid);
       if (!item) throw new Error("Item not found in player's inventory");
@@ -5019,7 +4420,6 @@ class TransactionManager {
     }
   }
   createTradeSession(player1, player2) {
-    TypeChecker.validateArgs([player1, player2], [TypeChecker.isPlayer, TypeChecker.isPlayer]);
     try {
       const tradeSession = new TradeSession(this.server, player1, player2);
       this.tradeSessions.set(player1.getId(), tradeSession);
@@ -5031,11 +4431,9 @@ class TransactionManager {
     }
   }
   getTradeSession(playerId) {
-    TypeChecker.validateArgs([playerId], [TypeChecker.isString]);
     return this.tradeSessions.get(playerId);
   }
   endTradeSession(playerId) {
-    TypeChecker.validateArgs([playerId], [TypeChecker.isString]);
     try {
       const tradeSession = this.tradeSessions.get(playerId);
       if (tradeSession) {
@@ -5048,7 +4446,6 @@ class TransactionManager {
     }
   }
   async executeTradeTransaction(tradeSession) {
-    TypeChecker.validateArgs([tradeSession], [TypeChecker.isObject]);
     try {
       const transaction = this.createTransaction();
       const { player1, player2, player1Items, player2Items, player1Gold, player2Gold } = tradeSession;
@@ -5068,7 +4465,6 @@ class TransactionManager {
     }
   }
   async addItemTransferOperations(transaction, items, fromPlayer, toPlayer) {
-    TypeChecker.validateArgs([transaction, items, fromPlayer, toPlayer], [TypeChecker.isObject, TypeChecker.isMap, TypeChecker.isPlayer, TypeChecker.isPlayer]);
     try {
       for (const [itemId, item] of items) {
         transaction.addOperation({
@@ -5088,7 +4484,6 @@ class TransactionManager {
     }
   }
   async addGoldTransferOperation(transaction, fromPlayer, toPlayer, amount) {
-    TypeChecker.validateArgs([transaction, fromPlayer, toPlayer, amount], [TypeChecker.isObject, TypeChecker.isPlayer, TypeChecker.isPlayer, TypeChecker.isNumber]);
     try {
       transaction.addOperation({
         execute: async () => {
@@ -5124,149 +4519,91 @@ This class is essential for managing trades between players.
 ***************************************************************************************************/
 class TradeSession {
   constructor(server, player1, player2) {
-    TypeChecker.validateArgs([server, player1, player2], [TypeChecker.isServer, TypeChecker.isPlayer, TypeChecker.isPlayer]);
-    try {
-      this.server = server;
-      this.player1 = player1;
-      this.player2 = player2;
-      this.player1Items = new Map();
-      this.player2Items = new Map();
-      this.player1Gold = 0;
-      this.player2Gold = 0;
-      this.player1Confirmed = false;
-      this.player2Confirmed = false;
-      this.accepted = false;
-    } catch (error) {
-      this.server.logger.error(`Error creating trade session: ${error.message}`, { error });
-      throw error;
-    }
+    this.server = server;
+    this.player1 = player1;
+    this.player2 = player2;
+    this.player1Items = new Map();
+    this.player2Items = new Map();
+    this.player1Gold = 0;
+    this.player2Gold = 0;
+    this.player1Confirmed = false;
+    this.player2Confirmed = false;
+    this.accepted = false;
   }
   async acceptTrade(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
-    try {
-      if (this.accepted) return;
-      if (player !== this.player2) {
-        await this.server.messageManager.sendMessage(player, "You can't accept this trade.", 'error');
-        return;
-      }
-      this.accepted = true;
-      await this.server.messageManager.notifyTradeAccepted(this.player1, this.player2);
-    } catch (error) {
-      this.server.logger.error(`Error accepting trade: ${error.message}`, { error });
-      throw error;
+    if (this.accepted) return;
+    if (player !== this.player2) {
+      await this.server.messageManager.sendMessage(player, "You can't accept this trade.", 'error');
+      return;
     }
+    this.accepted = true;
+    await this.server.messageManager.notifyTradeAccepted(this.player1, this.player2);
   }
   async declineTrade(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
-    try {
-      await this.server.messageManager.notifyTradeDeclined(this.player1, this.player2);
-      await this.server.transactionManager.endTradeSession(this.player1.getId());
-    } catch (error) {
-      this.server.logger.error(`Error declining trade: ${error.message}`, { error });
-      throw error;
-    }
+    await this.server.messageManager.notifyTradeDeclined(this.player1, this.player2);
+    await this.server.transactionManager.endTradeSession(this.player1.getId());
   }
   async addItem(player, item) {
-    TypeChecker.validateArgs([player, item], [TypeChecker.isPlayer, TypeChecker.isItem]);
-    try {
-      if (!await this.canModifyTrade(player)) return;
-      const itemList = player === this.player1 ? this.player1Items : this.player2Items;
-      itemList.set(item.id, item);
-      await this.resetConfirmations();
-      await this.server.messageManager.notifyTradeItemAdded(player, item);
-    } catch (error) {
-      this.server.logger.error(`Error adding item to trade: ${error.message}`, { error });
-      throw error;
-    }
+    if (!await this.canModifyTrade(player)) return;
+    const itemList = player === this.player1 ? this.player1Items : this.player2Items;
+    itemList.set(item.id, item);
+    await this.resetConfirmations();
+    await this.server.messageManager.notifyTradeItemAdded(player, item);
   }
   async removeItem(player, itemName) {
-    TypeChecker.validateArgs([player, itemName], [TypeChecker.isPlayer, TypeChecker.isString]);
-    try {
-      if (!await this.canModifyTrade(player)) return;
-      const itemList = player === this.player1 ? this.player1Items : this.player2Items;
-      const item = [...itemList.values()].find(i => i.name.toLowerCase() === itemName.toLowerCase());
-      if (item) {
-        itemList.delete(item.id);
-        await this.resetConfirmations();
-        await this.server.messageManager.notifyTradeItemRemoved(player, itemName);
-      } else {
-        await this.server.messageManager.sendMessage(player, `${itemName} is not in the trade.`, 'error');
-      }
-    } catch (error) {
-      this.server.logger.error(`Error removing item from trade: ${error.message}`, { error });
-      throw error;
+    if (!await this.canModifyTrade(player)) return;
+    const itemList = player === this.player1 ? this.player1Items : this.player2Items;
+    const item = [...itemList.values()].find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    if (item) {
+      itemList.delete(item.id);
+      await this.resetConfirmations();
+      await this.server.messageManager.notifyTradeItemRemoved(player, itemName);
+    } else {
+      await this.server.messageManager.sendMessage(player, `${itemName} is not in the trade.`, 'error');
     }
   }
   async setGold(player, amount) {
-    TypeChecker.validateArgs([player, amount], [TypeChecker.isPlayer, TypeChecker.isNumber]);
-    try {
-      if (!await this.canModifyTrade(player)) return;
-      if (amount < 0 || amount > player.getCurrency()) {
-        await this.server.messageManager.sendMessage(player, "Invalid gold amount.", 'error');
-        return;
-      }
-      if (player === this.player1) {
-        this.player1Gold = amount;
-      } else {
-        this.player2Gold = amount;
-      }
-      await this.resetConfirmations();
-      await this.server.messageManager.notifyTradeGoldSet(player, amount);
-    } catch (error) {
-      this.server.logger.error(`Error setting gold amount: ${error.message}`, { error });
-      throw error;
+    if (!await this.canModifyTrade(player)) return;
+    if (amount < 0 || amount > player.getCurrency()) {
+      await this.server.messageManager.sendMessage(player, "Invalid gold amount.", 'error');
+      return;
     }
+    if (player === this.player1) {
+      this.player1Gold = amount;
+    } else {
+      this.player2Gold = amount;
+    }
+    await this.resetConfirmations();
+    await this.server.messageManager.notifyTradeGoldSet(player, amount);
   }
   async confirmTrade(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
-    try {
-      if (!this.accepted) {
-        await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
-        return;
-      }
-      if (player === this.player1) {
-        this.player1Confirmed = true;
-      } else if (player === this.player2) {
-        this.player2Confirmed = true;
-      }
-      await this.server.messageManager.notifyTradeConfirmed(player);
-      if (this.player1Confirmed && this.player2Confirmed) {
-        await this.completeTrade();
-      }
-    } catch (error) {
-      this.server.logger.error(`Error confirming trade: ${error.message}`, { error });
-      throw error;
+    if (!this.accepted) {
+      await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+      return;
+    }
+    if (player === this.player1) {
+      this.player1Confirmed = true;
+    } else if (player === this.player2) {
+      this.player2Confirmed = true;
+    }
+    await this.server.messageManager.notifyTradeConfirmed(player);
+    if (this.player1Confirmed && this.player2Confirmed) {
+      await this.completeTrade();
     }
   }
   async completeTrade() {
-    try {
-      await this.server.transactionManager.executeTradeTransaction(this);
-    } catch (error) {
-      this.server.logger.error(`Error completing trade: ${error.message}`, { error });
-      throw error;
-    }
+    await this.server.transactionManager.executeTradeTransaction(this);
   }
   async resetConfirmations() {
-    try {
-      this.player1Confirmed = false;
-      this.player2Confirmed = false;
-    } catch (error) {
-      this.server.logger.error(`Error resetting confirmations: ${error.message}`, { error });
-      throw error;
-    }
+    this.player1Confirmed = false;
+    this.player2Confirmed = false;
   }
   async canModifyTrade(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
-    try {
-      if (!this.accepted) {
-        await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
-        return false;
-      }
-      return true;
-    } catch (error) {
-      this.server.logger.error(`Error checking if trade can be modified: ${error.message}`, { error });
-      throw error;
+    if (!this.accepted) {
+      await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
+      return false;
     }
+    return true;
   }
 }
 /**************************************************************************************************
@@ -5283,201 +4620,37 @@ correctly.
 ***************************************************************************************************/
 class AtomicTransaction {
   constructor(server) {
-    TypeChecker.validateArgs([server], [TypeChecker.isServer]);
-    try {
-      this.server = server;
-      this.operations = [];
-      this.isCommitted = false;
-    } catch (error) {
-      this.server.logger.error(`Error creating atomic transaction: ${error.message}`, { error });
-      throw error;
-    }
+    this.server = server;
+    this.operations = [];
+    this.isCommitted = false;
   }
   addOperation(operation) {
-    TypeChecker.validateArgs([operation], [TypeChecker.isObject]);
-    try {
-      if (this.isCommitted) {
-        throw new Error("Cannot add operations to a committed transaction");
-      }
-      this.operations.push(operation);
-    } catch (error) {
-      this.server.logger.error(`Error adding operation to atomic transaction: ${error.message}`, { error });
-      throw error;
+    if (this.isCommitted) {
+      throw new Error("Cannot add operations to a committed transaction");
     }
+    this.operations.push(operation);
   }
   async commit() {
-    try {
-      if (this.isCommitted) {
-        throw new Error("Transaction already committed");
-      }
-      this.server.logger.debug("Starting atomic transaction commit");
-      for (const operation of this.operations) {
-        await operation.execute();
-      }
-      this.isCommitted = true;
-      this.server.logger.debug("Atomic transaction committed successfully");
-    } catch (error) {
-      this.server.logger.error("Error during transaction commit, rolling back", { error });
-      await this.rollback();
-      throw error;
+    if (this.isCommitted) {
+      throw new Error("Transaction already committed");
     }
+    this.server.logger.debug("Starting atomic transaction commit");
+    for (const operation of this.operations) {
+      await operation.execute();
+    }
+    this.isCommitted = true;
+    this.server.logger.debug("Atomic transaction committed successfully");
   }
   async rollback() {
-    try {
-      this.server.logger.debug("Rolling back atomic transaction");
-      for (const operation of this.operations.reverse()) {
-        try {
-          await operation.rollback();
-        } catch (rollbackError) {
-          this.server.logger.error("Error during rollback", { error: rollbackError });
-        }
-      }
-      this.server.logger.debug("Atomic transaction rolled back");
-    } catch (error) {
-      this.server.logger.error(`Error rolling back atomic transaction: ${error.message}`, { error });
-      throw error;
-    }
-  }
-}
-/**************************************************************************************************
-Type Checker Class
-The TypeChecker class is responsible for checking the types of values passed to various functions.
-It provides methods to check if a value is an instance of a specific class and throws an error if the
-type check fails.
-Key features:
-1. Type checking for different classes
-2. Error handling for type mismatches
-3. Integration with the server's logger for error tracking
-This class is essential for ensuring that the correct types are used in various parts of the game.
-***************************************************************************************************/
-class TypeChecker {
-  static isPlayer(value) {
-    return value instanceof Player;
-  }
-  static isNpc(value) {
-    return value instanceof Npc;
-  }
-  static isLocation(value) {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof value.id === 'string' &&
-      typeof value.name === 'string' &&
-      typeof value.description === 'string' &&
-      TypeChecker.isObject(value.exits) &&
-      Array.isArray(value.zone)
-    );
-  }
-  static isItem(value) {
-    return value instanceof Item;
-  }
-  static isServer(value) {
-    return value instanceof Server;
-  }
-  static isLogger(value) {
-    return value instanceof Logger;
-  }
-  static isString(value) {
-    return typeof value === 'string';
-  }
-  static isNumber(value) {
-    return typeof value === 'number' && !isNaN(value);
-  }
-  static isBoolean(value) {
-    return typeof value === 'boolean';
-  }
-  static isArray(value) {
-    return Array.isArray(value);
-  }
-  static isObject(value) {
-    return typeof value === 'object' && value !== null;
-  }
-  static isFunction(value) {
-    return typeof value === 'function';
-  }
-  static isMap(value) {
-    return value instanceof Map;
-  }
-  static isSet(value) {
-    return value instanceof Set;
-  }
-  static isNpcData(value) {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof value.id === 'string' &&
-      typeof value.name === 'string' &&
-      typeof value.sex === 'string' &&
-      typeof value.currHealth === 'number' &&
-      typeof value.maxHealth === 'number' &&
-      typeof value.attackPower === 'number' &&
-      typeof value.csml === 'number' &&
-      typeof value.aggro === 'boolean' &&
-      typeof value.assist === 'boolean' &&
-      typeof value.status === 'string' &&
-      typeof value.currentLocation === 'string' &&
-      Array.isArray(value.aliases) &&
-      typeof value.type === 'string'
-    );
-  }
-  static isItemData(value) {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof value.id === 'string' &&
-      typeof value.name === 'string' &&
-      typeof value.description === 'string' &&
-      Array.isArray(value.aliases) &&
-      typeof value.type === 'string'
-    );
-  }
-  static isPlayerAction(value) {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof value.actionType === 'string' &&
-      TypeChecker.isObject(value.payload)
-    );
-  }
-  static isCombatData(value) {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      TypeChecker.isPlayer(value.player) &&
-      (TypeChecker.isNpc(value.opponent) || TypeChecker.isPlayer(value.opponent)) &&
-      typeof value.playerInitiated === 'boolean'
-    );
-  }
-  static isInventoryItem(value) {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof value.id === 'string' &&
-      typeof value.quantity === 'number'
-    );
-  }
-  static isQuestData(value) {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof value.id === 'string' &&
-      typeof value.title === 'string' &&
-      typeof value.description === 'string' &&
-      Array.isArray(value.objectives) &&
-      typeof value.reward === 'object' &&
-      value.reward !== null
-    );
-  }
-  static validateArgs(args, validators) {
-    if (!Array.isArray(args) || !Array.isArray(validators) || args.length !== validators.length) {
-      throw new TypeError('Invalid arguments for validateArgs');
-    }
-
-    for (let i = 0; i < args.length; i++) {
-      if (!validators[i](args[i])) {
-        throw new TypeError(`Argument at index ${i} is of incorrect type`);
+    this.server.logger.debug("Rolling back atomic transaction");
+    for (const operation of this.operations.reverse()) {
+      try {
+        await operation.rollback();
+      } catch (rollbackError) {
+        this.server.logger.error("Error during rollback", { error: rollbackError });
       }
     }
+    this.server.logger.debug("Atomic transaction rolled back");
   }
 }
 /**************************************************************************************************
@@ -5492,91 +4665,79 @@ The FormatMessageManager is essential for ensuring that messages are displayed c
 ***************************************************************************************************/
 class FormatMessageManager {
   static createMessageData({ cssid = '', message }) {
-    TypeChecker.validateArgs([cssid, message], [TypeChecker.isString, TypeChecker.isString]);
-    try {
-      return { cssid, content: message };
-    } catch (error) {
-      MessageManager.logger.error('Error creating message data:', { error });
-      throw error;
-    }
+    return { cssid, content: message };
   }
   static getIdForMessage(type) {
-    TypeChecker.validateArgs([type], [TypeChecker.isString]);
-    try {
-      const messageIds = {
-        /* CSS for location title
-          any message sent to a client that contains
-          a location title must include this */
-        locationTitle: 'location-title',
-        /* CSS for location description
-          any message sent to a client that contains
-          a location description must include this */
-        locationDescription: 'location-description',
-        /* CSS for item names
-          any message sent to a client that contains
-          an item name must include this */
-        itemName: 'item-name',
-        /* CSS for exit to location
-          any message sent to a client that contains
-          an exit to location must include this */
-        exitToLocation: 'exit-to-location',
-        /* CSS for exits list
-          any message sent to a client that contains
-          an exits list must include this */
-        exitsList: 'exits-list',
-        /* CSS for inventory list
-          any message sent to a client that contains
-          an inventory list must include this */
-        inventoryList: 'inventory-list',
-        /* CSS for items list
-          any message sent to a client that contains
-          an items list must include this */
-        itemsList: 'items-list',
-        /* CSS for npc name
-          any message sent to a client that contains
-          an npc name must include this */
-        npcName: 'npc-name',
-        /* CSS for npc description
-          any message sent to a client that contains
-          an npc description must include this */
-        npcDescription: 'npc-description',
-        /* CSS for npc stats
-          any message sent to a client that contains
-          npc stats must include this */
-        npcStats: 'npc-stats',
-        /* CSS for player names
-          any message sent to a client that contains
-          a player name must include this */
-        playerName: 'player-name',
-        /* CSS for combat message player actions
-          any message sent to a client during combat
-          that contains a player action must include this */
-        combatMessagePlayer: 'combat-message-player',
-        /* CSS for combat message npc actions
-          any message sent to a client during combat
-          that contains an npc action must include this */
-        combatMessageNpc: 'combat-message-npc',
-        /* CSS for combat message health
-          any message sent to a client during combat
-          that contains health status must include this */
-        combatMessageHealth: 'combat-message-health',
-        /* CSS for combat messages
-          any message sent to a client during combat
-          must include this */
-        combatMessage: 'combat-message',
-        /* CSS for error messages
-          any message sent to a client that contains
-          an error message must include this */
-        errorMessage: 'error-message',
-        buyMessage: 'buy-message',
-        sellMessage: 'sell-message',
-        merchantInventory: 'merchant-inventory',
-      };
-      return messageIds[type] || '';
-    } catch (error) {
-      MessageManager.logger.error(`Error getting ID for message: ${error.message}`, { error });
-      throw error;
-    }
+    const messageIds = {
+      /* CSS for location title
+        any message sent to a client that contains
+        a location title must include this */
+      locationTitle: 'location-title',
+      /* CSS for location description
+        any message sent to a client that contains
+        a location description must include this */
+      locationDescription: 'location-description',
+      /* CSS for item names
+        any message sent to a client that contains
+        an item name must include this */
+      itemName: 'item-name',
+      /* CSS for exit to location
+        any message sent to a client that contains
+        an exit to location must include this */
+      exitToLocation: 'exit-to-location',
+      /* CSS for exits list
+        any message sent to a client that contains
+        an exits list must include this */
+      exitsList: 'exits-list',
+      /* CSS for inventory list
+        any message sent to a client that contains
+        an inventory list must include this */
+      inventoryList: 'inventory-list',
+      /* CSS for items list
+        any message sent to a client that contains
+        an items list must include this */
+      itemsList: 'items-list',
+      /* CSS for npc name
+        any message sent to a client that contains
+        an npc name must include this */
+      npcName: 'npc-name',
+      /* CSS for npc description
+        any message sent to a client that contains
+        an npc description must include this */
+      npcDescription: 'npc-description',
+      /* CSS for npc stats
+        any message sent to a client that contains
+        npc stats must include this */
+      npcStats: 'npc-stats',
+      /* CSS for player names
+        any message sent to a client that contains
+        a player name must include this */
+      playerName: 'player-name',
+      /* CSS for combat message player actions
+        any message sent to a client during combat
+        that contains a player action must include this */
+      combatMessagePlayer: 'combat-message-player',
+      /* CSS for combat message npc actions
+        any message sent to a client during combat
+        that contains an npc action must include this */
+      combatMessageNpc: 'combat-message-npc',
+      /* CSS for combat message health
+        any message sent to a client during combat
+        that contains health status must include this */
+      combatMessageHealth: 'combat-message-health',
+      /* CSS for combat messages
+        any message sent to a client during combat
+        must include this */
+      combatMessage: 'combat-message',
+      /* CSS for error messages
+        any message sent to a client that contains
+        an error message must include this */
+      errorMessage: 'error-message',
+      buyMessage: 'buy-message',
+      sellMessage: 'sell-message',
+      merchantInventory: 'merchant-inventory',
+    };
+    return messageIds[type] || '';
   }
 }
 /**************************************************************************************************
@@ -5598,7 +4759,6 @@ class MessageManager {
   static instance;
   static logger;
   static getInstance(logger) {
-    TypeChecker.validateArgs([logger], [TypeChecker.isLogger]);
     if (!MessageManager.instance) {
       MessageManager.instance = new MessageManager();
       MessageManager.logger = logger;
@@ -5609,7 +4769,6 @@ class MessageManager {
   static socket;
   static setSocket(socketInstance) {
     try {
-      TypeChecker.validateArgs([socketInstance], [TypeChecker.isObject]);
       this.socket = socketInstance;
     } catch (error) {
       this.logger.error('Error setting socket instance:', error);
@@ -5618,11 +4777,6 @@ class MessageManager {
   // Notify a player with a message
   static async notify(entity, message, type) {
     try {
-      TypeChecker.validateArgs([entity, message, type], [
-        (value) => TypeChecker.isPlayer(value) || TypeChecker.isNpc(value),
-        TypeChecker.isString,
-        TypeChecker.isString
-      ]);
       if (entity instanceof Player) {
         this.logger.info(`Notifying Player: ${entity.getName()} - ${message}`);
       } else if (entity instanceof Npc) {
@@ -5638,11 +4792,6 @@ class MessageManager {
   // Notify all players in a specific location with a message
   static async notifyPlayersInLocation({ location, message, type = '' }) {
     try {
-      TypeChecker.validateArgs([location, message, type], [
-        TypeChecker.isLocation,
-        TypeChecker.isString,
-        TypeChecker.isString
-      ]);
       if (!location || !location.playersInLocation) return;
       for (const player of location.playersInLocation) {
         await this.notify(player, message, type);
@@ -5654,12 +4803,6 @@ class MessageManager {
   // Notify a player about a specific action performed on a target
   static async notifyAction({ player, action, targetName, type }) {
     try {
-      TypeChecker.validateArgs([player, action, targetName, type], [
-        TypeChecker.isPlayer,
-        TypeChecker.isString,
-        TypeChecker.isString,
-        TypeChecker.isString
-      ]);
       return await this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
     } catch (error) {
       this.logger.error('Error notifying action:', error);
@@ -5668,7 +4811,6 @@ class MessageManager {
   // Notify a player of a successful login
   static async notifyLoginSuccess({ player }) {
     try {
-      TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
       return await this.notifyAction({ player, action: 'has logged in!', targetName: '', type: 'loginSuccess' });
     } catch (error) {
       this.logger.error('Error notifying login success:', error);
@@ -5677,7 +4819,6 @@ class MessageManager {
   // Notify a player of an incorrect password attempt
   static async notifyIncorrectPassword({ player }) {
     try {
-      TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
       return await this.notify(player, `Incorrect password. Please try again.`, 'incorrectPassword');
     } catch (error) {
       this.logger.error('Error notifying incorrect password:', error);
@@ -5686,7 +4827,6 @@ class MessageManager {
   // Notify a player of disconnection due to too many failed login attempts
   static async notifyDisconnectionDueToFailedAttempts({ player }) {
     try {
-      TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
       return await this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, 'disconnectionFailedAttempts');
     } catch (error) {
       this.logger.error('Error notifying disconnection due to failed attempts:', error);
@@ -5695,7 +4835,6 @@ class MessageManager {
   // Notify a player when they pick up an item
   static async notifyPickupItem({ player, itemName }) {
     try {
-      TypeChecker.validateArgs([player, itemName], [TypeChecker.isPlayer, TypeChecker.isString]);
       return await this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
     } catch (error) {
       this.logger.error('Error notifying pickup item:', error);
@@ -5704,7 +4843,6 @@ class MessageManager {
   // Notify a player when they drop an item
   static async notifyDropItem({ player, itemName }) {
     try {
-      TypeChecker.validateArgs([player, itemName], [TypeChecker.isPlayer, TypeChecker.isString]);
       return await this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
     } catch (error) {
       this.logger.error('Error notifying drop item:', error);
@@ -5713,7 +4851,6 @@ class MessageManager {
   // Notify players in a location about an Npc's movement
   static async notifyNpcMovement(npc, direction, isArrival) {
     try {
-      TypeChecker.validateArgs([npc, direction, isArrival], [TypeChecker.isNpc, TypeChecker.isString, TypeChecker.isBoolean]);
       const action = isArrival ? 'arrives' : 'leaves';
       const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
       await this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
@@ -5724,7 +4861,6 @@ class MessageManager {
   // Get a template message for combat initiation
   static getCombatInitiationTemplate({ initiatorName, targetName }) {
     try {
-      TypeChecker.validateArgs([initiatorName, targetName], [TypeChecker.isString, TypeChecker.isString]);
       return `${initiatorName} initiates combat with ${targetName}!`;
     } catch (error) {
       this.logger.error('Error getting combat initiation template:', error);
@@ -5733,7 +4869,6 @@ class MessageManager {
   // Get a template message for an Npc joining combat
   static getCombatJoinTemplate({ npcName }) {
     try {
-      TypeChecker.validateArgs([npcName], [TypeChecker.isString]);
       return `${npcName} joins the combat!`;
     } catch (error) {
       this.logger.error('Error getting combat join template:', error);
@@ -5742,7 +4877,6 @@ class MessageManager {
   // Get a template message for a victory announcement
   static getVictoryTemplate({ playerName, defeatedName }) {
     try {
-      TypeChecker.validateArgs([playerName, defeatedName], [TypeChecker.isString, TypeChecker.isString]);
       return `${playerName} has defeated ${defeatedName}!`;
     } catch (error) {
       this.logger.error('Error getting victory template:', error);
@@ -5751,7 +4885,6 @@ class MessageManager {
   // Get a template message for a target not found
   static getTargetNotFoundTemplate({ playerName, target }) {
     try {
-      TypeChecker.validateArgs([playerName, target], [TypeChecker.isString, TypeChecker.isString]);
       return `${playerName} doesn't see ${target} here.`;
     } catch (error) {
       this.logger.error('Error getting target not found template:', error);
@@ -5760,7 +4893,6 @@ class MessageManager {
   // Get a template message for no conscious enemies
   static getNoConsciousEnemiesTemplate({ playerName }) {
     try {
-      TypeChecker.validateArgs([playerName], [TypeChecker.isString]);
       return `${playerName} doesn't see any conscious enemies here.`;
     } catch (error) {
       this.logger.error('Error getting no conscious enemies template:', error);
@@ -5769,7 +4901,6 @@ class MessageManager {
   // Get a template message for an Npc already in a specific status
   static getNpcAlreadyInStatusTemplate({ npcName, status }) {
     try {
-      TypeChecker.validateArgs([npcName, status], [TypeChecker.isString, TypeChecker.isString]);
       return `${npcName} is already ${status}.`;
     } catch (error) {
       this.logger.error('Error getting Npc already in status template:', error);
@@ -5778,7 +4909,6 @@ class MessageManager {
   // Get a template message for an unknown location
   static getUnknownLocationTemplate({ playerName }) {
     try {
-      TypeChecker.validateArgs([playerName], [TypeChecker.isString]);
       return `${playerName} is in an unknown location.`;
     } catch (error) {
       this.logger.error('Error getting unknown location template:', error);
@@ -5787,7 +4917,6 @@ class MessageManager {
   // Get a template message for looting an Npc
   static getLootedNpcTemplate({ playerName, npcName, lootedItems }) {
     try {
-      TypeChecker.validateArgs([playerName, npcName, lootedItems], [TypeChecker.isString, TypeChecker.isString, TypeChecker.isArray]);
       return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
     } catch (error) {
       this.logger.error('Error getting looted Npc template:', error);
@@ -5796,7 +4925,6 @@ class MessageManager {
   // Get a template message for finding nothing to loot from an Npc
   static getNoLootTemplate({ playerName, npcName }) {
     try {
-      TypeChecker.validateArgs([playerName, npcName], [TypeChecker.isString, TypeChecker.isString]);
       return `${playerName} found nothing to loot from ${npcName}.`;
     } catch (error) {
       this.logger.error('Error getting no loot template:', error);
@@ -5805,7 +4933,6 @@ class MessageManager {
   // Get a template message for being unable to loot an Npc
   static getCannotLootNpcTemplate({ playerName, npcName }) {
     try {
-      TypeChecker.validateArgs([playerName, npcName], [TypeChecker.isString, TypeChecker.isString]);
       return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
     } catch (error) {
       this.logger.error('Error getting cannot loot Npc template:', error);
@@ -5814,7 +4941,6 @@ class MessageManager {
   // Get a template message for no Npc to loot
   static getNoNpcToLootTemplate({ playerName, target }) {
     try {
-      TypeChecker.validateArgs([playerName, target], [TypeChecker.isString, TypeChecker.isString]);
       return `${playerName} doesn't see ${target} here to loot.`;
     } catch (error) {
       this.logger.error('Error getting no Npc to loot template:', error);
@@ -5823,7 +4949,6 @@ class MessageManager {
   // Get a template message for no Npcs to loot
   static getNoNpcsToLootTemplate({ playerName }) {
     try {
-      TypeChecker.validateArgs([playerName], [TypeChecker.isString]);
       return `${playerName} doesn't see any Npcs to loot here.`;
     } catch (error) {
       this.logger.error('Error getting no Npcs to loot template:', error);
@@ -5832,7 +4957,6 @@ class MessageManager {
   // Get a template message for finding nothing to loot from any Npcs
   static getNothingToLootFromNpcsTemplate({ playerName }) {
     try {
-      TypeChecker.validateArgs([playerName], [TypeChecker.isString]);
       return `${playerName} found nothing to loot from any Npcs here.`;
     } catch (error) {
       this.logger.error('Error getting nothing to loot from Npcs template:', error);
@@ -5841,7 +4965,6 @@ class MessageManager {
   // Get a template message for looting all Npcs
   static getLootedAllNpcsTemplate({ playerName, lootedNpcs, lootedItems }) {
     try {
-      TypeChecker.validateArgs([playerName, lootedNpcs, lootedItems], [TypeChecker.isString, TypeChecker.isArray, TypeChecker.isArray]);
       return `${playerName} looted ${[...lootedNpcs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
     } catch (error) {
       this.logger.error('Error getting looted all Npcs template:', error);
@@ -5850,7 +4973,6 @@ class MessageManager {
   // Notify a player that they have no items to drop
   static async notifyNoItemsToDrop({ player, type, itemType }) {
     try {
-      TypeChecker.validateArgs([player, type, itemType], [TypeChecker.isPlayer, TypeChecker.isString, TypeChecker.isString]);
       return await this.notify(player, `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, 'errorMessage');
     } catch (error) {
       this.logger.error('Error notifying no items to drop:', error);
@@ -5859,7 +4981,6 @@ class MessageManager {
   // Notify a player about items they dropped
   static async notifyItemsDropped({ player, items }) {
     try {
-      TypeChecker.validateArgs([player, items], [TypeChecker.isPlayer, TypeChecker.isArray]);
       return await this.notify(player, `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, 'dropMessage');
     } catch (error) {
       this.logger.error('Error notifying items dropped:', error);
@@ -5867,7 +4988,6 @@ class MessageManager {
   }
   // Notify a player about items they took
   static async notifyItemsTaken({ player, items }) {
-    TypeChecker.validateArgs([player, items], [TypeChecker.isPlayer, TypeChecker.isArray]);
     try {
       return await this.notify(player, `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, 'takeMessage');
     } catch (error) {
@@ -5876,7 +4996,6 @@ class MessageManager {
   }
   // Notify a player that there are no items here
   static async notifyNoItemsHere({ player }) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     try {
       return await this.notify(player, `There are no items here.`, 'errorMessage');
     } catch (error) {
@@ -5885,7 +5004,6 @@ class MessageManager {
   }
   // Notify a player about items taken from a container
   static async notifyItemsTakenFromContainer({ player, items, containerName }) {
-    TypeChecker.validateArgs([player, items, containerName], [TypeChecker.isPlayer, TypeChecker.isArray, TypeChecker.isString]);
     try {
       return await this.notify(player, `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, 'takeMessage');
     } catch (error) {
@@ -5894,7 +5012,6 @@ class MessageManager {
   }
   // Notify a player that there are no specific items in a container
   static async notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
-    TypeChecker.validateArgs([player, itemType, containerName], [TypeChecker.isPlayer, TypeChecker.isString, TypeChecker.isString]);
     try {
       return await this.notify(player, `There are no ${itemType} items in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5903,7 +5020,6 @@ class MessageManager {
   }
   // Notify a player that there is no item in a container
   static async notifyNoItemInContainer({ player, itemName, containerName }) {
-    TypeChecker.validateArgs([player, itemName, containerName], [TypeChecker.isPlayer, TypeChecker.isString, TypeChecker.isString]);
     try {
       return await this.notify(player, `There is no ${itemName} in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5912,7 +5028,6 @@ class MessageManager {
   }
   // Notify a player that there is no item here
   static async notifyNoItemHere({ player, itemName }) {
-    TypeChecker.validateArgs([player, itemName], [TypeChecker.isPlayer, TypeChecker.isString]);
     try {
       return await this.notify(player, `There is no ${itemName} here.`, 'errorMessage');
     } catch (error) {
@@ -5921,7 +5036,6 @@ class MessageManager {
   }
   // Notify a player that they don't have a specific container
   static async notifyNoContainer({ player, containerName }) {
-    TypeChecker.validateArgs([player, containerName], [TypeChecker.isPlayer, TypeChecker.isString]);
     try {
       return await this.notify(player, `${player.getName()} doesn't have a ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5930,7 +5044,6 @@ class MessageManager {
   }
   // Notify a player that an item is not in their inventory
   static async notifyItemNotInInventory({ player, itemName }) {
-    TypeChecker.validateArgs([player, itemName], [TypeChecker.isPlayer, TypeChecker.isString]);
     try {
       return await this.notify(player, `${player.getName()} doesn't have a ${itemName} in their inventory.`, 'errorMessage');
     } catch (error) {
@@ -5939,7 +5052,6 @@ class MessageManager {
   }
   // Notify a player that they put an item in a container
   static async notifyItemPutInContainer({ player, itemName, containerName }) {
-    TypeChecker.validateArgs([player, itemName, containerName], [TypeChecker.isPlayer, TypeChecker.isString, TypeChecker.isString]);
     try {
       return await this.notify(player, `${player.getName()} put ${itemName} in ${containerName}.`, 'putMessage');
     } catch (error) {
@@ -5948,7 +5060,6 @@ class MessageManager {
   }
   // Notify a player that they have no items to put in a container
   static async notifyNoItemsToPut({ player, containerName }) {
-    TypeChecker.validateArgs([player, containerName], [TypeChecker.isPlayer, TypeChecker.isString]);
     try {
       return await this.notify(player, `${player.getName()} has no items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5957,7 +5068,6 @@ class MessageManager {
   }
   // Notify a player about items put in a container
   static async notifyItemsPutInContainer({ player, items, containerName }) {
-    TypeChecker.validateArgs([player, items, containerName], [TypeChecker.isPlayer, TypeChecker.isArray, TypeChecker.isString]);
     try {
       return await this.notify(player, `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, 'putMessage');
     } catch (error) {
@@ -5966,7 +5076,6 @@ class MessageManager {
   }
   // Notify a player that they have no specific items to put in a container
   static async notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
-    TypeChecker.validateArgs([player, itemType, containerName], [TypeChecker.isPlayer, TypeChecker.isString, TypeChecker.isString]);
     try {
       return await this.notify(player, `${player.getName()} has no ${itemType} items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
@@ -5975,7 +5084,6 @@ class MessageManager {
   }
   // Notify a player that there are no specific items here
   static async notifyNoSpecificItemsHere({ player, itemType }) {
-    TypeChecker.validateArgs([player, itemType], [TypeChecker.isPlayer, TypeChecker.isString]);
     try {
       return await this.notify(player, `There are no ${itemType} items here.`, 'errorMessage');
     } catch (error) {
@@ -5984,7 +5092,6 @@ class MessageManager {
   }
   // Get a template message for auto-looting items from an Npc
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
-    TypeChecker.validateArgs([playerName, npcName, lootedItems], [TypeChecker.isString, TypeChecker.isString, TypeChecker.isArray]);
     try {
       return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
     } catch (error) {
@@ -5993,7 +5100,6 @@ class MessageManager {
   }
   // Notify a player about the result of a combat
   static async notifyCombatResult(player, result) {
-    TypeChecker.validateArgs([player, result], [TypeChecker.isPlayer, TypeChecker.isString]);
     try {
       player.server.messageManager.sendMessage(player, result, 'combatMessage');
     } catch (error) {
@@ -6002,7 +5108,6 @@ class MessageManager {
   }
   // Notify a player about the start of a combat
   static async notifyCombatStart(player, npc) {
-    TypeChecker.validateArgs([player, npc], [TypeChecker.isPlayer, TypeChecker.isNpc]);
     try {
       player.server.messageManager.sendMessage(player, `You engage in combat with ${npc.getName()}!`, 'combatMessage');
     } catch (error) {
@@ -6011,7 +5116,6 @@ class MessageManager {
   }
   // Notify a player about the end of a combat
   static async notifyCombatEnd(player) {
-    TypeChecker.validateArgs([player], [TypeChecker.isPlayer]);
     try {
       player.server.messageManager.sendMessage(player, `Combat has ended.`, 'combatMessage');
     } catch (error) {
@@ -6020,7 +5124,6 @@ class MessageManager {
   }
   // Send a message to a player
   static async sendMessage(player, messageData, type) {
-    TypeChecker.validateArgs([player, messageData, type], [TypeChecker.isPlayer, TypeChecker.isObject, TypeChecker.isString]);
     try {
       if (typeof messageData === 'string') {
         await this.notify(player, messageData, type);
@@ -6043,7 +5146,6 @@ class MessageManager {
   }
   // Notify a player about currency changes
   static async notifyCurrencyChange(player, amount, isAddition) {
-    TypeChecker.validateArgs([player, amount, isAddition], [TypeChecker.isPlayer, TypeChecker.isNumber, TypeChecker.isBoolean]);
     try {
       const action = isAddition ? 'gained' : 'spent';
       return await this.notify(player, `You ${action} ${Math.abs(amount)} coins.`, 'currencyChange');
@@ -6053,7 +5155,6 @@ class MessageManager {
   }
   // Notify a player about experience gain
   static async notifyExperienceGain(player, amount) {
-    TypeChecker.validateArgs([player, amount], [TypeChecker.isPlayer, TypeChecker.isNumber]);
     try {
       return await this.notify(player, `You gained ${amount} experience points.`, 'experienceGain');
     } catch (error) {
@@ -6061,11 +5162,6 @@ class MessageManager {
     }
   }
   static async notifyLeavingLocation(entity, oldLocationId, newLocationId) {
-    TypeChecker.validateArgs([entity, oldLocationId, newLocationId], [
-      (value) => TypeChecker.isPlayer(value) || TypeChecker.isNpc(value),
-      TypeChecker.isString,
-      TypeChecker.isString
-    ]);
     try {
       const oldLocation = await entity.server.gameManager.getLocation(oldLocationId);
       const newLocation = await entity.server.gameManager.getLocation(newLocationId);
