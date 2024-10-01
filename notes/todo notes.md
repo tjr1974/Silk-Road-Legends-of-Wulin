@@ -31,17 +31,11 @@ Here are some important features that may be missing for the game server to func
 - **Performance Optimization**: Optimize server performance to handle a large number of players and events.
 - **Online Creation**: For adding new locations, npcs, items, quests, etc. we should have a fully online creation system, where builders can edit the game world.
 
-Inconsistent use of async/await:
-Some methods that might involve asynchronous operations (like database queries) don't use async/await, which could lead to unexpected behavior.
+ensure that singleton classes and methods properly use our custom AsyncLoc class and methods
 
-Singleton pattern implementation:
-The NpcMovementManager uses a singleton pattern, but it's not thread-safe and could potentially be instantiated multiple times in a multi-threaded environment.
-update NpcMovementManager to properly use AsyncLock
-
-Incomplete cleanup:
-The cleanup method in GameManager clears NPC collections but doesn't stop the NPC movement interval or perform other necessary cleanup tasks.
-
-Potential memory leaks:
-The startMovement method in NpcMovementManager doesn't clear the existing interval before setting a new one, which could lead to multiple intervals running simultaneously.
+ensure cleanup methods are implemented as appropriate to perform necessary cleanup tasks
+add cleanup methods as appropriate to perform necessary cleanup tasks
 
 Standardize error logging by using the logger consistently throughout the codebase.
+
+Use efficient data structures like Sets or Maps where appropriate
