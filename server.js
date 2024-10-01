@@ -294,55 +294,24 @@ class Server {
     Server.instance = this;
   }
   async init() {
-    try {
-      this.logger.info("- CONFIGURE SERVER COMPONENTS STARTED");
-      this.logger.debug("- Load Configuration Settings");
-      await this.configManager.loadConfig();
-      this.logger.debug("- Initialize Socket Event Manager");
-      this.socketEventManager = new SocketEventManager({ server: this, logger: this.logger });
-      this.logger.debug("- Create Server Configurator");
-      this.serverConfigurator = new ServerConfigurator({
-        server: this,
-        logger: this.logger,
-        socketEventManager: this.socketEventManager,
-        config: this.configManager
-      });
-      this.logger.debug("- Configure Server");
-      await this.serverConfigurator.configureServer();
-      if (this.SocketEventEmitter) {
-        this.SocketEventEmitter.on('playerConnected', this.handlePlayerConnected.bind(this));
-      } else {
-        throw new Error("SocketEventEmitter not initialized");
+    const initSteps = [
+      { name: 'Configure Server Components', action: this.configureServerComponents.bind(this) },
+      { name: 'Initialize Socket Event Manager', action: this.initializeSocketEventManager.bind(this) },
+      { name: 'Configure Server', action: this.serverConfigurator.configureServer.bind(this.serverConfigurator) },
+      { name: 'Initialize Game Manager', action: this.initializeGameManager.bind(this) },
+      { name: 'Setup Game Components', action: this.setupGameComponents.bind(this) },
+      { name: 'Start Game', action: this.startGame.bind(this) }
+    ];
+    for (const step of initSteps) {
+      try {
+        this.logger.info(`- ${step.name.toUpperCase()} STARTED`);
+        await step.action();
+        this.logger.info(`- ${step.name.toUpperCase()} FINISHED`);
+      } catch (error) {
+        this.logger.error(`Error during ${step.name}: ${error.message}`, { error });
+        // Depending on the severity, you might want to exit the process here
+        // process.exit(1);
       }
-      this.gameManager = GameManager.getInstance({
-        SocketEventEmitter: this.SocketEventEmitter,
-        logger: this.logger,
-        server: this,
-        configManager: this.configManager,
-        combatManager: new CombatManager({ server: this, config: this.configManager })
-      });
-      this.npcMovementManager = await NpcMovementManager.getInstance({
-        logger: this.logger,
-        configManager: this.configManager,
-        gameManager: this.gameManager
-      });
-      if (this.npcMovementManager && this.gameManager) {
-        this.npcMovementManager.setGameManager(this.gameManager);
-      } else {
-        throw new Error("NpcMovementManager or GameManager not initialized properly");
-      }
-      this.gameComponentInitializer = new GameComponentInitializer({ server: this, logger: this.logger });
-      await this.gameComponentInitializer.setupGameComponents();
-      if (this.gameManager) {
-        this.gameManager.startGame();
-      } else {
-        throw new Error("Game Manager Not Initialized");
-      }
-      this.logger.info("- CONFIGURE SERVER COMPONENTS FINISHED");
-    } catch (error) {
-      this.logger.error(`Error initializing server: ${error.message}`, { error });
-      // Depending on the severity, you might want to exit the process here
-      // process.exit(1);
     }
   }
   handlePlayerConnected(player) {
@@ -1496,76 +1465,73 @@ class GameDataLoader {
     const { logger, databaseManager } = this.server;
     const DATA_TYPES = { LOCATION: 'Location', NPC: 'Npc', ITEM: 'Item' };
     try {
-      // Load location data
-      const locationData = await this.loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION);
-      // Assign coordinates to locations
-      if (locationData instanceof Map) {
-        const locationCoordinateManager = LocationCoordinateManager.getInstance({ logger: this.logger, server: this.server, locationData });
-        await locationCoordinateManager.assignCoordinates(locationData);
-        this.server.gameManager.locations = locationData;
-      } else {
-        logger.error(`Invalid location data format: ${JSON.stringify(locationData)}`, { error: new Error(`Invalid location data format: ${JSON.stringify(locationData)}`) });
-      }
-      // Load Npc data
-      const npcData = await this.loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC);
-      if (npcData instanceof Map) {
-        this.server.gameManager.npcs = await this.createNpcsFromData(npcData);
-      } else {
-        logger.error(`Invalid npc data format: ${JSON.stringify(npcData)}`, { error: new Error(`Invalid npc data format: ${JSON.stringify(npcData)}`) });
-      }
-      // Load item data
-      const itemData = await this.loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM);
-      if (itemData instanceof Map) {
-        this.server.items = await this.createItems(itemData);
-      } else {
-        logger.error(`Invalid item data format: ${JSON.stringify(itemData)}`, { error: new Error(`Invalid item data format: ${JSON.stringify(itemData)}`) });
-      }
-      return [locationData, npcData, itemData];
+      const loadData = async (loadFunction, type) => {
+        try {
+          const data = await loadFunction();
+          return { type, data };
+        } catch (error) {
+          logger.error(`Error loading ${type} data: ${error.message}`, { error });
+          return { type, data: null };
+        }
+      };
+      const [locationData, npcData, itemData] = await Promise.all([
+        loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION),
+        loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC),
+        loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM)
+      ]);
+      await this.processLoadedData(locationData, npcData, itemData);
+      return [locationData.data, npcData.data, itemData.data];
     } catch (error) {
       logger.error(`Error fetching game data: ${error.message}`, { error });
     }
   }
-  async loadData(loadFunction, type) {
-    if (typeof loadFunction !== 'function') {
-      throw new TypeError('Load function must be a function');
+  async processLoadedData({ type: locationType, data: locationData },
+                          { type: npcType, data: npcData },
+                          { type: itemType, data: itemData }) {
+    if (locationData instanceof Map) {
+      const locationCoordinateManager = LocationCoordinateManager.getInstance({
+        logger: this.logger,
+        server: this.server,
+        locationData
+      });
+      await locationCoordinateManager.assignCoordinates(locationData);
+      this.server.gameManager.locations = locationData;
+    } else {
+      this.logger.error(`Invalid ${locationType} data format: ${JSON.stringify(locationData)}`);
     }
-    if (typeof type !== 'string') {
-      throw new TypeError('Type must be a string');
+    if (npcData instanceof Map) {
+      this.server.gameManager.npcs = await this.createNpcsFromData(npcData);
+    } else {
+      this.logger.error(`Invalid ${npcType} data format: ${JSON.stringify(npcData)}`);
     }
-    const { logger } = this.server;
-    try {
-      const data = await loadFunction();
-      return data;
-    } catch (error) {
-      logger.error(`Error loading ${type} data: ${error.message}`, { error });
+    if (itemData instanceof Map) {
+      this.server.items = await this.createItems(itemData);
+    } else {
+      this.logger.error(`Invalid ${itemType} data format: ${JSON.stringify(itemData)}`);
     }
   }
   async createNpcsFromData(npcData) {
-    if (!(npcData instanceof Map)) {
-      throw new TypeError('NPC data must be an instance of Map');
-    }
-    const npcs = new Map();
-    this.logger.info(`- Create Npcs From Data`);
-    for (const [id, npcInfo] of npcData.entries()) {
+    const createNpc = async ([id, npcInfo]) => {
       if (this.server.gameManager.npcIds.has(id)) {
-        this.logger.error(`Duplicate npc ID detected: ${id}`, { error: new Error(`Duplicate npc ID detected: ${id}`) });
-        continue;
+        this.logger.error(`Duplicate npc ID detected: ${id}`);
+        return null;
       }
       this.server.gameManager.npcIds.add(id);
       try {
         const npc = await this.createNpc(id, npcInfo);
         if (npc) {
-          npcs.set(id, npc);
           this.logger.debug(`- Create Npc: ${npc.name}`);
           this.logger.debug(`- - ID: ${id}`);
           this.logger.debug(`- - Type: ${npc.type}`);
         }
+        return [id, npc];
       } catch (error) {
         this.logger.error(`Error creating npc with ID ${id}: ${error.message}`, { error });
+        return null;
       }
-    }
-    this.logger.debug(`- Total Npcs Created: ${npcs.size}`);
-    return npcs;
+    };
+    const npcEntries = await Promise.all(Array.from(npcData.entries()).map(createNpc));
+    return new Map(npcEntries.filter(entry => entry !== null));
   }
   async createNpc(id, npcInfo) {
     if (typeof id !== 'string') {
@@ -1916,19 +1882,26 @@ class GameManager extends IGameManager {
       this.logger.error(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`, { error: new Error(`ERROR: Cannot notify entering - location: ${newLocationId} - not found.`) });
     }
   }
-  updateNpcs() {
-    for (const npc of this.npcs.values()) {
-      if (npc.hasChangedState()) {
-        MessageManager.notifyNpcStateChange(npc);
-      }
+  applyToEntities(entityMap, action) {
+    for (const entity of entityMap.values()) {
+      action(entity);
     }
   }
-  updatePlayerAffects() {
-    for (const player of this.players.values()) {
-      if (player.hasChangedState()) {
-        player.checkAndRemoveExpiredAffects();
+  updateEntities() {
+    const updateEntity = (entity) => {
+      if (entity.hasChangedState()) {
+        MessageManager.notifyEntityStateChange(entity);
       }
-    }
+    };
+    this.applyToEntities(this.npcs, updateEntity);
+    this.applyToEntities(this.players, updateEntity);
+  }
+  checkAndRemoveExpiredAffects() {
+    const removeExpiredAffects = (entity) => {
+      entity.checkAndRemoveExpiredAffects();
+    };
+    this.applyToEntities(this.players, removeExpiredAffects);
+    this.applyToEntities(this.npcs, removeExpiredAffects);
   }
   updateWorldEvents() {
     const WORLD_EVENT_INTERVAL = this.configManager.get('WORLD_EVENT_INTERVAL');
@@ -2593,6 +2566,51 @@ class Player extends Character {
   addExperience(amount) {
     this.experience += amount;
   }
+  async executeCommand(command, args) {
+    const commandHandlers = {
+      'move': this.handleMove.bind(this),
+      'look': this.handleLook.bind(this),
+      'inventory': this.handleInventory.bind(this),
+      'take': this.handleTake.bind(this),
+      'drop': this.handleDrop.bind(this),
+      'attack': this.handleAttack.bind(this),
+      // Add more command handlers here
+    };
+    const handler = commandHandlers[command];
+    if (handler) {
+      try {
+        await handler(args);
+      } catch (error) {
+        this.server.logger.error(`Error executing command ${command}: ${error.message}`, { error });
+        await this.server.messageManager.sendMessage(this, `Error executing command: ${command}`, 'error');
+      }
+    } else {
+      await this.server.messageManager.sendMessage(this, `Unknown command: ${command}`, 'errorMessage');
+    }
+  }
+  async handleMove(args) {
+    const direction = args[0];
+    await this.server.gameManager.moveEntity(this, direction);
+  }
+  async handleLook(args) {
+    const target = args.join(' ');
+    await this.server.gameManager.lookAt(this, target);
+  }
+  async handleInventory() {
+    await this.server.inventoryManager.displayInventory(this);
+  }
+  async handleTake(args) {
+    const itemName = args.join(' ');
+    await this.server.inventoryManager.takeItem(this, itemName);
+  }
+  async handleDrop(args) {
+    const itemName = args.join(' ');
+    await this.server.inventoryManager.dropItem(this, itemName);
+  }
+  async handleAttack(args) {
+    const targetName = args.join(' ');
+    await this.server.combatManager.attackNpc({ player: this, target1: targetName });
+  }
 }
 /**************************************************************************************************
 Authentication Manager Class
@@ -2796,7 +2814,7 @@ class GameCommandManager {
       }
     } else {
       this.logger.error(`Unknown command: ${command}`);
-      await this.server.messageManager.sendMessage(player, `Unknown command: ${command}`, 'error');
+      await this.server.messageManager.sendMessage(player, `Unknown command: ${command}`, 'errorMessage');
     }
   }
   async handleMove(player, direction) {
@@ -3063,23 +3081,56 @@ class CombatManager {
       ["knockout", ({ attacker, defender, technique }) => `${attacker.getName()} strikes ${defender.getName()} with a spectacularly phenomenal blow!<br>${defender.getName()}'s body goes limp and collapses to the ground!`],
     ]);
     this.combatParticipants = new Map();
+
+    this.combatActions = {
+      initiateCombat: this.createCombatAction(this.initiateCombat.bind(this)),
+      performCombatAction: this.createCombatAction(this.performCombatAction.bind(this)),
+      endCombat: this.createCombatAction(this.endCombat.bind(this)),
+    };
+
+    this.combatSteps = [
+      this.checkCombatStatus,
+      this.getNextNpcInCombatOrder,
+      this.performCombatAction,
+      this.notifyHealthStatus,
+      this.handleDefeat,
+    ].map(step => this.createCombatStep(step.bind(this)));
   }
-  async initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
-    try {
-      this.logger.debug(`- Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}`);
-      const npc = await this.gameManager.getNpc(npcId);
-      if (!npc) {
-        throw new Error(`Npc with ID ${npcId} not found`);
+
+  createCombatAction(actionFn) {
+    return async (...args) => {
+      try {
+        return await actionFn(...args);
+      } catch (error) {
+        this.logger.error(`Error in combat action: ${error.message}`, { error });
+        throw error;
       }
-      await this.startCombat({ npc, player, playerInitiated });
-      this.addCombatParticipant(npc, player);
-    } catch (error) {
-      this.logger.error(`Initiating Combat With - Npc: ${npcId} - For - Player: ${player.getName()}:`, { error });
-    }
+    };
   }
+
+  createCombatStep(stepFn) {
+    return async (state) => {
+      try {
+        return await stepFn(state);
+      } catch (error) {
+        this.logger.error(`Error in combat step: ${error.message}`, { error });
+        return { ...state, error };
+      }
+    };
+  }
+
+  async initiateCombatWithNpc({ npcId, player, playerInitiated = false }) {
+    return this.combatActions.initiateCombat({ npcId, player, playerInitiated });
+  }
+
+  async performCombatAction(attacker, defender, isPlayer) {
+    return this.combatActions.performCombatAction(attacker, defender, isPlayer);
+  }
+
   async endCombatForPlayer({ player }) {
-    await this.endCombat(player);
+    return this.combatActions.endCombat(player);
   }
+
   async startCombat({ npc, player, playerInitiated }) {
     try {
       this.logger.debug(`- Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npc.getName()}`);
@@ -3096,6 +3147,7 @@ class CombatManager {
       this.logger.error(`Starting Combat Between - Player: ${player.getName()} - And - Npc: ${npc.getName()}:`, { error });
     }
   }
+
   async initiateCombat({ player, npc, playerInitiated }) {
     player.status = "in combat";
     const message = playerInitiated
@@ -3108,42 +3160,79 @@ class CombatManager {
     }
     await this.startCombatLoop(player);
   }
+
   async notifyCombatJoin({ npc, player }) {
     await this.notifyPlayersInLocation(player.currentLocation,
       MessageManager.getCombatJoinTemplate(npc.getName())
     );
     this.combatInitiatedNpcs.add(npc.id);
   }
+
   async startCombatLoop(player) {
     if (player.status === "in combat" && !player.combatInterval) {
       player.combatInterval = setInterval(async () => {
-        if (player.status !== "in combat") {
-          await this.endCombat(player);
-          return;
+        let state = { player, continue: true };
+        for (const step of this.combatSteps) {
+          state = await step(state);
+          if (!state.continue) break;
         }
-        const npc = await this.getNextNpcInCombatOrder();
-        if (npc) {
-          const action = this.objectPool.acquire();
-          action.perform({ attacker: player, defender: npc });
-          this.objectPool.release(action);
-          await this.notifyHealthStatus(player, npc);
-          const result = await this.performCombatAction(player, npc, true);
-          await MessageManager.notifyCombatResult(player, result);
-          if (npc.health <= 0) {
-            await this.handleNpcDefeat(npc, player);
-          }
-        }
-        if (player.health <= 0) {
-          await this.handlePlayerDefeat(npc, player);
+        if (state.error) {
+          await this.handleCombatError(state);
         }
       }, this.config.COMBAT_INTERVAL);
     }
   }
+
+  async checkCombatStatus({ player, ...state }) {
+    if (player.status !== "in combat") {
+      await this.endCombat(player);
+      return { ...state, player, continue: false };
+    }
+    return { ...state, player, continue: true };
+  }
+
+  async getNextNpcInCombatOrder({ player, ...state }) {
+    const npc = await this.getNextNpcInCombatOrder();
+    return { ...state, player, npc, continue: !!npc };
+  }
+
+  async performCombatAction({ player, npc, ...state }) {
+    const action = this.objectPool.acquire();
+    action.perform({ attacker: player, defender: npc });
+    this.objectPool.release(action);
+    const result = await this.combatActions.performCombatAction(player, npc, true);
+    return { ...state, player, npc, result, continue: true };
+  }
+
+  async notifyHealthStatus({ player, npc, result, ...state }) {
+    await MessageManager.notifyCombatResult(player, result);
+    await this.notifyHealthStatus(player, npc);
+    return { ...state, player, npc, result, continue: true };
+  }
+
+  async handleDefeat({ player, npc, ...state }) {
+    if (npc.health <= 0) {
+      await this.handleNpcDefeat(npc, player);
+      return { ...state, player, npc, continue: false };
+    }
+    if (player.health <= 0) {
+      await this.handlePlayerDefeat(npc, player);
+      return { ...state, player, npc, continue: false };
+    }
+    return { ...state, player, npc, continue: true };
+  }
+
+  async handleCombatError(state) {
+    this.logger.error(`Combat error occurred`, { error: state.error, playerId: state.player.getId() });
+    await this.endCombat(state.player);
+  }
+
   async handlePlayerDefeat(npc, player) {
     player.status = "lying unconscious";
     await this.endCombat(player);
     this.logger.info(`${player.getName()} has been defeated by ${npc.getName()}.`, { playerId: player.getId(), npcId: npc.id });
   }
+
   async handleNpcDefeat(npc, player) {
     npc.status = player.killer ? "lying dead" : "lying unconscious";
     player.status = "standing";
@@ -3152,6 +3241,7 @@ class CombatManager {
     await this.notifyPlayersInLocation(await this.gameManager.getLocation(player.currentLocation), messages);
     this.combatParticipants.delete(npc.id);
   }
+
   async distributeExperience(defeatedNpc, mainPlayer) {
     const participants = await this.getCombatParticipants(defeatedNpc.id);
     if (participants.length === 0) {
@@ -3170,6 +3260,7 @@ class CombatManager {
       await this.awardExperience(mainPlayer, remainingXP);
     }
   }
+
   async awardExperience(player, amount) {
     player.addExperience(amount);
     await this.server.messageManager.notifyExperienceGain(player, amount);
@@ -3178,6 +3269,7 @@ class CombatManager {
       await this.server.messageManager.sendMessage(player, levelUpMessage, 'levelUp');
     }
   }
+
   async generateDefeatMessages(player, npc) {
     const messages = [MessageManager.getVictoryTemplate(player.getName(), npc.getName())];
     const levelUpMessage = await this.gameManager.checkLevelUp(player);
@@ -3207,6 +3299,7 @@ class CombatManager {
     this.defeatedNpcs.add(npc.id);
     return messages.join("<br>");
   }
+
   async endCombat(player) {
     if (player.combatInterval) {
       clearInterval(player.combatInterval);
@@ -3229,6 +3322,7 @@ class CombatManager {
     await this.checkAggressiveNpcs(player);
     this.logger.info(`Combat ended for player: ${player.getName()}`);
   }
+
   async cleanupDefeatedNpcs() {
     for (const npcId of this.defeatedNpcs) {
       const npc = await this.server.gameManager.getNpc(npcId);
@@ -3239,6 +3333,7 @@ class CombatManager {
       }
     }
   }
+
   async checkForAggressiveNpcs(player) {
     if (player.health > 0) {
       const location = await this.gameManager.getLocation(player.currentLocation);
@@ -3252,6 +3347,7 @@ class CombatManager {
       }
     }
   }
+
   async isAggressiveNpc(npc, player) {
     return npc && npc.aggressive &&
       npc.status !== "lying unconscious" &&
@@ -3259,6 +3355,7 @@ class CombatManager {
       player.status !== "lying unconscious" &&
       !this.defeatedNpcs.has(npc.id);
   }
+
   async performCombatAction(attacker, defender, isPlayer) {
     const combatAction = this.objectPool.acquire();
     combatAction.initialize(attacker, defender);
@@ -3274,6 +3371,7 @@ class CombatManager {
       this.objectPool.release(combatAction);
     }
   }
+
   async processCombatOutcome(outcome, attacker, defender) {
     let damage = attacker.attackPower;
     let resistDamage = defender.defensePower;
@@ -3284,11 +3382,13 @@ class CombatManager {
       defender.health -= damage - resistDamage;
     }
   }
+
   async getCombatDescription(outcome, attacker, defender, technique) {
     const descriptionFunc = this.outcomeDescriptions.get(outcome) ||
       (({ attacker, defender, technique }) => `${attacker.getName()} attacks ${defender.getName()} with a ${technique}.`);
     return FormatMessageManager.createMessageData(descriptionFunc({ attacker, defender, technique }));
   }
+
   async attackNpc({ player, target1 }) {
     const location = await player.server.gameManager.getLocation(player.currentLocation);
     if (!location) return;
@@ -3318,6 +3418,7 @@ class CombatManager {
       await this.startCombat({ npcId, player, playerInitiated: true });
     }
   }
+
   async getAvailableNpcId(npcs) {
     for (const id of npcs) {
       const npc = await this.gameManager.getNpc(id);
@@ -3327,16 +3428,20 @@ class CombatManager {
     }
     return null;
   }
+
   getCombatOrder() {
     return this.combatOrder;
   }
+
   async getNextNpcInCombatOrder() {
     return this.combatOrder.keys().next().value;
   }
+
   async notifyPlayersInLocation(locationId, content) {
     const location = await this.gameManager.getLocation(locationId);
     await MessageManager.notifyPlayersInLocation(location, content);
   }
+
   async notifyHealthStatus(player, npc) {
     const playerHealthPercentage = await this.calculateHealthPercentage(player.health, player.maxHealth);
     const npcHealthPercentage = await this.calculateHealthPercentage(npc.health, npc.maxHealth);
@@ -3348,9 +3453,11 @@ class CombatManager {
     );
     await this.server.messageManager.notifyPlayersInLocation(player.currentLocation, healthMessage, 'combatMessageHealth');
   }
+
   async calculateHealthPercentage(currentHealth, maxHealth) {
     return (currentHealth / maxHealth) * 100;
   }
+
   async calculateAttackValue(attacker, defender, roll) {
     if (attacker.level === defender.level) {
       return roll + attacker.csml;
@@ -3360,6 +3467,7 @@ class CombatManager {
       return (roll + attacker.csml) + (attacker.level - defender.level);
     }
   }
+
   async calculateAttackOutcome(attacker, defender) {
     const roll = Math.floor(Math.random() * 20) + 1;
     let value = await this.calculateAttackValue(attacker, defender, roll);
@@ -3372,15 +3480,18 @@ class CombatManager {
     if (value >= 1) return "attack is evaded";
     return "attack hits";
   }
+
   static getRandomElement(array) {
     return [...array][Math.floor(Math.random() * array.size)];
   }
+
   addCombatParticipant(npc, player) {
     if (!this.combatParticipants.has(npc.id)) {
       this.combatParticipants.set(npc.id, new Set());
     }
     this.combatParticipants.get(npc.id).add(player.getId());
   }
+
   async removeCombatParticipant(npc, player) {
     if (this.combatParticipants.has(npc.id)) {
       this.combatParticipants.get(npc.id).delete(player.getId());
@@ -3389,13 +3500,16 @@ class CombatManager {
       }
     }
   }
+
   async getCombatParticipants(npcId) {
     return [...(this.combatParticipants.get(npcId) || [])];
   }
+
   async isPlayerInCombatWithNpc(playerId, npcId) {
     return this.combatParticipants.has(npcId) && this.combatParticipants.get(npcId).has(playerId);
   }
 }
+
 /**************************************************************************************************
 Combat Action Class
 The CombatAction class is designed to handle the execution of combat actions between
@@ -3410,21 +3524,25 @@ class CombatAction {
   constructor({ logger }) {
     this.logger = logger;
   }
+
   async initialize(attacker, defender) {
     this.attacker = attacker;
     this.defender = defender;
     this.technique = await this.selectTechnique();
     this.outcome = null;
   }
+
   async execute() {
     const roll = Math.floor(Math.random() * 20) + 1;
     let value = await this.calculateAttackValue(roll);
     this.outcome = await this.determineOutcome(value);
     return this.outcome;
   }
+
   async selectTechnique() {
     return CombatManager.getRandomElement(CombatManager.TECHNIQUES);
   }
+
   async calculateAttackValue(roll) {
     if (this.attacker.level === this.defender.level) {
       return roll + this.attacker.csml;
@@ -3434,6 +3552,7 @@ class CombatAction {
       return (roll + this.attacker.csml) + (this.attacker.level - this.defender.level);
     }
   }
+
   async determineOutcome(value) {
     if (value >= 21 || value === 19) return "critical success";
     if (value === 20) return "knockout";
@@ -3445,6 +3564,7 @@ class CombatAction {
     return "attack hits";
   }
 }
+
 /**************************************************************************************************
 Locations Class
 The Locations class is intended to be used with OLC (online creation system).
@@ -3478,9 +3598,11 @@ class Npc extends Character {
     this.previousState = { currHealth, status };
     this.lootTable = lootTable;
   }
+
   async initialize() {
     // Any additional initialization logic can go here
   }
+
   hasChangedState() {
     const hasChanged = this.currHealth !== this.previousState.currHealth || this.status !== this.previousState.status;
     if (hasChanged) {
@@ -3488,24 +3610,29 @@ class Npc extends Character {
     }
     return hasChanged;
   }
+
   receiveDamage(damage) {
     this.currHealth -= damage;
     if (this.currHealth <= 0) {
       this.die();
     }
   }
+
   die() {
     this.status = "lying dead";
     this.server.messageManager.notifyNpcDeath(this);
     // Additional logic for Npc death (e.g., loot drop, respawn timer)
   }
+
   attack(target) {
     this.server.combatManager.performCombatAction(this, target);
   }
+
   getLoot() {
     return [...this.lootTable].filter(() => Math.random() < 0.5);
   }
 }
+
 /**************************************************************************************************
 Mobile Npc Class
 The MobileNpc class is a concrete implementation of the Npc class, representing Npcs that
@@ -3525,10 +3652,12 @@ class MobileNpc extends Npc {
     this.allowedZones = zones;
     this.level = 1;
   }
+
   canMove() {
     return !["engaged in combat", "lying dead", "lying unconscious"].includes(this.status);
   }
 }
+
 /**************************************************************************************************
 Quest Npc Class
 The QuestNpc class is a concrete implementation of the Npc class, representing Npcs that
@@ -3545,10 +3674,12 @@ class QuestNpc extends Npc {
     this.questId = questId;
     this.zones = zones;
   }
+
   provideQuest() {
     // Logic to provide the quest to the player
     this.server.messageManager.sendMessage(this, `${this.getName()} has received a quest: ${this.quest.title}`, 'questMessage');
   }
+
   completeQuest(player) {
     // Logic to complete the quest
     if (this.quest.isCompleted(player)) {
@@ -3559,11 +3690,13 @@ class QuestNpc extends Npc {
     }
   }
 }
+
 class MerchantNpc extends Npc {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, zones = [], aliases, config, server, lootTable = [] }) {
     super({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type: 'merchant', server, lootTable });
     this.inventory = new Map();
   }
+
   async sellItem(itemId, player) {
     try {
       const item = await this.server.transactionManager.executeBuyTransaction(player, this, itemId);
@@ -3574,6 +3707,7 @@ class MerchantNpc extends Npc {
       return false;
     }
   }
+
   async buyItem(itemUid, player) {
     try {
       const sellPrice = await this.server.transactionManager.executeSellTransaction(player, this, itemUid);
@@ -3585,6 +3719,7 @@ class MerchantNpc extends Npc {
     }
   }
 }
+
 /**************************************************************************************************
 Npc Movement Manager Class
 The NpcMovementManager class is responsible for managing the movement of mobile Npcs within
@@ -3599,6 +3734,7 @@ realistically, contributing to a more immersive gameplay experience.
 class NpcMovementManager {
   static #instance = null;
   static #instanceLock = new AsyncLock();
+
   static async getInstance({ logger, configManager, gameManager }) {
     if (!NpcMovementManager.#instance) {
       await NpcMovementManager.#instanceLock.acquire('instance', async () => {
@@ -3609,6 +3745,7 @@ class NpcMovementManager {
     }
     return NpcMovementManager.#instance;
   }
+
   constructor({ logger, configManager, gameManager }) {
     if (NpcMovementManager.#instance) {
       return NpcMovementManager.#instance;
@@ -3620,15 +3757,18 @@ class NpcMovementManager {
     this.mobileNpcs = new Map();
     NpcMovementManager.#instance = this;
   }
+
   setGameManager(gameManager) {
     this.gameManager = gameManager;
   }
+
   startMovement() {
     this.stopMovement();
     const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
     this.movementInterval = setInterval(() => this.moveAllMobiles(), MOVEMENT_INTERVAL);
     this.logger.info(`- Start Mobile Movement With Interval: ${MOVEMENT_INTERVAL}ms`);
   }
+
   stopMovement() {
     if (this.movementInterval) {
       clearInterval(this.movementInterval);
@@ -3636,6 +3776,7 @@ class NpcMovementManager {
       this.logger.info('Npc movement stopped');
     }
   }
+
   registerMobileNpc(npc) {
     if (!this.gameManager) {
       this.logger.error(`Game Manager not set in Npc Movement Manager. Unable to register Npc ID: ${npc.id}`);
@@ -3644,34 +3785,33 @@ class NpcMovementManager {
     this.mobileNpcs.set(npc.id, npc);
     this.logger.debug(`- Register Npc: ${npc.id} - With Npc Movement Manager`);
   }
+
   unregisterMobileNpc(npc) {
     this.mobileNpcs.delete(npc.id);
   }
+
   async moveAllMobiles() {
     this.logger.debug(``);
     this.logger.debug(`Move Mobiles - Total Mobile Npcs: ${this.mobileNpcs.size}`);
-    let movedCount = 0;
-    let stayedCount = 0;
-    for (const [npcId, npc] of this.mobileNpcs.entries()) {
+    const moveNpc = async ([npcId, npc]) => {
       this.logger.debug(`- Processing Mobile: ${npcId} - ${npc.name}`);
       if (npc.canMove()) {
         this.logger.debug(`- - Mobile: ${npcId} can move. Current Location: ${npc.currentLocation}`);
         const moved = await this.moveMobile(npc);
-        if (moved) {
-          movedCount++;
-          this.logger.debug(`- - Mobile: ${npcId} moved to Location: ${npc.currentLocation}`);
-        } else {
-          stayedCount++;
-          this.logger.debug(`- - Mobile: ${npcId} stayed in place at Location: ${npc.currentLocation}`);
-        }
+        this.logger.debug(`- - Mobile: ${npcId} ${moved ? 'moved to' : 'stayed in place at'} Location: ${npc.currentLocation}`);
+        return moved;
       } else {
-        stayedCount++;
         this.logger.debug(`- - Mobile: ${npcId} cannot move. Status: ${npc.status} - Location: ${npc.currentLocation}`);
+        return false;
       }
-    }
+    };
+    const moveResults = await Promise.all([...this.mobileNpcs].map(moveNpc));
+    const movedCount = moveResults.filter(Boolean).length;
+    const stayedCount = moveResults.length - movedCount;
     this.logger.debug(`Mobiles Moved: ${movedCount}, Mobiles Stayed: ${stayedCount}`);
     this.logger.debug(`Move Mobiles Finished At: ${new Date().toLocaleString()}`);
   }
+
   async moveMobile(npc) {
     const currentLocation = await this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation) {
@@ -3689,21 +3829,25 @@ class NpcMovementManager {
     await this.notifyNpcMovement(npc, currentLocation, newLocation, direction);
     return true;
   }
+
   async chooseRandomExit(npc) {
     const currentLocation = await this.gameManager.getLocation(npc.currentLocation);
     if (!currentLocation || !currentLocation.exits instanceof Map) return {};
-    const availableExits = new Map();
-    for (const [direction, exitId] of currentLocation.exits) {
+    const isExitAllowed = async ([direction, exitId]) => {
       const exitLocation = await this.gameManager.getLocation(exitId);
-      if (await this.isExitAllowed(npc, exitLocation)) {
-        availableExits.set(direction, exitId);
-      }
-    }
+      return await this.isExitAllowed(npc, exitLocation);
+    };
+    const availableExits = new Map(
+      await Promise.all([...currentLocation.exits].filter(isExitAllowed))
+    );
     if (availableExits.size === 0) return {};
     const randomIndex = Math.floor(Math.random() * availableExits.size);
-    const [chosenDirection, chosenExitId] = [...availableExits.entries()][randomIndex];
-    return { direction: chosenDirection, exitId: chosenExitId };
+    return {
+      direction: [...availableExits.keys()][randomIndex],
+      exitId: [...availableExits.values()][randomIndex]
+    };
   }
+
   async isExitAllowed(npc, exitLocation) {
     if (!exitLocation) return false;
     if (npc.level < exitLocation.minLevel) return false;
@@ -3712,16 +3856,19 @@ class NpcMovementManager {
     }
     return true;
   }
+
   async notifyNpcMovement(npc, fromLocation, toLocation, direction) {
     await MessageManager.notifyPlayersInLocation(fromLocation, `${npc.name} leaves ${direction}.`, 'npcMovement');
     await MessageManager.notifyPlayersInLocation(toLocation, `${npc.name} arrives from the ${DirectionManager.getOppositeDirection(direction)}.`, 'npcMovement');
   }
+
   cleanup() {
     this.stopNpcMovement();
     this.mobileNpcs.clear();
     this.logger.info('NpcMovementManager cleaned up');
   }
 }
+
 /**************************************************************************************************
 Base Item Class
 The BaseItem class serves as a foundational class for all item types within the game,
@@ -3740,6 +3887,7 @@ class BaseItem {
     this.aliases = aliases;
   }
 }
+
 /**************************************************************************************************
 Item Class
 The Item class is a concrete implementation of the BaseItem class, representing a generic
@@ -3761,13 +3909,16 @@ class Item extends BaseItem {
     this.server = server;
     this.uid = UidGenerator.generateUid();
   }
+
   createInstance() {
     return new this.constructor({ ...this, uid: UidGenerator.generateUid() });
   }
+
   async initialize() {
     // Any additional initialization logic can go here
   }
 }
+
 /**************************************************************************************************
 Consumable Item Class
 The ConsumableItem class is a concrete implementation of the Item class, representing items
@@ -3783,12 +3934,14 @@ class ConsumableItem extends Item {
   constructor({ id, name, description, aliases, server }) {
     super({ id, name, description, aliases, type: 'consumable', server });
   }
+
   use(player) {
     // Implement consumable item usage logic here
     // After the item is consumed, remove it from the game
     this.server.itemManager.removeItem(this.uid);
   }
 }
+
 /**************************************************************************************************
 Container Item Class
 The ContainerItem class is a concrete implementation of the Item class, representing items
@@ -3806,6 +3959,7 @@ class ContainerItem extends Item {
     this.inventory = new Set();
   }
 }
+
 /**************************************************************************************************
 Weapon Item Class
 The WeaponItem class is a concrete implementation of the Item class, representing weapons
@@ -3835,62 +3989,97 @@ This class ensures that items are properly managed and identified within the gam
 ***************************************************************************************************/
 class ItemManager {
   static instance;
+
   static getInstance({ logger, configManager, bcrypt }) {
     if (!ItemManager.instance) {
       ItemManager.instance = new ItemManager({ logger, configManager, bcrypt });
     }
     return ItemManager.instance;
   }
+
   constructor({ logger, configManager, bcrypt }) {
-    if (ItemManager.instance) {
-      return ItemManager.instance;
-    }
     this.logger = logger;
     this.configManager = configManager;
     this.bcrypt = bcrypt;
     this.items = new Map();
     this.uidGenerator = new UidGenerator(bcrypt, this.configManager.get('ITEM_UID_SALT_ROUNDS'));
-    ItemManager.instance = this;
   }
+
   async initialize(itemData) {
-    this.checkItemsForDuplicateIds(itemData);
-    await this.assignUidsToItems(itemData);
+    const initializationSteps = [
+      this.checkItemsForDuplicateIds,
+      this.assignUidsToItems,
+    ].map(step => this.createInitializationStep(step.bind(this)));
+
+    return this.executeInitializationSteps(initializationSteps, itemData);
   }
-  checkItemsForDuplicateIds(itemData) {
-    this.logger.debug(`Processing Item Data`);
+
+  createInitializationStep(stepFn) {
+    return async (data) => {
+      try {
+        return await stepFn(data);
+      } catch (error) {
+        this.logger.error(`Error in initialization step: ${error.message}`, { error });
+        throw error;
+      }
+    };
+  }
+
+  async executeInitializationSteps(steps, initialData) {
+    return steps.reduce(async (acc, step) => {
+      const data = await acc;
+      return step(data);
+    }, Promise.resolve(initialData));
+  }
+
+  async checkItemsForDuplicateIds(itemData) {
     const itemIds = Object.keys(itemData);
     const uniqueIds = new Set(itemIds);
+
     if (itemIds.length !== uniqueIds.size) {
-      for (const id of itemIds) {
-        if (itemIds.indexOf(id) !== itemIds.lastIndexOf(id)) {
-          this.logger.error(`Duplicate Item ID Detected: ${id}`);
-        }
-      }
-      this.logger.error(`Duplicate Item IDs Detected`);
-    } else {
-      this.logger.debug(`Total Items Processed: ${itemIds.length}`);
+      const findDuplicates = id => itemIds.filter(itemId => itemId === id).length > 1;
+      const duplicateIds = itemIds.filter(findDuplicates);
+
+      duplicateIds.forEach(id => {
+        this.logger.error(`Duplicate Item ID Detected: ${id}`);
+      });
+
+      throw new Error('Duplicate Item IDs Detected');
     }
+
+    this.logger.debug(`Total Items Processed: ${itemIds.length}`);
+    return itemData;
   }
+
   async assignUidsToItems(itemData) {
     this.logger.debug(`Assigning UIDs to Items`);
-    await Promise.all(Object.entries(itemData).map(async ([id, item]) => {
+
+    const assignUid = async ([id, item]) => {
       try {
         const uid = await this.uidGenerator.generateUid();
         item.uid = uid;
-        this.items.set(uid, item);
-        this.logger.debug(`Assigned UID to Item: ${id} -> ${uid}`);
+        return [uid, item];
       } catch (error) {
         this.logger.error(`Assigning UID to Item ${id}: ${error.message}`);
+        return null;
       }
-    }));
+    };
+
+    const itemEntries = await Promise.all(Object.entries(itemData).map(assignUid));
+    this.items = new Map(itemEntries.filter(entry => entry !== null));
+
     this.logger.debug(`Total Items with UIDs: ${this.items.size}`);
+    return this.items;
   }
+
   getItem(uid) {
     return this.items.get(uid);
   }
+
   getAllItems() {
     return [...this.items.values()];
   }
+
   createItemInstance(itemId) {
     const itemTemplate = this.items.get(itemId);
     if (!itemTemplate) {
@@ -3899,6 +4088,7 @@ class ItemManager {
     }
     return itemTemplate.createInstance();
   }
+
   transferItem(sourceInventory, targetInventory, itemUid) {
     const item = sourceInventory.get(itemUid);
     if (!item) {
@@ -3909,6 +4099,7 @@ class ItemManager {
     targetInventory.set(itemUid, item);
     return true;
   }
+
   removeItem(uid) {
     if (this.items.has(uid)) {
       this.items.delete(uid);
@@ -3919,6 +4110,7 @@ class ItemManager {
       return false;
     }
   }
+
   cleanup() {
     this.items.clear();
     this.logger.info('ItemManager cleaned up');
@@ -3938,12 +4130,14 @@ experience through item interactions.
 ***************************************************************************************************/
 class InventoryManager {
   static instance;
+
   static getInstance(player) {
     if (!InventoryManager.instance) {
       InventoryManager.instance = new InventoryManager(player);
     }
     return InventoryManager.instance;
   }
+
   constructor(player) {
     this.player = player;
     this.server = player.server;
@@ -3951,369 +4145,135 @@ class InventoryManager {
     this.itemManager = this.server.itemManager;
     this.inventory = new Map();
   }
+
+  async performInventoryAction(action, ...args) {
+    try {
+      return await this[action](...args);
+    } catch (error) {
+      this.server.logger.error(`Error in inventory action ${action}: ${error.message}`, { error });
+      await this.messageManager.notifyError(this.player, `An error occurred while performing the inventory action.`);
+    }
+  }
+
   async addItem(item) {
     this.inventory.set(item.uid, item);
-    await this.messageManager.notifyPickupItem(this.player, item.name);
+    await this.notifyItemAction(item, 'pickup');
   }
+
   async removeItem(itemUid) {
     const item = this.inventory.get(itemUid);
     if (item) {
       this.inventory.delete(itemUid);
-      await this.messageManager.notifyDropItem(this.player, item.name);
+      await this.notifyItemAction(item, 'drop');
       return item;
     }
     return null;
   }
+
+  async notifyItemAction(item, action) {
+    const actionMessages = {
+      'pickup': `${this.player.getName()} picked up ${item.name}.`,
+      'drop': `${this.player.getName()} dropped ${item.name}.`
+    };
+    await this.messageManager.notifyAction(this.player, actionMessages[action], 'itemAction');
+  }
+
   async transferItemTo(targetInventory, itemUid) {
-    return await this.itemManager.transferItem(this.inventory, targetInventory, itemUid);
+    const item = this.inventory.get(itemUid);
+    if (item) {
+      this.inventory.delete(itemUid);
+      targetInventory.set(itemUid, item);
+      return true;
+    }
+    return false;
   }
-  // Create an item instance from the item data
+
   async createItemFromData(itemId) {
-    const itemData = this.player.server.items[itemId];
+    const itemData = this.server.items[itemId];
     if (!itemData) {
-      this.player.server.logger.error(`Item with ID ${itemId} not found`);
+      this.server.logger.error(`Item with ID ${itemId} not found`);
       return null;
     }
     try {
-      const uniqueId = await UidGenerator.generateUid();
-      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.player.server });
+      const uniqueId = await this.itemManager.uidGenerator.generateUid();
+      return new Item({ id: itemId, name: itemData.name, description: itemData.description, aliases: itemData.aliases, type: itemData.type, server: this.server });
     } catch (error) {
-      this.player.server.logger.error(`Creating Item From Data: ${error.message}`);
+      this.server.logger.error(`Creating Item From Data: ${error.message}`);
       return null;
     }
   }
-  addToInventory(item) {
-    try {
-      if (item instanceof Item) {
-        this.player.inventory.add(item);
-        this.messageManager.notifyPickupItem(this.player, item.name);
-        if (item.type === 'weapon') {
-          this.player.weapons.add(item);
-        }
-      }
-    } catch (error) {
-      this.messageManager.notifyError(this.player, `ERROR: Adding item to inventory: ${error.message}`);
-      this.player.server.logger.error(error.stack);
-    }
-  }
-  removeFromInventory(item) {
-    this.player.inventory.delete(item);
-    if (item.type === 'weapon') {
-      this.player.weapons.delete(item);
-    }
-  }
+
   async getAllItemsFromSource(source, sourceType, containerName) {
     if (!source || source.size === 0) {
-      await MessageManager.notifyNoItemsHere(this.player);
+      await this.messageManager.notifyNoItemsHere(this.player);
       return;
     }
-    const itemsTaken = [];
-    const { items } = this.player.server;
-    for (const itemId of source) {
-      const item = items[itemId];
-      if (item) {
-        itemsTaken.push(item);
-        await this.player.inventory.add(item);
-      }
-    }
+
+    const itemsTaken = await Promise.all(
+      [...source].map(async itemId => {
+        const item = this.server.items[itemId];
+        if (item) {
+          await this.addItem(item);
+          return item;
+        }
+        return null;
+      })
+    ).then(items => items.filter(item => item !== null));
+
     if (sourceType === 'location') {
-      this.player.server.location[this.player.currentLocation].items.clear();
+      this.server.location[this.player.currentLocation].items.clear();
     } else {
-      this.player.server.items[containerName].inventory.clear();
+      this.server.items[containerName].inventory.clear();
     }
-    await MessageManager.notifyItemsTaken(this.player, itemsTaken);
+
+    await this.messageManager.notifyItemsTaken(this.player, itemsTaken);
   }
+
   async getAllItemsFromLocation() {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
+    const currentLocation = this.server.location[this.player.currentLocation];
     await this.getAllItemsFromSource(currentLocation.items, 'location');
   }
+
   async getAllItemsFromContainer(containerName) {
     const container = await this.getContainer(containerName);
     if (!container) return;
-    const items = new Set([...container.inventory].filter(i => this.player.server.items[i]));
+    const items = new Set([...container.inventory].filter(i => this.server.items[i]));
     await this.getAllItemsFromSource(items, 'container', container.name);
   }
-  getSingleItemFromContainer(itemName, containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemId = this.getItemIdFromContainer(itemName, container);
-    if (itemId) {
-      this.transferItem(itemId, container, 'container');
-    } else {
-      MessageManager.notifyNoItemInContainer(this.player, itemName, container.name);
-    }
-  }
-  getSingleItemFromLocation(target) {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    const itemId = this.getItemIdFromLocation(target, currentLocation.items);
-    if (itemId) {
-      this.transferItem(itemId, currentLocation, 'location');
-    } else {
-      MessageManager.notifyNoItemHere(this.player, target);
-    }
-  }
-  dropAllItems() {
-    this.dropItems(this.player.inventory, 'all');
-  }
-  dropAllSpecificItems(itemType) {
-    const itemsToDrop = new Set([...this.player.inventory].filter(item => this.itemMatchesType(item, itemType)));
-    this.dropItems(itemsToDrop, 'specific', itemType);
-  }
-  dropSingleItem(target) {
-    const item = [...this.player.inventory].find(i => i.name.toLowerCase() === target.toLowerCase());
-    if (item) {
-      this.transferItem(item, this.player.server.location[this.player.currentLocation], 'drop');
-    } else {
-      this.messageManager.notifyNoItemToDrop(this.player, target);
-    }
-  }
-  putSingleItem(itemName, containerName) {
-    const item = this.getItemFromInventory(itemName);
-    if (!item) return;
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    container.inventory.add(item.uid);
-    this.player.inventory.delete(item);
-    MessageManager.notifyItemPutInContainer(this.player, item.name, container.name);
-  }
-  putAllItems(containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemsToPut = new Set();
-    for (const item of this.player.inventory) {
-      if (item !== container) {
-        itemsToPut.add(item);
-      }
-    }
-    if (itemsToPut.size === 0) {
-      MessageManager.notifyNoItemsToPut(this.player, container.name);
-      return;
-    }
-    for (const item of itemsToPut) {
-      container.inventory.add(item.uid);
-      this.player.inventory.delete(item);
-    }
-    MessageManager.notifyItemsPutInContainer(this.player, [...itemsToPut], container.name);
-  }
-  putAllSpecificItemsIntoContainer(itemType, containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemsToPut = new Set();
-    for (const item of this.player.inventory) {
-      if (item !== container && this.itemMatchesType(item, itemType)) {
-        itemsToPut.add(item);
-      }
-    }
-    if (itemsToPut.size === 0) {
-      MessageManager.notifyNoSpecificItemsToPut(this.player, itemType, container.name);
-      return;
-    }
-    for (const item of itemsToPut) {
-      container.inventory.add(item.uid);
-      this.player.inventory.delete(item);
-    }
-    MessageManager.notifyItemsPutInContainer(this.player, Array.from(itemsToPut), container.name);
-  }
-  getAllSpecificItemsFromLocation(itemType) {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    if (currentLocation.items && currentLocation.items.size > 0) {
-      const itemsTaken = [];
-      const { items } = this.player.server;
-      for (const itemId of currentLocation.items) {
-        const item = items[itemId];
-        if (this.itemMatchesType(item, itemType)) {
-          itemsTaken.push(itemId);
-          this.player.inventory.add(item);
-        }
-      }
-      if (itemsTaken.length > 0) {
-        for (const itemId of itemsTaken) {
-          currentLocation.items.delete(itemId);
-        }
-        MessageManager.notifyItemsTaken(this.player, itemsTaken);
-      } else {
-        MessageManager.notifyNoSpecificItemsHere(this.player, itemType);
-      }
-    } else {
-      MessageManager.notifyNoItemsHere(this.player);
-    }
-  }
-  getAllSpecificItemsFromContainer(itemType, containerName) {
-    const container = this.getContainer(containerName);
-    if (!container) return;
-    const itemsTaken = [];
-    const { items } = this.player.server;
-    for (const itemId of container.inventory) {
-      const item = items[itemId];
-      if (this.itemMatchesType(item, itemType)) {
-        itemsTaken.push(itemId);
-        this.player.inventory.add(item);
-      }
-    }
-    if (itemsTaken.length > 0) {
-      for (const itemId of itemsTaken) {
-        container.inventory.delete(itemId);
-      }
-      MessageManager.notifyItemsTakenFromContainer(this.player, itemsTaken, container.name);
-    } else {
-      MessageManager.notifyNoSpecificItemsInContainer(this.player, itemType, container.name);
-    }
-  }
-  autoLootNpc(npc) {
-    if (npc.inventory && npc.inventory.size > 0) {
-      const lootedItems = new Set(npc.inventory);
-      lootedItems.forEach(itemId => this.player.inventory.add(this.player.server.items[itemId]));
-      npc.inventory.clear();
-      return MessageManager.createAutoLootMessage(this.player, npc, Array.from(lootedItems));
-    }
-    return null;
-  }
-  async lootNpc(target) {
-    try {
-      const currentLocation = await this.player.server.gameManager.getLocation(this.player.currentLocation);
-      const npcId = await this.getNpcIdFromLocation(target, currentLocation.npcs);
-      if (!npcId) {
-        await this.messageManager.notifyNoNpcToLoot(this.player, target);
-        return;
-      }
-      const npc = await this.player.server.gameManager.getNpc(npcId);
-      if (!npc) {
-        throw new Error(`Npc with ID ${npcId} not found`);
-      }
-      if (npc.status === "lying unconscious" || npc.status === "lying dead") {
-        if (npc.inventory && npc.inventory.size > 0) {
-          const lootedItems = new Set(npc.inventory);
-          for (const itemId of lootedItems) {
-            try {
-              const item = await this.createItemFromData(itemId);
-              if (item) {
-                await this.addToInventory(item);
-              }
-            } catch (error) {
-              this.player.server.logger.error(`Error creating item ${itemId}: ${error.message}`);
-            }
-          }
-          npc.inventory.clear();
-          await this.messageManager.notifyNpcLooted(this.player, npc, Array.from(lootedItems));
-        } else {
-          await this.messageManager.notifyNpcHasNoLoot(this.player, npc);
-        }
-      } else {
-        await this.messageManager.notifyCannotLootNpc(this.player, npc);
-      }
-    } catch (error) {
-      this.player.server.logger.error(`Error in lootNpc: ${error.message}`);
-      await this.messageManager.notifyError(this.player, "An error occurred while looting.");
-    }
-  }
-  lootAllNpcs() {
-    const currentLocation = this.player.server.location[this.player.currentLocation];
-    if (!currentLocation.npcs || currentLocation.npcs.size === 0) {
-      this.messageManager.sendMessage(this.player,
-        MessageManager.getNoNpcsToLootTemplate(this.player.getName()),
-        'errorMessage'
-      );
-      return;
-    }
-    const lootedItems = new Set();
-    const lootedNpcs = new Set();
-    const { npcs, items } = this.player.server;
-    for (const npcId of currentLocation.npcs) {
-      const npc = npcs[npcId];
-      if ((npc.status === "lying unconscious" || npc.status === "lying dead") && npc.inventory?.size > 0) {
-        for (const itemId of npc.inventory) {
-          const item = items[itemId];
-          if (item) {
-            lootedItems.add(itemId);
-            this.player.inventory.add(item);
-          }
-        }
-        lootedNpcs.add(npc.name);
-        npc.inventory.clear();
-      }
-    }
-    if (lootedItems.size > 0) {
-      this.messageManager.sendMessage(this.player,
-        MessageManager.getLootedAllNpcsTemplate(this.player.getName(), [...lootedNpcs], [...lootedItems]),
-        'lootMessage'
-      );
-    } else {
-      this.messageManager.sendMessage(this.player,
-        MessageManager.getNothingToLootFromNpcsTemplate(this.player.getName()),
-        'lootMessage'
-      );
-    }
-  }
+
   async dropItems(itemsToDrop, type, itemType) {
-    try {
-      if (itemsToDrop.size === 0) {
-        await this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
-        return;
-      }
-      const currentLocation = this.player.server.location[this.player.currentLocation];
-      currentLocation.items = currentLocation.items || new Set();
-      for (const item of itemsToDrop) {
-        currentLocation.items.add(item.uid);
-        this.player.inventory.delete(item);
-      }
-      await this.messageManager.notifyItemsDropped(this.player, Array.from(itemsToDrop));
-    } catch (error) {
-      this.player.server.logger.error(`Error in dropItems: ${error.message}`);
-      await this.messageManager.notifyError(this.player, "An error occurred while dropping items.");
+    if (itemsToDrop.size === 0) {
+      await this.messageManager.notifyNoItemsToDrop(this.player, type, itemType);
+      return;
     }
+
+    const currentLocation = this.server.location[this.player.currentLocation];
+    currentLocation.items = currentLocation.items || new Set();
+
+    const droppedItems = await Promise.all(
+      [...itemsToDrop].map(async item => {
+        currentLocation.items.add(item.uid);
+        await this.removeItem(item.uid);
+        return item;
+      })
+    );
+
+    await this.messageManager.notifyItemsDropped(this.player, droppedItems);
   }
+
   getContainer(containerName) {
-    const container = [...this.player.inventory].find(item =>
+    const container = [...this.inventory.values()].find(item =>
       item.name.toLowerCase() === containerName.toLowerCase() && item.inventory
     );
     if (!container) {
-      MessageManager.notifyNoContainer(this.player, containerName);
+      this.messageManager.notifyNoContainer(this.player, containerName);
     }
     return container;
   }
-  getItemFromInventory(itemName) {
-    const item = [...this.player.inventory].find(i => i.name.toLowerCase() === itemName.toLowerCase());
-    if (!item) {
-      this.messageManager.notifyNoItemInInventory(this.player, itemName);
-    }
-    return item;
-  }
-  async transferItem(itemId, source, sourceType) {
-    try {
-      const item = await this.createItemFromData(itemId);
-      if (!item) {
-        throw new Error(`Failed to create item with ID ${itemId}`);
-      }
-      await this.addToInventory(item);
-      if (sourceType === 'location') {
-        source.items.delete(itemId);
-      } else if (sourceType === 'container') {
-        source.inventory.delete(itemId);
-      } else if (sourceType === 'drop') {
-        await this.removeFromInventory(item);
-        source.items.add(itemId);
-      }
-      await this.messageManager.notifyItemTransfer(this.player, item.name, sourceType);
-    } catch (error) {
-      this.player.server.logger.error(`Error in transferItem: ${error.message}`);
-      await this.messageManager.notifyError(this.player, "An error occurred while transferring item.");
-    }
-  }
-  getItemIdFromLocation(target, items) {
-    return [...items].find(item => item.name.toLowerCase() === target.toLowerCase())?.uid;
-  }
-  getItemIdFromContainer(itemName, container) {
-    return [...container.inventory].find(itemId => this.player.server.items[itemId].name.toLowerCase() === itemName.toLowerCase());
-  }
-  getNpcIdFromLocation(npcName, npcs) {
-    return [...npcs].find(npcId => this.player.server.npcs[npcId].name.toLowerCase() === npcName.toLowerCase());
-  }
-  itemMatchesType(item, itemType) {
-    return item.type.toLowerCase() === itemType.toLowerCase();
-  }
+
   cleanup() {
     this.inventory.clear();
-    this.logger.info('InventoryManager cleaned up');
+    this.server.logger.info('InventoryManager cleaned up');
   }
 }
 /**************************************************************************************************
@@ -4361,64 +4321,79 @@ class TransactionManager {
     this.server = server;
     this.tradeSessions = new Map();
   }
+
   createTransaction() {
     return new AtomicTransaction(this.server);
   }
+
   async executeTransaction(operations) {
     const transaction = this.createTransaction();
     operations.forEach(operation => transaction.addOperation(operation));
     await transaction.commit();
   }
+
   async executeBuyTransaction(player, merchant, itemId) {
-    try {
-      const item = merchant.inventory.get(itemId);
-      if (!item) throw new Error("Item not found in merchant's inventory");
-      if (player.getCurrency() < item.price) throw new Error("Insufficient funds");
-      await this.executeTransaction([{
-        execute: () => {
-          player.subtractCurrency(item.price);
-          merchant.inventory.delete(itemId);
-          player.addItemToInventory(item);
-        },
-        rollback: () => {
-          player.addCurrency(item.price);
-          merchant.inventory.set(itemId, item);
-          player.removeItemFromInventory(item.uid);
-        }
-      }]);
-      return item;
-    } catch (error) {
-      this.server.logger.error(`Error executing buy transaction: ${error.message}`, { error });
-      throw error;
-    }
+    const transactionOperations = await this.createBuyOperations(player, merchant, itemId);
+    return this.executeTransactionWithErrorHandling(transactionOperations, 'buy');
   }
+
   async executeSellTransaction(player, merchant, itemUid) {
+    const transactionOperations = await this.createSellOperations(player, merchant, itemUid);
+    return this.executeTransactionWithErrorHandling(transactionOperations, 'sell');
+  }
+
+  async executeTransactionWithErrorHandling(transactionOperations, transactionType) {
     try {
-      const item = player.getItemFromInventory(itemUid);
-      if (!item) throw new Error("Item not found in player's inventory");
-      const sellPrice = Math.floor(item.price * 0.5);
-      await this.executeTransaction([{
-        execute: () => {
-          player.removeItemFromInventory(itemUid);
-          player.addCurrency(sellPrice);
-          merchant.inventory.set(item.id, item);
-          // Remove the item from the game if it's not needed anymore
-          this.server.itemManager.removeItem(itemUid);
-        },
-        rollback: () => {
-          player.addItemToInventory(item);
-          player.subtractCurrency(sellPrice);
-          merchant.inventory.delete(item.id);
-          // If we're rolling back, we need to add the item back to the ItemManager
-          this.server.itemManager.items.set(itemUid, item);
-        }
-      }]);
-      return sellPrice;
+      await this.executeTransaction(transactionOperations);
+      return transactionOperations.result;
     } catch (error) {
-      this.server.logger.error(`Error executing sell transaction: ${error.message}`, { error });
+      this.server.logger.error(`Error executing ${transactionType} transaction: ${error.message}`, { error });
       throw error;
     }
   }
+
+  async createBuyOperations(player, merchant, itemId) {
+    const item = merchant.inventory.get(itemId);
+    if (!item) throw new Error("Item not found in merchant's inventory");
+    if (player.getCurrency() < item.price) throw new Error("Insufficient funds");
+
+    return {
+      execute: () => {
+        player.subtractCurrency(item.price);
+        merchant.inventory.delete(itemId);
+        player.addItemToInventory(item);
+      },
+      rollback: () => {
+        player.addCurrency(item.price);
+        merchant.inventory.set(itemId, item);
+        player.removeItemFromInventory(item.uid);
+      },
+      result: item
+    };
+  }
+
+  async createSellOperations(player, merchant, itemUid) {
+    const item = player.getItemFromInventory(itemUid);
+    if (!item) throw new Error("Item not found in player's inventory");
+    const sellPrice = Math.floor(item.price * 0.5);
+
+    return {
+      execute: () => {
+        player.removeItemFromInventory(itemUid);
+        player.addCurrency(sellPrice);
+        merchant.inventory.set(item.id, item);
+        this.server.itemManager.removeItem(itemUid);
+      },
+      rollback: () => {
+        player.addItemToInventory(item);
+        player.subtractCurrency(sellPrice);
+        merchant.inventory.delete(item.id);
+        this.server.itemManager.items.set(itemUid, item);
+      },
+      result: sellPrice
+    };
+  }
+
   createTradeSession(player1, player2) {
     try {
       const tradeSession = new TradeSession(this.server, player1, player2);
@@ -4430,9 +4405,11 @@ class TransactionManager {
       throw error;
     }
   }
+
   getTradeSession(playerId) {
     return this.tradeSessions.get(playerId);
   }
+
   endTradeSession(playerId) {
     try {
       const tradeSession = this.tradeSessions.get(playerId);
@@ -4445,16 +4422,17 @@ class TransactionManager {
       throw error;
     }
   }
+
   async executeTradeTransaction(tradeSession) {
     try {
       const transaction = this.createTransaction();
       const { player1, player2, player1Items, player2Items, player1Gold, player2Gold } = tradeSession;
-      // Refactored item transfer operations
+
       await this.addItemTransferOperations(transaction, player1Items, player1, player2);
       await this.addItemTransferOperations(transaction, player2Items, player2, player1);
-      // Refactored gold transfer operations
       await this.addGoldTransferOperation(transaction, player1, player2, player1Gold);
       await this.addGoldTransferOperation(transaction, player2, player1, player2Gold);
+
       await transaction.commit();
       await this.server.messageManager.notifyTradeCompleted(player1, player2);
     } catch (error) {
@@ -4464,45 +4442,38 @@ class TransactionManager {
       await this.endTradeSession(tradeSession.player1.getId());
     }
   }
+
   async addItemTransferOperations(transaction, items, fromPlayer, toPlayer) {
-    try {
-      for (const [itemId, item] of items) {
-        transaction.addOperation({
-          execute: async () => {
-            await fromPlayer.removeItemFromInventory(itemId);
-            await toPlayer.addItemToInventory(item);
-          },
-          rollback: async () => {
-            await toPlayer.removeItemFromInventory(itemId);
-            await fromPlayer.addItemToInventory(item);
-          }
-        });
+    const transferOperations = [...items].map(([itemId, item]) => ({
+      execute: async () => {
+        await fromPlayer.removeItemFromInventory(itemId);
+        await toPlayer.addItemToInventory(item);
+      },
+      rollback: async () => {
+        await toPlayer.removeItemFromInventory(itemId);
+        await fromPlayer.addItemToInventory(item);
       }
-    } catch (error) {
-      this.server.logger.error(`Error adding item transfer operations: ${error.message}`, { error });
-      throw error;
-    }
+    }));
+
+    transferOperations.forEach(operation => transaction.addOperation(operation));
   }
+
   async addGoldTransferOperation(transaction, fromPlayer, toPlayer, amount) {
-    try {
-      transaction.addOperation({
-        execute: async () => {
-          await fromPlayer.subtractCurrency(amount);
-          await toPlayer.addCurrency(amount);
-        },
-        rollback: async () => {
-          await toPlayer.subtractCurrency(amount);
-          await fromPlayer.addCurrency(amount);
-        }
-      });
-    } catch (error) {
-      this.server.logger.error(`Error adding gold transfer operation: ${error.message}`, { error });
-      throw error;
-    }
+    transaction.addOperation({
+      execute: async () => {
+        await fromPlayer.subtractCurrency(amount);
+        await toPlayer.addCurrency(amount);
+      },
+      rollback: async () => {
+        await toPlayer.subtractCurrency(amount);
+        await fromPlayer.addCurrency(amount);
+      }
+    });
   }
+
   cleanup() {
     this.tradeSessions.clear();
-    this.logger.info('TransactionManager cleaned up');
+    this.server.logger.info('TransactionManager cleaned up');
   }
 }
 /**************************************************************************************************
@@ -4530,6 +4501,18 @@ class TradeSession {
     this.player2Confirmed = false;
     this.accepted = false;
   }
+
+  async performTradeAction(action, player, ...args) {
+    if (!this.isValidTradeAction(action)) {
+      throw new Error(`Invalid trade action: ${action}`);
+    }
+    return this[action](player, ...args);
+  }
+
+  isValidTradeAction(action) {
+    return ['acceptTrade', 'declineTrade', 'addItem', 'removeItem', 'setGold', 'confirmTrade'].includes(action);
+  }
+
   async acceptTrade(player) {
     if (this.accepted) return;
     if (player !== this.player2) {
@@ -4539,21 +4522,24 @@ class TradeSession {
     this.accepted = true;
     await this.server.messageManager.notifyTradeAccepted(this.player1, this.player2);
   }
+
   async declineTrade(player) {
     await this.server.messageManager.notifyTradeDeclined(this.player1, this.player2);
     await this.server.transactionManager.endTradeSession(this.player1.getId());
   }
+
   async addItem(player, item) {
     if (!await this.canModifyTrade(player)) return;
-    const itemList = player === this.player1 ? this.player1Items : this.player2Items;
+    const itemList = this.getPlayerItemList(player);
     itemList.set(item.id, item);
     await this.resetConfirmations();
     await this.server.messageManager.notifyTradeItemAdded(player, item);
   }
+
   async removeItem(player, itemName) {
     if (!await this.canModifyTrade(player)) return;
-    const itemList = player === this.player1 ? this.player1Items : this.player2Items;
-    const item = [...itemList.values()].find(i => i.name.toLowerCase() === itemName.toLowerCase());
+    const itemList = this.getPlayerItemList(player);
+    const item = this.findItemByName(itemList, itemName);
     if (item) {
       itemList.delete(item.id);
       await this.resetConfirmations();
@@ -4562,42 +4548,39 @@ class TradeSession {
       await this.server.messageManager.sendMessage(player, `${itemName} is not in the trade.`, 'error');
     }
   }
+
   async setGold(player, amount) {
     if (!await this.canModifyTrade(player)) return;
-    if (amount < 0 || amount > player.getCurrency()) {
+    if (!this.isValidGoldAmount(player, amount)) {
       await this.server.messageManager.sendMessage(player, "Invalid gold amount.", 'error');
       return;
     }
-    if (player === this.player1) {
-      this.player1Gold = amount;
-    } else {
-      this.player2Gold = amount;
-    }
+    this.setPlayerGold(player, amount);
     await this.resetConfirmations();
     await this.server.messageManager.notifyTradeGoldSet(player, amount);
   }
+
   async confirmTrade(player) {
     if (!this.accepted) {
       await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
       return;
     }
-    if (player === this.player1) {
-      this.player1Confirmed = true;
-    } else if (player === this.player2) {
-      this.player2Confirmed = true;
-    }
+    this.setPlayerConfirmation(player, true);
     await this.server.messageManager.notifyTradeConfirmed(player);
-    if (this.player1Confirmed && this.player2Confirmed) {
+    if (this.areBothPlayersConfirmed()) {
       await this.completeTrade();
     }
   }
+
   async completeTrade() {
     await this.server.transactionManager.executeTradeTransaction(this);
   }
+
   async resetConfirmations() {
     this.player1Confirmed = false;
     this.player2Confirmed = false;
   }
+
   async canModifyTrade(player) {
     if (!this.accepted) {
       await this.server.messageManager.sendMessage(player, "The trade hasn't been accepted yet.", 'error');
@@ -4605,7 +4588,40 @@ class TradeSession {
     }
     return true;
   }
+
+  getPlayerItemList(player) {
+    return player === this.player1 ? this.player1Items : this.player2Items;
+  }
+
+  findItemByName(itemList, itemName) {
+    return [...itemList.values()].find(i => i.name.toLowerCase() === itemName.toLowerCase());
+  }
+
+  isValidGoldAmount(player, amount) {
+    return amount >= 0 && amount <= player.getCurrency();
+  }
+
+  setPlayerGold(player, amount) {
+    if (player === this.player1) {
+      this.player1Gold = amount;
+    } else {
+      this.player2Gold = amount;
+    }
+  }
+
+  setPlayerConfirmation(player, confirmed) {
+    if (player === this.player1) {
+      this.player1Confirmed = confirmed;
+    } else if (player === this.player2) {
+      this.player2Confirmed = confirmed;
+    }
+  }
+
+  areBothPlayersConfirmed() {
+    return this.player1Confirmed && this.player2Confirmed;
+  }
 }
+
 /**************************************************************************************************
 Atomic Transaction Class
 The AtomicTransaction class is responsible for managing atomic transactions in the game.
@@ -4623,36 +4639,76 @@ class AtomicTransaction {
     this.server = server;
     this.operations = [];
     this.isCommitted = false;
+    this.logger = server.logger;
   }
+
   addOperation(operation) {
     if (this.isCommitted) {
       throw new Error("Cannot add operations to a committed transaction");
     }
     this.operations.push(operation);
   }
+
   async commit() {
     if (this.isCommitted) {
       throw new Error("Transaction already committed");
     }
-    this.server.logger.debug("Starting atomic transaction commit");
-    for (const operation of this.operations) {
-      await operation.execute();
+    this.logger.debug("Starting atomic transaction commit");
+
+    try {
+      await this.executeOperations();
+      this.isCommitted = true;
+      this.logger.debug("Atomic transaction committed successfully");
+    } catch (error) {
+      this.logger.error("Error during transaction commit, rolling back", { error });
+      await this.rollback();
+      throw error;
     }
-    this.isCommitted = true;
-    this.server.logger.debug("Atomic transaction committed successfully");
   }
-  async rollback() {
-    this.server.logger.debug("Rolling back atomic transaction");
-    for (const operation of this.operations.reverse()) {
-      try {
-        await operation.rollback();
-      } catch (rollbackError) {
-        this.server.logger.error("Error during rollback", { error: rollbackError });
-      }
+
+  async executeOperations() {
+    for (const operation of this.operations) {
+      await this.executeOperation(operation);
     }
-    this.server.logger.debug("Atomic transaction rolled back");
+  }
+
+  async executeOperation(operation) {
+    if (typeof operation.execute !== 'function') {
+      throw new Error("Invalid operation: execute method is not a function");
+    }
+    await operation.execute();
+  }
+
+  async rollback() {
+    this.logger.debug("Rolling back atomic transaction");
+    const rollbackPromises = this.operations.reverse().map(operation => this.rollbackOperation(operation));
+    await Promise.allSettled(rollbackPromises);
+    this.logger.debug("Atomic transaction rolled back");
+  }
+
+  async rollbackOperation(operation) {
+    if (typeof operation.rollback !== 'function') {
+      this.logger.warn("Operation does not have a rollback method", { operation });
+      return;
+    }
+    try {
+      await operation.rollback();
+    } catch (rollbackError) {
+      this.logger.error("Error during operation rollback", { error: rollbackError });
+    }
+  }
+
+  async withTransaction(callback) {
+    try {
+      await callback(this);
+      await this.commit();
+    } catch (error) {
+      await this.rollback();
+      throw error;
+    }
   }
 }
+
 /**************************************************************************************************
 Format Message Manager Class
 The FormatMessageManager class is responsible for formatting messages for different types of game
@@ -4664,82 +4720,106 @@ Key features:
 The FormatMessageManager is essential for ensuring that messages are displayed correctly
 ***************************************************************************************************/
 class FormatMessageManager {
+  static messageIds = {
+    locationTitle: 'location-title',
+    locationDescription: 'location-description',
+    itemName: 'item-name',
+    exitToLocation: 'exit-to-location',
+    exitsList: 'exits-list',
+    inventoryList: 'inventory-list',
+    itemsList: 'items-list',
+    npcName: 'npc-name',
+    npcDescription: 'npc-description',
+    npcStats: 'npc-stats',
+    playerName: 'player-name',
+    combatMessagePlayer: 'combat-message-player',
+    combatMessageNpc: 'combat-message-npc',
+    combatMessageHealth: 'combat-message-health',
+    combatMessage: 'combat-message',
+    errorMessage: 'error-message',
+    buyMessage: 'buy-message',
+    sellMessage: 'sell-message',
+    merchantInventory: 'merchant-inventory',
+  };
+
   static createMessageData({ cssid = '', message }) {
     return { cssid, content: message };
   }
+
   static getIdForMessage(type) {
-    const messageIds = {
-      /* CSS for location title
-        any message sent to a client that contains
-        a location title must include this */
-      locationTitle: 'location-title',
-      /* CSS for location description
-        any message sent to a client that contains
-        a location description must include this */
-      locationDescription: 'location-description',
-      /* CSS for item names
-        any message sent to a client that contains
-        an item name must include this */
-      itemName: 'item-name',
-      /* CSS for exit to location
-        any message sent to a client that contains
-        an exit to location must include this */
-      exitToLocation: 'exit-to-location',
-      /* CSS for exits list
-        any message sent to a client that contains
-        an exits list must include this */
-      exitsList: 'exits-list',
-      /* CSS for inventory list
-        any message sent to a client that contains
-        an inventory list must include this */
-      inventoryList: 'inventory-list',
-      /* CSS for items list
-        any message sent to a client that contains
-        an items list must include this */
-      itemsList: 'items-list',
-      /* CSS for npc name
-        any message sent to a client that contains
-        an npc name must include this */
-      npcName: 'npc-name',
-      /* CSS for npc description
-        any message sent to a client that contains
-        an npc description must include this */
-      npcDescription: 'npc-description',
-      /* CSS for npc stats
-        any message sent to a client that contains
-        npc stats must include this */
-      npcStats: 'npc-stats',
-      /* CSS for player names
-        any message sent to a client that contains
-        a player name must include this */
-      playerName: 'player-name',
-      /* CSS for combat message player actions
-        any message sent to a client during combat
-        that contains a player action must include this */
-      combatMessagePlayer: 'combat-message-player',
-      /* CSS for combat message npc actions
-        any message sent to a client during combat
-        that contains an npc action must include this */
-      combatMessageNpc: 'combat-message-npc',
-      /* CSS for combat message health
-        any message sent to a client during combat
-        that contains health status must include this */
-      combatMessageHealth: 'combat-message-health',
-      /* CSS for combat messages
-        any message sent to a client during combat
-        must include this */
-      combatMessage: 'combat-message',
-      /* CSS for error messages
-        any message sent to a client that contains
-        an error message must include this */
-      errorMessage: 'error-message',
-      buyMessage: 'buy-message',
-      sellMessage: 'sell-message',
-      merchantInventory: 'merchant-inventory',
-    };
-    return messageIds[type] || '';
+    return this.messageIds[type] || '';
+  }
+
+  static formatMessage(message, type) {
+    const cssid = this.getIdForMessage(type);
+    return this.createMessageData({ cssid, message });
+  }
+
+  static formatCompoundMessage(messageParts) {
+    return messageParts.map(({ message, type }) => this.formatMessage(message, type));
+  }
+
+  static wrapWithColor(message, color) {
+    return `<span style="color: ${color}">${message}</span>`;
+  }
+
+  static formatList(items, type) {
+    const formattedItems = items.map(item => this.formatMessage(item, type));
+    return this.createMessageData({
+      cssid: this.getIdForMessage(`${type}List`),
+      message: formattedItems.map(item => item.content).join(', ')
+    });
+  }
+
+  static formatLocationDescription(title, description, exits) {
+    const titleMessage = this.formatMessage(title, 'locationTitle');
+    const descriptionMessage = this.formatMessage(description, 'locationDescription');
+    const exitsMessage = this.formatList(exits, 'exitToLocation');
+
+    return [titleMessage, descriptionMessage, exitsMessage];
+  }
+
+  static formatCombatMessage(attacker, defender, action, outcome) {
+    const attackerName = this.formatMessage(attacker.getName(), attacker.isPlayer ? 'playerName' : 'npcName');
+    const defenderName = this.formatMessage(defender.getName(), defender.isPlayer ? 'playerName' : 'npcName');
+    const actionMessage = this.formatMessage(action, 'combatMessage');
+    const outcomeMessage = this.formatMessage(outcome, 'combatMessage');
+
+    return this.formatCompoundMessage([
+      { message: attackerName.content, type: 'combatMessage' },
+      { message: actionMessage.content, type: 'combatMessage' },
+      { message: defenderName.content, type: 'combatMessage' },
+      { message: outcomeMessage.content, type: 'combatMessage' }
+    ]);
+  }
+
+  static formatInventory(items) {
+    return this.formatList(items.map(item => item.name), 'itemName');
+  }
+
+  static formatErrorMessage(message) {
+    return this.formatMessage(message, 'errorMessage');
+  }
+
+  static formatBuyMessage(item, price) {
+    const itemName = this.formatMessage(item.name, 'itemName');
+    return this.formatCompoundMessage([
+      { message: 'You bought ', type: 'buyMessage' },
+      { message: itemName.content, type: 'itemName' },
+      { message: ` for ${price} gold.`, type: 'buyMessage' }
+    ]);
+  }
+
+  static formatSellMessage(item, price) {
+    const itemName = this.formatMessage(item.name, 'itemName');
+    return this.formatCompoundMessage([
+      { message: 'You sold ', type: 'sellMessage' },
+      { message: itemName.content, type: 'itemName' },
+      { message: ` for ${price} gold.`, type: 'sellMessage' }
+    ]);
   }
 }
+
 /**************************************************************************************************
 Message Manager Class
 The MessageManager class is responsible for handling message-related operations.
@@ -4758,6 +4838,7 @@ debugging purposes.*************************************************************
 class MessageManager {
   static instance;
   static logger;
+
   static getInstance(logger) {
     if (!MessageManager.instance) {
       MessageManager.instance = new MessageManager();
@@ -4765,8 +4846,10 @@ class MessageManager {
     }
     return MessageManager.instance;
   }
+
   // Set the socket instance
   static socket;
+
   static setSocket(socketInstance) {
     try {
       this.socket = socketInstance;
@@ -4774,6 +4857,7 @@ class MessageManager {
       this.logger.error('Error setting socket instance:', error);
     }
   }
+
   // Notify a player with a message
   static async notify(entity, message, type) {
     try {
@@ -4789,25 +4873,19 @@ class MessageManager {
       this.logger.error('Error in MessageManager.notify:', error);
     }
   }
+
   // Notify all players in a specific location with a message
   static async notifyPlayersInLocation({ location, message, type = '' }) {
-    try {
-      if (!location || !location.playersInLocation) return;
-      for (const player of location.playersInLocation) {
-        await this.notify(player, message, type);
-      }
-    } catch (error) {
-      this.logger.error('Error notifying players in location:', error);
-    }
+    if (!location || !location.playersInLocation) return;
+    const notifyPlayer = player => this.notify(player, message, type);
+    await Promise.all([...location.playersInLocation].map(notifyPlayer));
   }
+
   // Notify a player about a specific action performed on a target
   static async notifyAction({ player, action, targetName, type }) {
-    try {
-      return await this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
-    } catch (error) {
-      this.logger.error('Error notifying action:', error);
-    }
+    return await this.notify(player, `${player.getName()} ${action} ${targetName}.`, type);
   }
+
   // Notify a player of a successful login
   static async notifyLoginSuccess({ player }) {
     try {
@@ -4816,6 +4894,7 @@ class MessageManager {
       this.logger.error('Error notifying login success:', error);
     }
   }
+
   // Notify a player of an incorrect password attempt
   static async notifyIncorrectPassword({ player }) {
     try {
@@ -4824,6 +4903,7 @@ class MessageManager {
       this.logger.error('Error notifying incorrect password:', error);
     }
   }
+
   // Notify a player of disconnection due to too many failed login attempts
   static async notifyDisconnectionDueToFailedAttempts({ player }) {
     try {
@@ -4832,6 +4912,7 @@ class MessageManager {
       this.logger.error('Error notifying disconnection due to failed attempts:', error);
     }
   }
+
   // Notify a player when they pick up an item
   static async notifyPickupItem({ player, itemName }) {
     try {
@@ -4840,6 +4921,7 @@ class MessageManager {
       this.logger.error('Error notifying pickup item:', error);
     }
   }
+
   // Notify a player when they drop an item
   static async notifyDropItem({ player, itemName }) {
     try {
@@ -4848,6 +4930,7 @@ class MessageManager {
       this.logger.error('Error notifying drop item:', error);
     }
   }
+
   // Notify players in a location about an Npc's movement
   static async notifyNpcMovement(npc, direction, isArrival) {
     try {
@@ -4858,6 +4941,7 @@ class MessageManager {
       this.logger.error('Error notifying Npc movement:', error);
     }
   }
+
   // Get a template message for combat initiation
   static getCombatInitiationTemplate({ initiatorName, targetName }) {
     try {
@@ -4866,6 +4950,7 @@ class MessageManager {
       this.logger.error('Error getting combat initiation template:', error);
     }
   }
+
   // Get a template message for an Npc joining combat
   static getCombatJoinTemplate({ npcName }) {
     try {
@@ -4874,6 +4959,7 @@ class MessageManager {
       this.logger.error('Error getting combat join template:', error);
     }
   }
+
   // Get a template message for a victory announcement
   static getVictoryTemplate({ playerName, defeatedName }) {
     try {
@@ -4882,6 +4968,7 @@ class MessageManager {
       this.logger.error('Error getting victory template:', error);
     }
   }
+
   // Get a template message for a target not found
   static getTargetNotFoundTemplate({ playerName, target }) {
     try {
@@ -4890,6 +4977,7 @@ class MessageManager {
       this.logger.error('Error getting target not found template:', error);
     }
   }
+
   // Get a template message for no conscious enemies
   static getNoConsciousEnemiesTemplate({ playerName }) {
     try {
@@ -4898,6 +4986,7 @@ class MessageManager {
       this.logger.error('Error getting no conscious enemies template:', error);
     }
   }
+
   // Get a template message for an Npc already in a specific status
   static getNpcAlreadyInStatusTemplate({ npcName, status }) {
     try {
@@ -4906,6 +4995,7 @@ class MessageManager {
       this.logger.error('Error getting Npc already in status template:', error);
     }
   }
+
   // Get a template message for an unknown location
   static getUnknownLocationTemplate({ playerName }) {
     try {
@@ -4914,6 +5004,7 @@ class MessageManager {
       this.logger.error('Error getting unknown location template:', error);
     }
   }
+
   // Get a template message for looting an Npc
   static getLootedNpcTemplate({ playerName, npcName, lootedItems }) {
     try {
@@ -4922,6 +5013,7 @@ class MessageManager {
       this.logger.error('Error getting looted Npc template:', error);
     }
   }
+
   // Get a template message for finding nothing to loot from an Npc
   static getNoLootTemplate({ playerName, npcName }) {
     try {
@@ -4930,6 +5022,7 @@ class MessageManager {
       this.logger.error('Error getting no loot template:', error);
     }
   }
+
   // Get a template message for being unable to loot an Npc
   static getCannotLootNpcTemplate({ playerName, npcName }) {
     try {
@@ -4938,6 +5031,7 @@ class MessageManager {
       this.logger.error('Error getting cannot loot Npc template:', error);
     }
   }
+
   // Get a template message for no Npc to loot
   static getNoNpcToLootTemplate({ playerName, target }) {
     try {
@@ -4946,6 +5040,7 @@ class MessageManager {
       this.logger.error('Error getting no Npc to loot template:', error);
     }
   }
+
   // Get a template message for no Npcs to loot
   static getNoNpcsToLootTemplate({ playerName }) {
     try {
@@ -4954,6 +5049,7 @@ class MessageManager {
       this.logger.error('Error getting no Npcs to loot template:', error);
     }
   }
+
   // Get a template message for finding nothing to loot from any Npcs
   static getNothingToLootFromNpcsTemplate({ playerName }) {
     try {
@@ -4962,6 +5058,7 @@ class MessageManager {
       this.logger.error('Error getting nothing to loot from Npcs template:', error);
     }
   }
+
   // Get a template message for looting all Npcs
   static getLootedAllNpcsTemplate({ playerName, lootedNpcs, lootedItems }) {
     try {
@@ -4970,6 +5067,7 @@ class MessageManager {
       this.logger.error('Error getting looted all Npcs template:', error);
     }
   }
+
   // Notify a player that they have no items to drop
   static async notifyNoItemsToDrop({ player, type, itemType }) {
     try {
@@ -4978,22 +5076,19 @@ class MessageManager {
       this.logger.error('Error notifying no items to drop:', error);
     }
   }
+
   // Notify a player about items they dropped
   static async notifyItemsDropped({ player, items }) {
-    try {
-      return await this.notify(player, `${player.getName()} dropped: ${[...items].map(item => item.name).join(', ')}.`, 'dropMessage');
-    } catch (error) {
-      this.logger.error('Error notifying items dropped:', error);
-    }
+    const itemNames = items.map(item => item.name).join(', ');
+    return await this.notify(player, `${player.getName()} dropped: ${itemNames}.`, 'dropMessage');
   }
+
   // Notify a player about items they took
   static async notifyItemsTaken({ player, items }) {
-    try {
-      return await this.notify(player, `${player.getName()} took: ${[...items].map(item => item.name).join(', ')}.`, 'takeMessage');
-    } catch (error) {
-      this.logger.error('Error notifying items taken:', error);
-    }
+    const itemNames = items.map(item => item.name).join(', ');
+    return await this.notify(player, `${player.getName()} took: ${itemNames}.`, 'takeMessage');
   }
+
   // Notify a player that there are no items here
   static async notifyNoItemsHere({ player }) {
     try {
@@ -5002,6 +5097,7 @@ class MessageManager {
       this.logger.error('Error notifying no items here:', error);
     }
   }
+
   // Notify a player about items taken from a container
   static async notifyItemsTakenFromContainer({ player, items, containerName }) {
     try {
@@ -5010,6 +5106,7 @@ class MessageManager {
       this.logger.error('Error notifying items taken from container:', error);
     }
   }
+
   // Notify a player that there are no specific items in a container
   static async notifyNoSpecificItemsInContainer({ player, itemType, containerName }) {
     try {
@@ -5018,6 +5115,7 @@ class MessageManager {
       this.logger.error('Error notifying no specific items in container:', error);
     }
   }
+
   // Notify a player that there is no item in a container
   static async notifyNoItemInContainer({ player, itemName, containerName }) {
     try {
@@ -5026,6 +5124,7 @@ class MessageManager {
       this.logger.error('Error notifying no item in container:', error);
     }
   }
+
   // Notify a player that there is no item here
   static async notifyNoItemHere({ player, itemName }) {
     try {
@@ -5034,6 +5133,7 @@ class MessageManager {
       this.logger.error('Error notifying no item here:', error);
     }
   }
+
   // Notify a player that they don't have a specific container
   static async notifyNoContainer({ player, containerName }) {
     try {
@@ -5042,6 +5142,7 @@ class MessageManager {
       this.logger.error('Error notifying no container:', error);
     }
   }
+
   // Notify a player that an item is not in their inventory
   static async notifyItemNotInInventory({ player, itemName }) {
     try {
@@ -5050,6 +5151,7 @@ class MessageManager {
       this.logger.error('Error notifying item not in inventory:', error);
     }
   }
+
   // Notify a player that they put an item in a container
   static async notifyItemPutInContainer({ player, itemName, containerName }) {
     try {
@@ -5058,6 +5160,7 @@ class MessageManager {
       this.logger.error('Error notifying item put in container:', error);
     }
   }
+
   // Notify a player that they have no items to put in a container
   static async notifyNoItemsToPut({ player, containerName }) {
     try {
@@ -5066,6 +5169,7 @@ class MessageManager {
       this.logger.error('Error notifying no items to put:', error);
     }
   }
+
   // Notify a player about items put in a container
   static async notifyItemsPutInContainer({ player, items, containerName }) {
     try {
@@ -5074,6 +5178,7 @@ class MessageManager {
       this.logger.error('Error notifying items put in container:', error);
     }
   }
+
   // Notify a player that they have no specific items to put in a container
   static async notifyNoSpecificItemsToPut({ player, itemType, containerName }) {
     try {
@@ -5082,6 +5187,7 @@ class MessageManager {
       this.logger.error('Error notifying no specific items to put:', error);
     }
   }
+
   // Notify a player that there are no specific items here
   static async notifyNoSpecificItemsHere({ player, itemType }) {
     try {
@@ -5090,6 +5196,7 @@ class MessageManager {
       this.logger.error('Error notifying no specific items here:', error);
     }
   }
+
   // Get a template message for auto-looting items from an Npc
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
     try {
@@ -5098,6 +5205,7 @@ class MessageManager {
       this.logger.error('Error getting auto-loot template:', error);
     }
   }
+
   // Notify a player about the result of a combat
   static async notifyCombatResult(player, result) {
     try {
@@ -5106,6 +5214,7 @@ class MessageManager {
       this.logger.error('Error notifying combat result:', error);
     }
   }
+
   // Notify a player about the start of a combat
   static async notifyCombatStart(player, npc) {
     try {
@@ -5114,6 +5223,7 @@ class MessageManager {
       this.logger.error('Error notifying combat start:', error);
     }
   }
+
   // Notify a player about the end of a combat
   static async notifyCombatEnd(player) {
     try {
@@ -5122,28 +5232,25 @@ class MessageManager {
       this.logger.error('Error notifying combat end:', error);
     }
   }
+
   // Send a message to a player
   static async sendMessage(player, messageData, type) {
-    try {
-      if (typeof messageData === 'string') {
-        await this.notify(player, messageData, type);
-      } else {
-        for (const [key, value] of Object.entries(messageData)) {
-          if (typeof value === 'string') {
-            await this.notify(player, value, key);
-          } else if (Array.isArray(value)) {
-            for (const item of value) {
-              await this.notify(player, item.text, item.cssid);
-            }
-          } else if (typeof value === 'object') {
-            await this.notify(player, value.text, value.cssid);
-          }
+    if (typeof messageData === 'string') {
+      await this.notify(player, messageData, type);
+    } else {
+      const sendMessagePart = async ([key, value]) => {
+        if (typeof value === 'string') {
+          await this.notify(player, value, key);
+        } else if (Array.isArray(value)) {
+          await Promise.all(value.map(item => this.notify(player, item.text, item.cssid)));
+        } else if (typeof value === 'object') {
+          await this.notify(player, value.text, value.cssid);
         }
-      }
-    } catch (error) {
-      this.logger.error('Error sending message:', error);
+      };
+      await Promise.all(Object.entries(messageData).map(sendMessagePart));
     }
   }
+
   // Notify a player about currency changes
   static async notifyCurrencyChange(player, amount, isAddition) {
     try {
@@ -5153,6 +5260,7 @@ class MessageManager {
       this.logger.error('Error notifying currency change:', error);
     }
   }
+
   // Notify a player about experience gain
   static async notifyExperienceGain(player, amount) {
     try {
@@ -5161,6 +5269,7 @@ class MessageManager {
       this.logger.error('Error notifying experience gain:', error);
     }
   }
+
   static async notifyLeavingLocation(entity, oldLocationId, newLocationId) {
     try {
       const oldLocation = await entity.server.gameManager.getLocation(oldLocationId);
@@ -5185,6 +5294,7 @@ class MessageManager {
       this.logger.error('Error notifying leaving location:', error);
     }
   }
+
   static cleanup() {
     MessageManager.instance = null;
     MessageManager.logger = null;
@@ -5192,6 +5302,7 @@ class MessageManager {
     console.log('MessageManager cleaned up');
   }
 }
+
 /**************************************************************************************************
 Start Server Code
 ***************************************************************************************************/
