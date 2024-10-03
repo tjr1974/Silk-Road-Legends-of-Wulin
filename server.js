@@ -1548,7 +1548,9 @@ class GameDataLoader {
     const { logger, databaseManager } = this.server;
     const DATA_TYPES = { LOCATION: 'Location', NPC: 'Npc', ITEM: 'Item' };
     try {
-      const loadData = async (loadFunction, type) => {
+      const loadData = async (loadFunction, type, path) => {
+        logger.info(`- Load ${type}s Data`);
+        logger.debug(`- Load ${type}s Data From: ${path}`);
         try {
           const data = await loadFunction();
           return { type, data };
@@ -1557,11 +1559,21 @@ class GameDataLoader {
           return { type, data: null };
         }
       };
-      const [locationData, npcData, itemData] = await Promise.all([
-        loadData(databaseManager.loadLocationData.bind(databaseManager), DATA_TYPES.LOCATION),
-        loadData(databaseManager.loadNpcData.bind(databaseManager), DATA_TYPES.NPC),
-        loadData(databaseManager.loadItemData.bind(databaseManager), DATA_TYPES.ITEM)
-      ]);
+      const locationData = await loadData(
+        databaseManager.loadLocationData.bind(databaseManager),
+        DATA_TYPES.LOCATION,
+        this.server.configManager.get('LOCATIONS_DATA_PATH')
+      );
+      const npcData = await loadData(
+        databaseManager.loadNpcData.bind(databaseManager),
+        DATA_TYPES.NPC,
+        this.server.configManager.get('NPCS_DATA_PATH')
+      );
+      const itemData = await loadData(
+        databaseManager.loadItemData.bind(databaseManager),
+        DATA_TYPES.ITEM,
+        this.server.configManager.get('ITEMS_DATA_PATH')
+      );
       await this.processLoadedData(locationData, npcData, itemData);
       return [locationData.data, npcData.data, itemData.data];
     } catch (error) {
@@ -3580,6 +3592,216 @@ Key features:
 3. Description management for the location
 This class serves as the foundation for all locations within the game, ensuring that
 interactions and navigation are managed effectively.
+***************************************************************************************************/
+class Locations {
+  constructor({ id, name, description, exits, items, npcs, playersInLocation, zone }) {
+    this.id = id;
+    this.name = name;
+    this.description = description;
+    this.exits = new Map(Object.entries(exits));
+    this.items = new Set(items);
+    this.npcs = new Set(npcs);
+    this.playersInLocation = new Set(playersInLocation);
+    this.zone = zone;
+  }
+  addExit(direction, locationId) {
+    this.exits.set(direction, locationId);
+  }
+  removeExit(direction) {
+    this.exits.delete(direction);
+  }
+  addItem(itemId) {
+    this.items.add(itemId);
+  }
+  removeItem(itemId) {
+    this.items.delete(itemId);
+  }
+  addNpc(npcId) {
+    this.npcs.add(npcId);
+  }
+  removeNpc(npcId) {
+    this.npcs.delete(npcId);
+  }
+  addPlayer(playerId) {
+    this.playersInLocation.add(playerId);
+  }
+  removePlayer(playerId) {
+    this.playersInLocation.delete(playerId);
+  }
+  updateDescription(newDescription) {
+    this.description = newDescription;
+  }
+}
+/**************************************************************************************************
+Describe Location Manager Class
+The DescribeLocationManager class is responsible for managing and describing the locations
+in the game.
+***************************************************************************************************/
+class DescribeLocationManager {
+  constructor(server) {
+    this.server = server;
+  }
+  async describeLocation(player) {
+    const location = await this.server.gameManager.getLocation(player.currentLocation);
+    if (!location) {
+      return "You are in an unknown location.";
+    }
+    let description = `${location.name}\n\n${location.description}\n`;
+    // Describe exits
+    const exits = [...location.exits.keys()];
+    if (exits.length > 0) {
+      description += `\nExits: ${exits.join(', ')}\n`;
+    } else {
+      description += "\nThere are no visible exits.\n";
+    }
+    // Describe items
+    if (location.items.size > 0) {
+      description += "\nItems here:\n";
+      for (const itemId of location.items) {
+        const item = await this.server.itemManager.getItem(itemId);
+        if (item) {
+          description += `- ${item.name}\n`;
+        }
+      }
+    }
+    // Describe NPCs
+    if (location.npcs.size > 0) {
+      description += "\nNPCs here:\n";
+      for (const npcId of location.npcs) {
+        const npc = await this.server.gameManager.getNpc(npcId);
+        if (npc) {
+          description += `- ${npc.name} (${npc.status})\n`;
+        }
+      }
+    }
+    // Describe other players
+    const otherPlayers = [...location.playersInLocation].filter(id => id !== player.getId());
+    if (otherPlayers.length > 0) {
+      description += "\nOther players here:\n";
+      for (const playerId of otherPlayers) {
+        const otherPlayer = await this.server.gameManager.getPlayer(playerId);
+        if (otherPlayer) {
+          description += `- ${otherPlayer.getName()} (${otherPlayer.status})\n`;
+        }
+      }
+    }
+    return description;
+  }
+}
+/**************************************************************************************************
+Location Coordinate Manager Class
+The LocationCoordinateManager class is responsible for managing and assigning coordinates to
+game locations. It ensures that each location has a unique set of coordinates within the game world.
+Key features:
+1. Coordinate assignment for all locations
+2. Validation of location data
+3. Management of the game world's coordinate system
+This class plays a crucial role in spatial organization of the game world, facilitating
+navigation and relative positioning of game locations.
+***************************************************************************************************/
+class LocationCoordinateManager {
+  static instance;
+  static getInstance({ logger, server, locationData }) {
+    if (!LocationCoordinateManager.instance) {
+      LocationCoordinateManager.instance = new LocationCoordinateManager({ logger, server, locationData });
+    }
+    return LocationCoordinateManager.instance;
+  }
+  constructor({ logger, server, locationData }) {
+    this.logger = logger;
+    this.server = server;
+    this.locationData = locationData;
+    this.assignedCoordinates = new Set();
+  }
+  async assignCoordinates() {
+    for (const [id, location] of this.locationData.entries()) {
+      if (!location.coordinates) {
+        location.coordinates = this.generateUniqueCoordinates();
+        this.logger.debug(`Assigned coordinates ${JSON.stringify(location.coordinates)} to location ${id}`);
+      } else {
+        this.assignedCoordinates.add(JSON.stringify(location.coordinates));
+      }
+    }
+  }
+  generateUniqueCoordinates() {
+    let coordinates;
+    do {
+      coordinates = {
+        x: Math.floor(Math.random() * 1000),
+        y: Math.floor(Math.random() * 1000),
+        z: Math.floor(Math.random() * 10)
+      };
+    } while (this.coordinatesExist(coordinates));
+    this.assignedCoordinates.add(JSON.stringify(coordinates));
+    return coordinates;
+  }
+  coordinatesExist(coordinates) {
+    return this.assignedCoordinates.has(JSON.stringify(coordinates));
+  }
+  getCoordinates(locationId) {
+    const location = this.locationData.get(locationId);
+    return location ? location.coordinates : null;
+  }
+  calculateDistance(locationId1, locationId2) {
+    const coord1 = this.getCoordinates(locationId1);
+    const coord2 = this.getCoordinates(locationId2);
+    if (!coord1 || !coord2) return null;
+    return Math.sqrt(
+      Math.pow(coord2.x - coord1.x, 2) +
+      Math.pow(coord2.y - coord1.y, 2) +
+      Math.pow(coord2.z - coord1.z, 2)
+    );
+  }
+}
+/**************************************************************************************************
+Direction Manager Class
+The DirectionManager class is responsible for managing the directions and their relationships
+in the game world.
+***************************************************************************************************/
+class DirectionManager {
+  static DIRECTIONS = {
+    'n': 'north',
+    'e': 'east',
+    's': 'south',
+    'w': 'west',
+    'u': 'up',
+    'd': 'down'
+  };
+  static OPPOSITE_DIRECTIONS = {
+    'n': 's',
+    'e': 'w',
+    's': 'n',
+    'w': 'e',
+    'u': 'd',
+    'd': 'u'
+  };
+  static getFullDirection(shortDir) {
+    return this.DIRECTIONS[shortDir] || shortDir;
+  }
+  static getShortDirection(fullDir) {
+    return Object.keys(this.DIRECTIONS).find(key => this.DIRECTIONS[key] === fullDir) || fullDir;
+  }
+  static getOppositeDirection(direction) {
+    const shortDir = this.getShortDirection(direction);
+    return this.getFullDirection(this.OPPOSITE_DIRECTIONS[shortDir]) || direction;
+  }
+  static isValidDirection(direction) {
+    const shortDir = this.getShortDirection(direction);
+    return Object.keys(this.DIRECTIONS).includes(shortDir);
+  }
+  static getAllDirections() {
+    return Object.values(this.DIRECTIONS);
+  }
+}
+/**************************************************************************************************
+Npc Class
+The Npc class is a concrete implementation of the Character class, representing non-player
+characters in the game. It includes properties for managing health, attack power, combat skills,
+aggression, assistance, status, current location, aliases, and type.
+Key features:
+1. Health management for Npcs
+2. Attack power and combat skills for Npcs
+3. Aggression and assistance management for Npcs
 ***************************************************************************************************/
 class Npc extends Character {
   constructor({ id, name, sex, currHealth, maxHealth, attackPower, csml, aggro, assist, status, currentLocation, aliases, type, server, lootTable = [] }) {
