@@ -1563,7 +1563,7 @@ class GameDataLoader {
           if (this.server.gameManager.npcMovementManager) {
             this.server.gameManager.npcMovementManager.registerMobileNpc(npc);
           } else {
-            this.logger.error(`NpcMovementManager not available for NPC: ${id}. Unable to register.`);
+            this.logger.error(`NpcMovementManager not available for Npc: ${id}. Unable to register.`);
           }
           break;
         case 'quest':
@@ -1957,7 +1957,7 @@ class GameManager extends IGameManager {
           if (this.npcMovementManager) {
             this.npcMovementManager.registerMobileNpc(npc);
           } else {
-            this.logger.error(`NpcMovementManager not available for NPC: ${id}. Unable to register.`);
+            this.logger.error(`NpcMovementManager not available for Npc: ${id}. Unable to register.`);
           }
           break;
         case 'quest':
@@ -4822,8 +4822,8 @@ class MessageManager {
     try {
       if (entity instanceof Player) {
         this.logger.info(`Notifying Player: ${entity.getName()} - ${message}`);
-      } else if (entity instanceof NPC) {
-        this.logger.info(`Notifying about NPC: ${entity.name} - ${message}`);
+      } else if (entity instanceof Npc) {
+        this.logger.info(`Notifying about Npc: ${entity.name} - ${message}`);
       } else {
         this.logger.info(`Notification: ${message}`);
       }
@@ -4882,14 +4882,14 @@ class MessageManager {
       this.logger.error(`Notifying drop item: ${error.message}`, { error });
     }
   }
-  // Notify players in a location about an NPC's movement
+  // Notify players in a location about an Npc's movement
   static async notifyNPCMovement(npc, direction, isArrival) {
     try {
       const action = isArrival ? 'arrives' : 'leaves';
       const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
       await this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
     } catch (error) {
-      this.logger.error(`Notifying NPC movement: ${error.message}`, { error });
+      this.logger.error(`Notifying Npc movement: ${error.message}`, { error });
     }
   }
   // Get a template message for combat initiation
@@ -4900,7 +4900,7 @@ class MessageManager {
       this.logger.error(`Getting combat initiation template: ${error.message}`, { error });
     }
   }
-  // Get a template message for an NPC joining combat
+  // Get a template message for an Npc joining combat
   static getCombatJoinTemplate({ npcName }) {
     try {
       return `${npcName} joins the combat!`;
@@ -4932,12 +4932,12 @@ class MessageManager {
       this.logger.error(`Getting no conscious enemies template: ${error.message}`, { error });
     }
   }
-  // Get a template message for an NPC already in a specific status
+  // Get a template message for an Npc already in a specific status
   static getNPCAlreadyInStatusTemplate({ npcName, status }) {
     try {
       return `${npcName} is already ${status}.`;
     } catch (error) {
-      this.logger.error(`Getting NPC already in status template: ${error.message}`, { error });
+      this.logger.error(`Getting Npc already in status template: ${error.message}`, { error });
     }
   }
   // Get a template message for an unknown location
@@ -4948,15 +4948,15 @@ class MessageManager {
       this.logger.error(`Getting unknown location template: ${error.message}`, { error });
     }
   }
-  // Get a template message for looting an NPC
+  // Get a template message for looting an Npc
   static getLootedNPCTemplate({ playerName, npcName, lootedItems }) {
     try {
       return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
     } catch (error) {
-      this.logger.error(`Getting looted NPC template: ${error.message}`, { error });
+      this.logger.error(`Getting looted Npc template: ${error.message}`, { error });
     }
   }
-  // Get a template message for finding nothing to loot from an NPC
+  // Get a template message for finding nothing to loot from an Npc
   static getNoLootTemplate({ playerName, npcName }) {
     try {
       return `${playerName} found nothing to loot from ${npcName}.`;
@@ -4964,44 +4964,44 @@ class MessageManager {
       this.logger.error(`Getting no loot template: ${error.message}`, { error });
     }
   }
-  // Get a template message for being unable to loot an NPC
+  // Get a template message for being unable to loot an Npc
   static getCannotLootNPCTemplate({ playerName, npcName }) {
     try {
       return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
     } catch (error) {
-      this.logger.error(`Getting cannot loot NPC template: ${error.message}`, { error });
+      this.logger.error(`Getting cannot loot Npc template: ${error.message}`, { error });
     }
   }
-  // Get a template message for no NPC to loot
+  // Get a template message for no Npc to loot
   static getNoNPCToLootTemplate({ playerName, target }) {
     try {
       return `${playerName} doesn't see ${target} here to loot.`;
     } catch (error) {
-      this.logger.error(`Getting no NPC to loot template: ${error.message}`, { error });
+      this.logger.error(`Getting no Npc to loot template: ${error.message}`, { error });
     }
   }
-  // Get a template message for no NPCs to loot
+  // Get a template message for no Npcs to loot
   static getNoNPCsToLootTemplate({ playerName }) {
     try {
-      return `${playerName} doesn't see any NPCs to loot here.`;
+      return `${playerName} doesn't see any Npcs to loot here.`;
     } catch (error) {
-      this.logger.error(`Getting no NPCs to loot template: ${error.message}`, { error });
+      this.logger.error(`Getting no Npcs to loot template: ${error.message}`, { error });
     }
   }
-  // Get a template message for finding nothing to loot from any NPCs
+  // Get a template message for finding nothing to loot from any Npcs
   static getNothingToLootFromNPCsTemplate({ playerName }) {
     try {
-      return `${playerName} found nothing to loot from any NPCs here.`;
+      return `${playerName} found nothing to loot from any Npcs here.`;
     } catch (error) {
-      this.logger.error(`Getting nothing to loot from NPCs template: ${error.message}`, { error });
+      this.logger.error(`Getting nothing to loot from Npcs template: ${error.message}`, { error });
     }
   }
-  // Get a template message for looting all NPCs
+  // Get a template message for looting all Npcs
   static getLootedAllNPCsTemplate({ playerName, lootedNPCs, lootedItems }) {
     try {
       return `${playerName} looted ${[...lootedNPCs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
     } catch (error) {
-      this.logger.error(`Getting looted all NPCs template: ${error.message}`, { error });
+      this.logger.error(`Getting looted all Npcs template: ${error.message}`, { error });
     }
   }
   // Notify a player that they have no items to drop
@@ -5118,7 +5118,7 @@ class MessageManager {
       this.logger.error(`Notifying no specific items here: ${error.message}`, { error });
     }
   }
-  // Get a template message for auto-looting items from an NPC
+  // Get a template message for auto-looting items from an Npc
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
     try {
       return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
