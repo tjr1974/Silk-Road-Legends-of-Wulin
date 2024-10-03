@@ -339,10 +339,10 @@ class Server {
         sslOptions.cert = await fs.readFile(SSL_CERT_PATH);
         sslOptions.key = await fs.readFile(SSL_KEY_PATH);
       } else if (SSL_CERT_PATH || SSL_KEY_PATH) {
-        this.logger.error(`Both SSL_CERT_PATH & SSL_KEY_PATH Must Be Provided For SSL Configuration`);
+        this.logger.error(`Both SSL_CERT_PATH and SSL_KEY_PATH must be provided for SSL configuration`);
       }
     } catch (error) {
-      this.logger.warn(`Failed To Load SSL Options: ${error.message}`);
+      this.logger.warn(`Failed to load SSL options: ${error.message}`);
     }
     return sslOptions;
   }
@@ -620,25 +620,25 @@ class ServerConfigurator extends IBaseManager {
     try {
       await server.setupHttpServer();
     } catch (error) {
-      logger.error(`During Http Server Configuration: ${error.message}`, { error });
+      logger.error(`During http server configuration: ${error.message}`, { error });
     }
     try {
       this.configureMiddleware();
     } catch (error) {
-      logger.error(`During Middleware Configuration: ${error.message}`, { error });
+      logger.error(`During middleware configuration: ${error.message}`, { error });
       logger.error(error.stack);
     }
     try {
       server.queueManager = new QueueManager();
     } catch (error) {
-      logger.error(`During Queue Manager Configuration: ${error.message}`, { error });
+      logger.error(`During queue manager configuration: ${error.message}`, { error });
     }
   }
   async setupExpress() {
     try {
       this.server.app = express();
     } catch (error) {
-      this.logger.error(`Error Setting Up Express: ${error.message}`, { error });
+      this.logger.error(`Setting up express: ${error.message}`, { error });
     }
   }
   configureMiddleware() {
@@ -646,10 +646,10 @@ class ServerConfigurator extends IBaseManager {
       this.server.app.use(express.static('public'));
       this.server.app.use((err, req, res, next) => {
         this.logger.error(`Middleware Error: ${err.message}`, { error: err });
-        res.status(500).send('An Unexpected Error Occurred. Please Try Again Later.');
+        res.status(500).send('An unexpected error occurred. Please try again later.');
       });
     } catch (error) {
-      this.logger.error(`Configuring Middleware: ${error.message}`, { error });
+      this.logger.error(`Configuring middleware: ${error.message}`, { error });
     }
   }
   async cleanup() {
@@ -777,7 +777,7 @@ class SocketEventManager extends IBaseManager {
       });
       socket.on('disconnect', () => this.handleDisconnect(socket));
     } catch (error) {
-      this.logger.error(`Error Setting Up Socket Listeners: ${error.message}`, { error });
+      this.logger.error(`Setting up socket listeners: ${error.message}`, { error });
     }
   }
   handleDisconnect(socket) {
@@ -929,7 +929,7 @@ class QueueManager {
       this.size++;
       await this.processQueue();
     } catch (error) {
-      this.logger.error(`Error enqueueing task: ${error.message}`, { error });
+      this.logger.error(`Enqueueing task: ${error.message}`, { error });
     } finally {
       release();
     }
@@ -958,7 +958,7 @@ class QueueManager {
       this.head = 0;
       this.tail = this.size;
     } catch (error) {
-      this.logger.error(`Error resizing queue: ${error.message}`, { error });
+      this.logger.error(`Resizing queue: ${error.message}`, { error });
     }
   }
   async processQueue() {
@@ -1337,7 +1337,7 @@ class DatabaseManager extends IDatabaseManager {
     // Check for missing referenced locations
     referencedLocations.forEach(refId => {
       if (!locationData.has(refId)) {
-        this.logger.error(`Validating locations data - referenced location is missing - ID: ${refId}`);
+        this.logger.error(`Validating locations data - Referenced location is missing - ID: ${refId}`);
       }
     });
     this.logger.debug(`- Total Locations Validated: ${locationData.size}`);
@@ -1481,7 +1481,7 @@ class GameDataLoader {
           const data = await loadFunction();
           return { type, data };
         } catch (error) {
-          logger.error(`Error loading ${type} data: ${error.message}`, { error });
+          logger.error(`Loading ${type} data: ${error.message}`, { error });
           return { type, data: null };
         }
       };
@@ -1563,7 +1563,7 @@ class GameDataLoader {
           if (this.server.gameManager.npcMovementManager) {
             this.server.gameManager.npcMovementManager.registerMobileNpc(npc);
           } else {
-            this.logger.error(`NpcMovementManager not available for Npc: ${id}. Unable to register.`);
+            this.logger.error(`NpcMovementManager not available for NPC: ${id}. Unable to register.`);
           }
           break;
         case 'quest':
@@ -1636,7 +1636,7 @@ class UidGenerator {
       const uniqueValue = Date.now() + Math.random();
       return hash(uniqueValue.toString(), CONFIG.ITEM_UID_SALT_ROUNDS);
     } catch (error) {
-      this.logger.error(`Generating UID - ${error.message}`);
+      this.logger.error(`Generating UID: ${error.message}`);
       return null;
     }
   }
@@ -1786,7 +1786,7 @@ class GameManager extends IGameManager {
       await this.gameTick();
       await this.sendTickMessageToClients();
     } catch (error) {
-      this.logger.error(`Handling Game Tick: ${error.message}`, { error });
+      this.logger.error(`Handling game tick: ${error.message}`, { error });
     } finally {
       release();
     }
@@ -1957,7 +1957,7 @@ class GameManager extends IGameManager {
           if (this.npcMovementManager) {
             this.npcMovementManager.registerMobileNpc(npc);
           } else {
-            this.logger.error(`NpcMovementManager not available for Npc: ${id}. Unable to register.`);
+            this.logger.error(`NpcMovementManager not available for NPC: ${id}. Unable to register.`);
           }
           break;
         case 'quest':
@@ -2022,7 +2022,7 @@ class GameManager extends IGameManager {
         try {
           await this.gameCommandManager.handleCommand(action.actionType, action.payload);
         } catch (error) {
-          this.logger.error(`Handling Player Action: ${error.message}`, { error });
+          this.logger.error(`Handling player action: ${error.message}`, { error });
         }
       }
     }));
@@ -2131,7 +2131,7 @@ class GameComponentInitializer extends IBaseManager {
       this.server.SocketEventEmitter = new SocketEventEmitter();
       this.logger.debug('- Initialize Socket Event Emitter Finished');
     } catch (error) {
-      this.logger.error(`Initialize Socket Event Emitter: ${error.message}`, { error });
+      this.logger.error(`Initializing socket event emitter: ${error.message}`, { error });
     }
   }
   async initializeGameManager() {
@@ -2169,7 +2169,7 @@ class GameComponentInitializer extends IBaseManager {
         await this.server.gameManager.setupEventListeners();
         this.logger.debug('- Initialize Game Manager Event Listeners Finished');
       } else {
-        this.logger.error('Game Manager Not Initialized');
+        this.logger.error('Game manager not initialized');
       }
     } catch (error) {
       this.logger.error(`Initializing Game Manager Event Listeners: ${error.message}`, { error });
@@ -2594,7 +2594,7 @@ class Player extends Character {
       try {
         await handler(args);
       } catch (error) {
-        this.server.logger.error(`Error executing command ${command}: ${error.message}`);
+        this.server.logger.error(`Executing command ${command}: ${error.message}`);
         await this.server.messageManager.sendMessage(this, `Executing command: ${command}`, 'error');
       }
     } else {
@@ -4822,8 +4822,8 @@ class MessageManager {
     try {
       if (entity instanceof Player) {
         this.logger.info(`Notifying Player: ${entity.getName()} - ${message}`);
-      } else if (entity instanceof Npc) {
-        this.logger.info(`Notifying about Npc: ${entity.name} - ${message}`);
+      } else if (entity instanceof NPC) {
+        this.logger.info(`Notifying about NPC: ${entity.name} - ${message}`);
       } else {
         this.logger.info(`Notification: ${message}`);
       }
@@ -4882,14 +4882,14 @@ class MessageManager {
       this.logger.error(`Notifying drop item: ${error.message}`, { error });
     }
   }
-  // Notify players in a location about an Npc's movement
-  static async notifyNpcMovement(npc, direction, isArrival) {
+  // Notify players in a location about an NPC's movement
+  static async notifyNPCMovement(npc, direction, isArrival) {
     try {
       const action = isArrival ? 'arrives' : 'leaves';
       const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
       await this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
     } catch (error) {
-      this.logger.error(`Notifying Npc movement: ${error.message}`, { error });
+      this.logger.error(`Notifying NPC movement: ${error.message}`, { error });
     }
   }
   // Get a template message for combat initiation
@@ -4900,7 +4900,7 @@ class MessageManager {
       this.logger.error(`Getting combat initiation template: ${error.message}`, { error });
     }
   }
-  // Get a template message for an Npc joining combat
+  // Get a template message for an NPC joining combat
   static getCombatJoinTemplate({ npcName }) {
     try {
       return `${npcName} joins the combat!`;
@@ -4932,12 +4932,12 @@ class MessageManager {
       this.logger.error(`Getting no conscious enemies template: ${error.message}`, { error });
     }
   }
-  // Get a template message for an Npc already in a specific status
-  static getNpcAlreadyInStatusTemplate({ npcName, status }) {
+  // Get a template message for an NPC already in a specific status
+  static getNPCAlreadyInStatusTemplate({ npcName, status }) {
     try {
       return `${npcName} is already ${status}.`;
     } catch (error) {
-      this.logger.error(`Getting Npc already in status template: ${error.message}`, { error });
+      this.logger.error(`Getting NPC already in status template: ${error.message}`, { error });
     }
   }
   // Get a template message for an unknown location
@@ -4948,15 +4948,15 @@ class MessageManager {
       this.logger.error(`Getting unknown location template: ${error.message}`, { error });
     }
   }
-  // Get a template message for looting an Npc
-  static getLootedNpcTemplate({ playerName, npcName, lootedItems }) {
+  // Get a template message for looting an NPC
+  static getLootedNPCTemplate({ playerName, npcName, lootedItems }) {
     try {
       return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
     } catch (error) {
-      this.logger.error(`Getting looted Npc template: ${error.message}`, { error });
+      this.logger.error(`Getting looted NPC template: ${error.message}`, { error });
     }
   }
-  // Get a template message for finding nothing to loot from an Npc
+  // Get a template message for finding nothing to loot from an NPC
   static getNoLootTemplate({ playerName, npcName }) {
     try {
       return `${playerName} found nothing to loot from ${npcName}.`;
@@ -4964,44 +4964,44 @@ class MessageManager {
       this.logger.error(`Getting no loot template: ${error.message}`, { error });
     }
   }
-  // Get a template message for being unable to loot an Npc
-  static getCannotLootNpcTemplate({ playerName, npcName }) {
+  // Get a template message for being unable to loot an NPC
+  static getCannotLootNPCTemplate({ playerName, npcName }) {
     try {
       return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
     } catch (error) {
-      this.logger.error(`Getting cannot loot Npc template: ${error.message}`, { error });
+      this.logger.error(`Getting cannot loot NPC template: ${error.message}`, { error });
     }
   }
-  // Get a template message for no Npc to loot
-  static getNoNpcToLootTemplate({ playerName, target }) {
+  // Get a template message for no NPC to loot
+  static getNoNPCToLootTemplate({ playerName, target }) {
     try {
       return `${playerName} doesn't see ${target} here to loot.`;
     } catch (error) {
-      this.logger.error(`Getting no Npc to loot template: ${error.message}`, { error });
+      this.logger.error(`Getting no NPC to loot template: ${error.message}`, { error });
     }
   }
-  // Get a template message for no Npcs to loot
-  static getNoNpcsToLootTemplate({ playerName }) {
+  // Get a template message for no NPCs to loot
+  static getNoNPCsToLootTemplate({ playerName }) {
     try {
-      return `${playerName} doesn't see any Npcs to loot here.`;
+      return `${playerName} doesn't see any NPCs to loot here.`;
     } catch (error) {
-      this.logger.error(`Getting no Npcs to loot template: ${error.message}`, { error });
+      this.logger.error(`Getting no NPCs to loot template: ${error.message}`, { error });
     }
   }
-  // Get a template message for finding nothing to loot from any Npcs
-  static getNothingToLootFromNpcsTemplate({ playerName }) {
+  // Get a template message for finding nothing to loot from any NPCs
+  static getNothingToLootFromNPCsTemplate({ playerName }) {
     try {
-      return `${playerName} found nothing to loot from any Npcs here.`;
+      return `${playerName} found nothing to loot from any NPCs here.`;
     } catch (error) {
-      this.logger.error(`Getting nothing to loot from Npcs template: ${error.message}`, { error });
+      this.logger.error(`Getting nothing to loot from NPCs template: ${error.message}`, { error });
     }
   }
-  // Get a template message for looting all Npcs
-  static getLootedAllNpcsTemplate({ playerName, lootedNpcs, lootedItems }) {
+  // Get a template message for looting all NPCs
+  static getLootedAllNPCsTemplate({ playerName, lootedNPCs, lootedItems }) {
     try {
-      return `${playerName} looted ${[...lootedNpcs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
+      return `${playerName} looted ${[...lootedNPCs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
     } catch (error) {
-      this.logger.error(`Getting looted all Npcs template: ${error.message}`, { error });
+      this.logger.error(`Getting looted all NPCs template: ${error.message}`, { error });
     }
   }
   // Notify a player that they have no items to drop
@@ -5118,7 +5118,7 @@ class MessageManager {
       this.logger.error(`Notifying no specific items here: ${error.message}`, { error });
     }
   }
-  // Get a template message for auto-looting items from an Npc
+  // Get a template message for auto-looting items from an NPC
   static getAutoLootTemplate({ playerName, npcName, lootedItems }) {
     try {
       return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
