@@ -3968,11 +3968,11 @@ class NpcMovementManager {
   setGameManager(gameManager) {
     this.gameManager = gameManager;
   }
-  startMovement() {
+  async startMovement() {
     this.stopMovement();
     const MOVEMENT_INTERVAL = this.configManager.get('NPC_MOVEMENT_INTERVAL');
     this.movementInterval = setInterval(() => this.moveAllMobiles(), MOVEMENT_INTERVAL);
-    this.logger.info(`- Start Mobile Movement With Interval: ${MOVEMENT_INTERVAL}ms`);
+    this.logger.info(`- Started Mobile Movement with interval: ${MOVEMENT_INTERVAL}ms`);
   }
   stopMovement() {
     if (this.movementInterval) {
