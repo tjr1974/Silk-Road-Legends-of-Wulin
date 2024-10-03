@@ -84,8 +84,6 @@ List of all classes in 'server.js':
 51. **TradeSession**
 52. **AtomicTransaction**
 
-
-
 ## Messaging Management
 53. **FormatMessageManager**
 54. **MessageManager**

@@ -1,15 +1,8 @@
 {
-  "dependencies": {
-    "bcrypt": "^5.1.1",
-    "express": "^4.21.0",
-    "fs": "^0.0.1-security",
-    "queue": "^7.0.0",
-    "socket.io": "^4.7.5"
-  },
   "name": "silk-road-legends-of-wulin",
   "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
+  "description": "## Project Description",
+  "main": "config.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
@@ -18,11 +11,10 @@
   "author": "",
   "license": "ISC",
   "type": "module",
-  "devDependencies": {
-    "@eslint/js": "^9.10.0",
-    "eslint": "^9.10.0",
-    "eslint-plugin-import": "^2.30.0",
-    "eslint-plugin-node": "^11.1.0",
-    "globals": "^15.9.0"
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "express": "^4.21.0",
+    "fs": "^0.0.1-security",
+    "socket.io": "^4.8.0"
   }
 }
