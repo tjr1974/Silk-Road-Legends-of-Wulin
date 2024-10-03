@@ -176,9 +176,12 @@ class Logger extends ILogger {
   warn(message) {
     this.log('WARN', message);
   }
-  error(message, { error }) {
-    this.log('ERROR', `${message} - ${error.message}`);
-    this.log('ERROR', error.stack);
+  error(message, error) {
+    const errorMessage = error ? `${message} - ${error.message}` : message;
+    console.error(`ERROR: ${errorMessage}`);
+    if (error && error.stack) {
+      console.error(error.stack);
+    }
   }
 }
 /**************************************************************************************************
@@ -284,7 +287,7 @@ class Server {
     this.queueManager = new QueueManager();
     this.messageManager = new MessageManager();
     this.messageQueueSystem = new MessageQueueSystem(this);
-    this.gameComponentInitializer = null;
+    this.gameComponentInitializer = new GameComponentInitializer({ logger: this.logger, server: this });
     this.itemManager = new ItemManager({ logger, configManager, bcrypt });
     this.transactionManager = new TransactionManager(this);
     this.replicationManager = new ReplicationManager(this);
@@ -298,7 +301,7 @@ class Server {
     const initSteps = [
       { name: 'Configure Server Components', action: this.configureServerComponents.bind(this) },
       { name: 'Initialize Socket Event Manager', action: this.initializeSocketEventManager.bind(this) },
-      { name: 'Configure Server', action: this.serverConfigurator.configureServer.bind(this.serverConfigurator) },
+      { name: 'Configure Server', action: this.configureServer.bind(this) },
       { name: 'Initialize Game Manager', action: this.initializeGameManager.bind(this) },
       { name: 'Setup Game Components', action: this.setupGameComponents.bind(this) },
       { name: 'Start Game', action: this.startGame.bind(this) }
@@ -309,10 +312,85 @@ class Server {
         await step.action();
         this.logger.info(`- ${step.name.toUpperCase()} FINISHED`);
       } catch (error) {
-        this.logger.error(`During ${step.name}: ${error.message}`, { error });
+        this.logger.error(`During ${step.name}: ${error.message}`);
         // Depending on the severity, you might want to exit the process here
         // process.exit(1);
       }
+    }
+  }
+  async configureServerComponents() {
+    // Implementation details...
+  }
+  async initializeSocketEventManager() {
+    if (!this.socketEventManager) {
+      this.socketEventManager = new SocketEventManager({ logger: this.logger, server: this });
+    }
+    await this.socketEventManager.initializeSocketEvents();
+  }
+  async configureServer() {
+    if (!this.serverConfigurator) {
+      this.serverConfigurator = new ServerConfigurator({
+        logger: this.logger,
+        config: this.configManager,
+        server: this,
+        socketEventManager: this.socketEventManager
+      });
+    }
+    await this.serverConfigurator.configureServer();
+  }
+  async initializeGameManager() {
+    try {
+      this.logger.debug('- Initialize Game Manager');
+      if (!this.SocketEventEmitter) {
+        this.logger.error('SocketEventEmitter not initialized before GameManager');
+        return;
+      }
+      this.gameManager = GameManager.getInstance({
+        SocketEventEmitter: this.SocketEventEmitter,
+        logger: this.logger,
+        server: this,
+        configManager: this.configManager,
+        combatManager: new CombatManager({ server: this, config: this.configManager })
+      });
+      // Move NpcMovementManager initialization here
+      this.npcMovementManager = NpcMovementManager.getInstance({
+        logger: this.logger,
+        configManager: this.configManager,
+        gameManager: this.gameManager
+      });
+      this.logger.debug('- Initialize Game Manager Finished');
+    } catch (error) {
+      this.logger.error(`Initializing Game Manager: ${error.message}`);
+      throw error; // Rethrow the error to stop the initialization process
+    }
+  }
+  async initializeGameDataLoader() {
+    try {
+      this.logger.debug('- Initialize Game Data Loader');
+      this.gameDataLoader = GameDataLoader.getInstance({ server: this });
+      await this.gameDataLoader.fetchGameData();
+      this.logger.debug('- Initialize Game Data Loader Finished');
+    } catch (error) {
+      this.logger.error(`Initializing Game Data Loader: ${error.message}`);
+      throw error; // Rethrow the error to stop the initialization process
+    }
+  }
+  async setupGameComponents() {
+    if (!this.gameComponentInitializer) {
+      this.logger.error('GameComponentInitializer not initialized');
+      throw new Error('GameComponentInitializer not initialized');
+    }
+    await this.gameComponentInitializer.setupGameComponents();
+  }
+  handleSetupError(error) {
+    this.logger.error(`Setting up game components: ${error.message}`);
+    // You might want to add additional error handling or cleanup here
+  }
+  startGame() {
+    if (this.gameManager) {
+      this.gameManager.startGame();
+    } else {
+      this.logger.error('Game manager not initialized. Unable to start game.');
     }
   }
   handlePlayerConnected(player) {
@@ -327,7 +405,7 @@ class Server {
       this.logger.info(`- Configure Server As - ${this.isHttps ? 'https' : 'http'}://${this.configManager.get('HOST')}:${this.configManager.get('PORT')}`);
       return this.server;
     } catch (error) {
-      this.logger.error(`During HTTP server configuration: ${error.message}`, { error });
+      this.logger.error(`During HTTP server configuration: ${error.message}`);
     }
   }
   async loadSslOptions() {
@@ -351,18 +429,6 @@ class Server {
     this.socketEventManager = null;
     this.serverConfigurator = null;
     this.activeSessions.clear();
-  }
-  startGame() {
-    try {
-      if (this.isGameRunning()) {
-        this.logger.debug('Game Is Already Running.');
-        return;
-      }
-      this.gameManager.startGameLoop();
-      this.isRunning = true;
-    } catch (error) {
-      this.logger.error(`Starting Game Manager: ${error.message}`, { error });
-    }
   }
   logServerRunningMessage() {
     const protocol = this.isHttps ? 'https' : 'http';
@@ -517,7 +583,13 @@ class ServerInitializer {
     if (ServerInitializer.instance) {
       return ServerInitializer.instance;
     }
-    this.logger = new Logger({ LOG_LEVEL, ORANGE, MAGENTA, RED, RESET });
+    this.logger = new Logger({
+      LOG_LEVEL: config.LOG_LEVEL,
+      ORANGE: config.ORANGE,
+      MAGENTA: config.MAGENTA,
+      RED: config.RED,
+      RESET: config.RESET
+    });
     this.configManager = ConfigManager.getInstance(config);
     this.server = new Server({ logger: this.logger, configManager: this.configManager });
     this.serverConfigurator = new ServerConfigurator({
@@ -539,7 +611,7 @@ class ServerInitializer {
       this.logger.info("INITIALIZE SERVER FINISHED");
       this.server.logServerRunningMessage();
     } catch (error) {
-      this.logger.error(`Initializing Server: ${error.message}`, { error });
+      this.logger.error(`Initializing Server: ${error.message}`);
     }
   }
   async cleanup() {
@@ -614,31 +686,31 @@ class ServerConfigurator extends IBaseManager {
     try {
       await this.setupExpress();
     } catch (error) {
-      logger.error(`During Express Configuration: ${error.message}`, { error });
+      logger.error(`During Express Configuration: ${error.message}`);
       logger.error(error.stack);
     }
     try {
       await server.setupHttpServer();
     } catch (error) {
-      logger.error(`During http server configuration: ${error.message}`, { error });
+      logger.error(`During http server configuration: ${error.message}`);
     }
     try {
       this.configureMiddleware();
     } catch (error) {
-      logger.error(`During middleware configuration: ${error.message}`, { error });
+      logger.error(`During middleware configuration: ${error.message}`);
       logger.error(error.stack);
     }
     try {
       server.queueManager = new QueueManager();
     } catch (error) {
-      logger.error(`During queue manager configuration: ${error.message}`, { error });
+      logger.error(`During queue manager configuration: ${error.message}`);
     }
   }
   async setupExpress() {
     try {
       this.server.app = express();
     } catch (error) {
-      this.logger.error(`Setting up express: ${error.message}`, { error });
+      this.logger.error(`Setting up express: ${error.message}`);
     }
   }
   configureMiddleware() {
@@ -649,7 +721,7 @@ class ServerConfigurator extends IBaseManager {
         res.status(500).send('An unexpected error occurred. Please try again later.');
       });
     } catch (error) {
-      this.logger.error(`Configuring middleware: ${error.message}`, { error });
+      this.logger.error(`Configuring middleware: ${error.message}`);
     }
   }
   async cleanup() {
@@ -715,7 +787,7 @@ class ServerConfigurator extends IBaseManager {
       this.activeSessions.clear();
       this.logger.info("Server cleanup completed successfully.");
     } catch (error) {
-      this.logger.error(`During server cleanup: ${error.message}`, { error });
+      this.logger.error(`During server cleanup: ${error.message}`);
     }
   }
 }
@@ -756,7 +828,7 @@ class SocketEventManager extends IBaseManager {
         this.setupSocketListeners(socket);
       });
     } catch (error) {
-      this.logger.error(`Initializing Socket Events: ${error.message}`, { error });
+      this.logger.error(`Initializing Socket Events: ${error.message}`);
     }
   }
   setupSocketListeners(socket) {
@@ -769,7 +841,7 @@ class SocketEventManager extends IBaseManager {
             try {
               await this.gameCommandManager.handleCommand(socket, actionType, payload);
             } catch (error) {
-              this.logger.error(`Handling Player Action: ${error.message}`, { error });
+              this.logger.error(`Handling Player Action: ${error.message}`);
             }
           }
         });
@@ -777,7 +849,7 @@ class SocketEventManager extends IBaseManager {
       });
       socket.on('disconnect', () => this.handleDisconnect(socket));
     } catch (error) {
-      this.logger.error(`Setting up socket listeners: ${error.message}`, { error });
+      this.logger.error(`Setting up socket listeners: ${error.message}`);
     }
   }
   handleDisconnect(socket) {
@@ -785,7 +857,7 @@ class SocketEventManager extends IBaseManager {
       this.logger.info(`Client disconnected: ${socket.id}`);
       // Clean up any necessary game state
     } catch (error) {
-      this.logger.error(`Handling Disconnect: ${error.message}`, { error });
+      this.logger.error(`Handling Disconnect: ${error.message}`);
     }
   }
 }
@@ -929,7 +1001,7 @@ class QueueManager {
       this.size++;
       await this.processQueue();
     } catch (error) {
-      this.logger.error(`Enqueueing task: ${error.message}`, { error });
+      this.logger.error(`Enqueueing task: ${error.message}`);
     } finally {
       release();
     }
@@ -942,7 +1014,7 @@ class QueueManager {
       this.size--;
       return item;
     } catch (error) {
-      this.logger.error(`Dequeuing task: ${error.message}`, { error });
+      this.logger.error(`Dequeuing task: ${error.message}`);
       return null;
     }
   }
@@ -958,7 +1030,7 @@ class QueueManager {
       this.head = 0;
       this.tail = this.size;
     } catch (error) {
-      this.logger.error(`Resizing queue: ${error.message}`, { error });
+      this.logger.error(`Resizing queue: ${error.message}`);
     }
   }
   async processQueue() {
@@ -970,7 +1042,7 @@ class QueueManager {
         await task.run();
         task.onComplete();
       } catch (error) {
-        this.logger.error(`Processing task: ${error.message}`, { error });
+        this.logger.error(`Processing task: ${error.message}`);
         task.onError(error);
       } finally {
         this.runningTasks.delete(task);
@@ -985,7 +1057,7 @@ class QueueManager {
       this.tail = 0;
       this.runningTasks.clear();
     } catch (error) {
-      this.logger.error(`Cleaning up queue: ${error.message}`, { error });
+      this.logger.error(`Cleaning up queue: ${error.message}`);
     }
   }
 }
@@ -1060,7 +1132,7 @@ class TaskManager {
       this.status = 'completed';
     } catch (error) {
       this.status = 'failed';
-      this.logger.error(`Task '${this.name}' execution failed: ${error.message}`, { error });
+      this.logger.error(`Task '${this.name}' execution failed: ${error.message}`);
       if (this.errorCallback) {
         this.errorCallback(error);
       }
@@ -1167,7 +1239,7 @@ class MessageQueueSystem {
     try {
       await this.server.messageManager.sendMessage(message.recipient, message.content, message.type);
     } catch (error) {
-      this.server.logger.error(`Processing Message: ${error.message}`, { error });
+      this.server.logger.error(`Processing Message: ${error.message}`);
     }
   }
 }
@@ -1223,7 +1295,7 @@ class DatabaseManager extends IDatabaseManager {
       const allLocationData = await this.loadData(locationDataPath, 'locations');
       return this.validateAndParseLocationData(allLocationData);
     } catch (error) {
-      this.logger.error(`Failed to load locations data: ${error.message}`, { error });
+      this.logger.error(`Failed to load locations data: ${error.message}`);
     }
   }
   async loadData(folderPath, dataType = 'default') {
@@ -1235,34 +1307,34 @@ class DatabaseManager extends IDatabaseManager {
       this.logger.error('Data type must be a string');
       return;
     }
-    const release = await this.asyncLock.acquire();
-    try {
-      const files = await fs.readdir(folderPath);
-      const jsonFiles = files.filter(file => path.extname(file).toLowerCase() === '.json');
-      if (dataType === 'locations' || dataType === 'npcs' || dataType === 'items') {
-        let allData = {};
-        let duplicateIds = new Set();
-        for (const file of jsonFiles) {
-          const filePath = path.join(folderPath, file);
-          const fileContent = await fs.readFile(filePath, 'utf8');
-          this.customJsonParse(fileContent, duplicateIds, allData, file, dataType);
-        }
-        return allData;
-    } else {
-        const fileContents = await Promise.all(
-          jsonFiles.map(async file => {
+    return this.asyncLock.acquire('loadData', async (done) => {
+      try {
+        const files = await fs.readdir(folderPath);
+        const jsonFiles = files.filter(file => path.extname(file).toLowerCase() === '.json');
+        if (dataType === 'locations' || dataType === 'npcs' || dataType === 'items') {
+          let allData = {};
+          let duplicateIds = new Set();
+          for (const file of jsonFiles) {
             const filePath = path.join(folderPath, file);
             const fileContent = await fs.readFile(filePath, 'utf8');
-            return JSON.parse(fileContent);
-          })
-        );
-        return fileContents.reduce((acc, content) => ({ ...acc, ...content }), {});
+            this.customJsonParse(fileContent, duplicateIds, allData, file, dataType);
+          }
+          done(null, allData);
+        } else {
+          const fileContents = await Promise.all(
+            jsonFiles.map(async file => {
+              const filePath = path.join(folderPath, file);
+              const fileContent = await fs.readFile(filePath, 'utf8');
+              return JSON.parse(fileContent);
+            })
+          );
+          done(null, fileContents.reduce((acc, content) => ({ ...acc, ...content }), {}));
+        }
+      } catch (error) {
+        this.logger.error(`Loading data from: ${folderPath} - ${error.message}`);
+        done(error);
       }
-    } catch (error) {
-      this.logger.error(`Loading data from: ${folderPath} - ${error.message}`, { error });
-    } finally {
-      release();
-    }
+    });
   }
   customJsonParse(jsonString, duplicateIds, allData, fileName, dataType) {
     if (typeof jsonString !== 'string') {
@@ -1297,7 +1369,7 @@ class DatabaseManager extends IDatabaseManager {
         try {
           allData[id] = JSON.parse(data);
         } catch (error) {
-          this.logger.error(`Parsing ${this.getEntityType(dataType)} data - ID: ${id} in file ${fileName}: ${error.message}`, { error });
+          this.logger.error(`Parsing ${this.getEntityType(dataType)} data - ID: ${id} in file ${fileName}: ${error.message}`);
         }
       }
     }
@@ -1362,7 +1434,7 @@ class DatabaseManager extends IDatabaseManager {
       const allNpcData = await this.loadData(npcDataPath, 'npcs');
       return this.validateAndParseNpcData(allNpcData);
     } catch (error) {
-      this.logger.error(`Failed to load npcs data: ${error.message}`, { error });
+      this.logger.error(`Failed to load npcs data: ${error.message}`);
     }
   }
   validateAndParseNpcData(data) {
@@ -1405,7 +1477,7 @@ class DatabaseManager extends IDatabaseManager {
       const allItemData = await this.loadData(itemDataPath, 'items');
       return this.validateAndParseItemData(allItemData);
     } catch (error) {
-      this.logger.error(`Failed to load items data: ${error.message}`, { error });
+      this.logger.error(`Failed to load items data: ${error.message}`);
     }
   }
   validateAndParseItemData(data) {
@@ -1481,7 +1553,7 @@ class GameDataLoader {
           const data = await loadFunction();
           return { type, data };
         } catch (error) {
-          logger.error(`Loading ${type} data: ${error.message}`, { error });
+          logger.error(`Loading ${type} data: ${error.message}`);
           return { type, data: null };
         }
       };
@@ -1493,7 +1565,8 @@ class GameDataLoader {
       await this.processLoadedData(locationData, npcData, itemData);
       return [locationData.data, npcData.data, itemData.data];
     } catch (error) {
-      logger.error(`Fetching game data: ${error.message}`, { error });
+      logger.error(`Fetching game data: ${error.message}`);
+      return [null, null, null];
     }
   }
   async processLoadedData({ type: locationType, data: locationData },
@@ -1508,17 +1581,17 @@ class GameDataLoader {
       await locationCoordinateManager.assignCoordinates(locationData);
       this.server.gameManager.locations = locationData;
     } else {
-      this.logger.error(`Invalid ${locationType} data format: ${JSON.stringify(locationData)}`);
+      this.logger.error(`Invalid ${locationType} data format`);
     }
     if (npcData instanceof Map) {
       this.server.gameManager.npcs = await this.createNpcsFromData(npcData);
     } else {
-      this.logger.error(`Invalid ${npcType} data format: ${JSON.stringify(npcData)}`);
+      this.logger.error(`Invalid ${npcType} data format`);
     }
     if (itemData instanceof Map) {
       this.server.items = await this.createItems(itemData);
     } else {
-      this.logger.error(`Invalid ${itemType} data format: ${JSON.stringify(itemData)}`);
+      this.logger.error(`Invalid ${itemType} data format`);
     }
   }
   async createNpcsFromData(npcData) {
@@ -1537,7 +1610,7 @@ class GameDataLoader {
         }
         return [id, npc];
       } catch (error) {
-        this.logger.error(`Creating npc with ID ${id}: ${error.message}`, { error });
+        this.logger.error(`Creating npc with ID ${id}: ${error.message}`);
         return null;
       }
     };
@@ -1581,7 +1654,7 @@ class GameDataLoader {
       await npc.initialize();
       return npc;
     } catch (error) {
-      this.logger.error(`Creating Npc with ID: ${id} - ${error.message}`, { error });
+      this.logger.error(`Creating Npc with ID: ${id} - ${error.message}`);
       return null;
     }
   }
@@ -1720,7 +1793,7 @@ class GameManager extends IGameManager {
       this.npcMovementManager.startMovement();
       this.isRunning = true;
     } catch (error) {
-      this.logger.error(`Starting game: ${error.message}`, { error });
+      this.logger.error(`Starting game: ${error.message}`);
     }
   }
   isGameRunning() {
@@ -1742,7 +1815,7 @@ class GameManager extends IGameManager {
       });
       MessageManager.notifyGameShutdownSuccess(this);
     } catch (error) {
-      this.logger.error(`Shutting down game: ${error.message}`, { error });
+      this.logger.error(`Shutting down game: ${error.message}`);
     }
   }
   async shutdownServer() {
@@ -1751,7 +1824,7 @@ class GameManager extends IGameManager {
       this.logger.info('All socket connections closed.');
       exit(0);
     } catch (error) {
-      this.logger.error(`Shutting down server: ${error.message}`, { error });
+      this.logger.error(`Shutting down server: ${error.message}`);
     }
   }
   startGameLoop() {
@@ -1767,11 +1840,11 @@ class GameManager extends IGameManager {
           });
           this.queueManager.enqueue(tickTask);
         } catch (error) {
-          this.logger.error(`In Game Tick: ${error.message}`, { error });
+          this.logger.error(`In Game Tick: ${error.message}`);
         }
       }, TICK_RATE);
     } catch (error) {
-      this.logger.error(`Starting Game Loop: ${error.message}`, { error });
+      this.logger.error(`Starting Game Loop: ${error.message}`);
     }
   }
   stopGameLoop() {
@@ -1786,9 +1859,13 @@ class GameManager extends IGameManager {
       await this.gameTick();
       await this.sendTickMessageToClients();
     } catch (error) {
-      this.logger.error(`Handling game tick: ${error.message}`, { error });
+      this.logger.error(`Handling game tick: ${error.message}`);
     } finally {
-      release();
+      if (typeof release === 'function') {
+        release();
+      } else {
+        this.logger.warn('AsyncLock release function is not available');
+      }
     }
   }
   async gameTick() {
@@ -1800,7 +1877,7 @@ class GameManager extends IGameManager {
         this.tickCount = 0;
       }
     } catch (error) {
-      this.logger.error(`In Game Tick Logic: ${error.message}`, { error });
+      this.logger.error(`In Game Tick Logic: ${error.message}`);
     }
   }
   async sendTickMessageToClients() {
@@ -1861,7 +1938,7 @@ class GameManager extends IGameManager {
       }
       return true;
     } catch (error) {
-      this.logger.error(`Moving entity: ${error.message}`, { error });
+      this.logger.error(`Moving entity: ${error.message}`);
       return false;
     }
   }
@@ -1985,7 +2062,7 @@ class GameManager extends IGameManager {
       this.npcs.set(id, npc);
       return npc;
     } catch (error) {
-      this.logger.error(`Creating npc with ID ${id}: ${error.message}`, { error });
+      this.logger.error(`Creating npc with ID ${id}: ${error.message}`);
       return null;
     }
   }
@@ -2022,7 +2099,7 @@ class GameManager extends IGameManager {
         try {
           await this.gameCommandManager.handleCommand(action.actionType, action.payload);
         } catch (error) {
-          this.logger.error(`Handling player action: ${error.message}`, { error });
+          this.logger.error(`Handling player action: ${error.message}`);
         }
       }
     }));
@@ -2076,7 +2153,7 @@ class GameManager extends IGameManager {
       this.isRunning = false;
       this.logger.info("GameManager cleanup completed.");
     } catch (error) {
-      this.logger.error(`During GameManager cleanup: ${error.message}`, { error });
+      this.logger.error(`During GameManager cleanup: ${error.message}`);
     }
   }
 }
@@ -2131,7 +2208,7 @@ class GameComponentInitializer extends IBaseManager {
       this.server.SocketEventEmitter = new SocketEventEmitter();
       this.logger.debug('- Initialize Socket Event Emitter Finished');
     } catch (error) {
-      this.logger.error(`Initializing socket event emitter: ${error.message}`, { error });
+      this.logger.error(`Initializing socket event emitter: ${error.message}`);
     }
   }
   async initializeGameManager() {
@@ -2148,19 +2225,28 @@ class GameComponentInitializer extends IBaseManager {
         configManager: this.server.configManager,
         combatManager: new CombatManager({ server: this.server, config: this.server.configManager })
       });
-      this.server.npcMovementManager = await NpcMovementManager.getInstance({
+      // Move NpcMovementManager initialization here
+      this.server.npcMovementManager = NpcMovementManager.getInstance({
         logger: this.server.logger,
         configManager: this.server.configManager,
         gameManager: this.server.gameManager
       });
       this.logger.debug('- Initialize Game Manager Finished');
     } catch (error) {
-      this.logger.error(`Initializing Game Manager: ${error.message}`, { error });
+      this.logger.error(`Initializing Game Manager: ${error.message}`);
+      throw error; // Rethrow the error to stop the initialization process
     }
   }
   async initializeGameDataLoader() {
-    this.server.gameDataLoader = GameDataLoader.getInstance({ server: this.server });
-    await this.server.gameDataLoader.fetchGameData();
+    try {
+      this.logger.debug('- Initialize Game Data Loader');
+      this.server.gameDataLoader = GameDataLoader.getInstance({ server: this.server });
+      await this.server.gameDataLoader.fetchGameData();
+      this.logger.debug('- Initialize Game Data Loader Finished');
+    } catch (error) {
+      this.logger.error(`Initializing Game Data Loader: ${error.message}`);
+      throw error; // Rethrow the error to stop the initialization process
+    }
   }
   async setupGameManagerEventListers() {
     try {
@@ -2172,11 +2258,12 @@ class GameComponentInitializer extends IBaseManager {
         this.logger.error('Game manager not initialized');
       }
     } catch (error) {
-      this.logger.error(`Initializing Game Manager Event Listeners: ${error.message}`, { error });
+      this.logger.error(`Initializing Game Manager Event Listeners: ${error.message}`);
     }
   }
   handleSetupError(error) {
-    this.logger.error(`Setting up game components: ${error.message}`, { error });
+    this.logger.error(`Setting up game components: ${error.message}`);
+    // You might want to add additional error handling or cleanup here
   }
 }
 /**************************************************************************************************
@@ -4472,7 +4559,7 @@ class TransactionManager {
       this.tradeSessions.set(player2.getId(), tradeSession);
       return tradeSession;
     } catch (error) {
-      this.server.logger.error(`Creating trade session: ${error.message}`, { error });
+      this.server.logger.error(`Creating trade session: ${error.message}`);
     }
   }
   getTradeSession(playerId) {
@@ -4486,7 +4573,7 @@ class TransactionManager {
         this.tradeSessions.delete(tradeSession.player2.getId());
       }
     } catch (error) {
-      this.server.logger.error(`Ending trade session: ${error.message}`, { error });
+      this.server.logger.error(`Ending trade session: ${error.message}`);
     }
   }
   async executeTradeTransaction(tradeSession) {
@@ -4522,7 +4609,7 @@ class TransactionManager {
         });
       }
     } catch (error) {
-      this.server.logger.error(`Adding item transfer operations: ${error.message}`, { error });
+      this.server.logger.error(`Adding item transfer operations: ${error.message}`);
     }
   }
   async addGoldTransferOperation(transaction, fromPlayer, toPlayer, amount) {
@@ -4538,7 +4625,7 @@ class TransactionManager {
         }
       });
     } catch (error) {
-      this.server.logger.error(`Adding gold transfer operation: ${error.message}`, { error });
+      this.server.logger.error(`Adding gold transfer operation: ${error.message}`);
     }
   }
   cleanup() {
@@ -4814,7 +4901,7 @@ class MessageManager {
     try {
       this.socket = socketInstance;
     } catch (error) {
-      this.logger.error(`Setting socket instance: ${error.message}`, { error });
+      this.logger.error(`Setting socket instance: ${error.message}`);
     }
   }
   // Notify a player with a message
@@ -4829,7 +4916,7 @@ class MessageManager {
       }
       // Implement actual notification logic here
     } catch (error) {
-      this.logger.error(`In MessageManager.notify: ${error.message}`, { error });
+      this.logger.error(`In MessageManager.notify: ${error.message}`);
     }
   }
   // Notify all players in a specific location with a message
@@ -4847,7 +4934,7 @@ class MessageManager {
     try {
       return await this.notifyAction({ player, action: 'has logged in!', targetName: '', type: 'loginSuccess' });
     } catch (error) {
-      this.logger.error(`Notifying login success: ${error.message}`, { error });
+      this.logger.error(`Notifying login success: ${error.message}`);
     }
   }
   // Notify a player of an incorrect password attempt
@@ -4855,7 +4942,7 @@ class MessageManager {
     try {
       return await this.notify(player, `Incorrect password. Please try again.`, 'incorrectPassword');
     } catch (error) {
-      this.logger.error(`Notifying incorrect password: ${error.message}`, { error });
+      this.logger.error(`Notifying incorrect password: ${error.message}`);
     }
   }
   // Notify a player of disconnection due to too many failed login attempts
@@ -4863,7 +4950,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} has been disconnected due to too many failed login attempts.`, 'disconnectionFailedAttempts');
     } catch (error) {
-      this.logger.error(`Notifying disconnection due to failed attempts: ${error.message}`, { error });
+      this.logger.error(`Notifying disconnection due to failed attempts: ${error.message}`);
     }
   }
   // Notify a player when they pick up an item
@@ -4871,7 +4958,7 @@ class MessageManager {
     try {
       return await this.notifyAction({ player, action: 'picks up', targetName: itemName, type: 'pickupItem' });
     } catch (error) {
-      this.logger.error(`Notifying pickup item: ${error.message}`, { error });
+      this.logger.error(`Notifying pickup item: ${error.message}`);
     }
   }
   // Notify a player when they drop an item
@@ -4879,7 +4966,7 @@ class MessageManager {
     try {
       return await this.notifyAction({ player, action: 'drops', targetName: itemName, type: 'dropItem' });
     } catch (error) {
-      this.logger.error(`Notifying drop item: ${error.message}`, { error });
+      this.logger.error(`Notifying drop item: ${error.message}`);
     }
   }
   // Notify players in a location about an Npc's movement
@@ -4889,7 +4976,7 @@ class MessageManager {
       const message = `${npc.name} ${action} ${DirectionManager.getDirectionTo(direction)}.`;
       await this.notifyPlayersInLocation(npc.currentLocation, message, 'npcMovement');
     } catch (error) {
-      this.logger.error(`Notifying Npc movement: ${error.message}`, { error });
+      this.logger.error(`Notifying Npc movement: ${error.message}`);
     }
   }
   // Get a template message for combat initiation
@@ -4897,7 +4984,7 @@ class MessageManager {
     try {
       return `${initiatorName} initiates combat with ${targetName}!`;
     } catch (error) {
-      this.logger.error(`Getting combat initiation template: ${error.message}`, { error });
+      this.logger.error(`Getting combat initiation template: ${error.message}`);
     }
   }
   // Get a template message for an Npc joining combat
@@ -4905,7 +4992,7 @@ class MessageManager {
     try {
       return `${npcName} joins the combat!`;
     } catch (error) {
-      this.logger.error(`Getting combat join template: ${error.message}`, { error });
+      this.logger.error(`Getting combat join template: ${error.message}`);
     }
   }
   // Get a template message for a victory announcement
@@ -4913,7 +5000,7 @@ class MessageManager {
     try {
       return `${playerName} has defeated ${defeatedName}!`;
     } catch (error) {
-      this.logger.error(`Getting victory template: ${error.message}`, { error });
+      this.logger.error(`Getting victory template: ${error.message}`);
     }
   }
   // Get a template message for a target not found
@@ -4921,7 +5008,7 @@ class MessageManager {
     try {
       return `${playerName} doesn't see ${target} here.`;
     } catch (error) {
-      this.logger.error(`Getting target not found template: ${error.message}`, { error });
+      this.logger.error(`Getting target not found template: ${error.message}`);
     }
   }
   // Get a template message for no conscious enemies
@@ -4929,7 +5016,7 @@ class MessageManager {
     try {
       return `${playerName} doesn't see any conscious enemies here.`;
     } catch (error) {
-      this.logger.error(`Getting no conscious enemies template: ${error.message}`, { error });
+      this.logger.error(`Getting no conscious enemies template: ${error.message}`);
     }
   }
   // Get a template message for an Npc already in a specific status
@@ -4937,7 +5024,7 @@ class MessageManager {
     try {
       return `${npcName} is already ${status}.`;
     } catch (error) {
-      this.logger.error(`Getting Npc already in status template: ${error.message}`, { error });
+      this.logger.error(`Getting Npc already in status template: ${error.message}`);
     }
   }
   // Get a template message for an unknown location
@@ -4945,7 +5032,7 @@ class MessageManager {
     try {
       return `${playerName} is in an unknown location.`;
     } catch (error) {
-      this.logger.error(`Getting unknown location template: ${error.message}`, { error });
+      this.logger.error(`Getting unknown location template: ${error.message}`);
     }
   }
   // Get a template message for looting an Npc
@@ -4953,7 +5040,7 @@ class MessageManager {
     try {
       return `${playerName} looted ${npcName} and found: ${[...lootedItems].map(item => item.name).join(', ')}.`;
     } catch (error) {
-      this.logger.error(`Getting looted Npc template: ${error.message}`, { error });
+      this.logger.error(`Getting looted Npc template: ${error.message}`);
     }
   }
   // Get a template message for finding nothing to loot from an Npc
@@ -4961,7 +5048,7 @@ class MessageManager {
     try {
       return `${playerName} found nothing to loot from ${npcName}.`;
     } catch (error) {
-      this.logger.error(`Getting no loot template: ${error.message}`, { error });
+      this.logger.error(`Getting no loot template: ${error.message}`);
     }
   }
   // Get a template message for being unable to loot an Npc
@@ -4969,7 +5056,7 @@ class MessageManager {
     try {
       return `${playerName} cannot loot ${npcName} as they are not unconscious or dead.`;
     } catch (error) {
-      this.logger.error(`Getting cannot loot Npc template: ${error.message}`, { error });
+      this.logger.error(`Getting cannot loot Npc template: ${error.message}`);
     }
   }
   // Get a template message for no Npc to loot
@@ -4977,7 +5064,7 @@ class MessageManager {
     try {
       return `${playerName} doesn't see ${target} here to loot.`;
     } catch (error) {
-      this.logger.error(`Getting no Npc to loot template: ${error.message}`, { error });
+      this.logger.error(`Getting no Npc to loot template: ${error.message}`);
     }
   }
   // Get a template message for no Npcs to loot
@@ -4985,7 +5072,7 @@ class MessageManager {
     try {
       return `${playerName} doesn't see any Npcs to loot here.`;
     } catch (error) {
-      this.logger.error(`Getting no Npcs to loot template: ${error.message}`, { error });
+      this.logger.error(`Getting no Npcs to loot template: ${error.message}`);
     }
   }
   // Get a template message for finding nothing to loot from any Npcs
@@ -4993,7 +5080,7 @@ class MessageManager {
     try {
       return `${playerName} found nothing to loot from any Npcs here.`;
     } catch (error) {
-      this.logger.error(`Getting nothing to loot from Npcs template: ${error.message}`, { error });
+      this.logger.error(`Getting nothing to loot from Npcs template: ${error.message}`);
     }
   }
   // Get a template message for looting all Npcs
@@ -5001,7 +5088,7 @@ class MessageManager {
     try {
       return `${playerName} looted ${[...lootedNPCs].join(', ')} and found: ${[...lootedItems].join(', ')}.`;
     } catch (error) {
-      this.logger.error(`Getting looted all Npcs template: ${error.message}`, { error });
+      this.logger.error(`Getting looted all Npcs template: ${error.message}`);
     }
   }
   // Notify a player that they have no items to drop
@@ -5009,7 +5096,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} has no ${type === 'specific' ? itemType + ' ' : ''}items to drop.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no items to drop: ${error.message}`, { error });
+      this.logger.error(`Notifying no items to drop: ${error.message}`);
     }
   }
   // Notify a player about items they dropped
@@ -5027,7 +5114,7 @@ class MessageManager {
     try {
       return await this.notify(player, `There are no items here.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no items here: ${error.message}`, { error });
+      this.logger.error(`Notifying no items here: ${error.message}`);
     }
   }
   // Notify a player about items taken from a container
@@ -5035,7 +5122,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} took ${[...items].map(item => item.name).join(', ')} from ${containerName}.`, 'takeMessage');
     } catch (error) {
-      this.logger.error(`Notifying items taken from container: ${error.message}`, { error });
+      this.logger.error(`Notifying items taken from container: ${error.message}`);
     }
   }
   // Notify a player that there are no specific items in a container
@@ -5043,7 +5130,7 @@ class MessageManager {
     try {
       return await this.notify(player, `There are no ${itemType} items in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no specific items in container: ${error.message}`, { error });
+      this.logger.error(`Notifying no specific items in container: ${error.message}`);
     }
   }
   // Notify a player that there is no item in a container
@@ -5051,7 +5138,7 @@ class MessageManager {
     try {
       return await this.notify(player, `There is no ${itemName} in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no item in container: ${error.message}`, { error });
+      this.logger.error(`Notifying no item in container: ${error.message}`);
     }
   }
   // Notify a player that there is no item here
@@ -5059,7 +5146,7 @@ class MessageManager {
     try {
       return await this.notify(player, `There is no ${itemName} here.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no item here: ${error.message}`, { error });
+      this.logger.error(`Notifying no item here: ${error.message}`);
     }
   }
   // Notify a player that they don't have a specific container
@@ -5067,7 +5154,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} doesn't have a ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no container: ${error.message}`, { error });
+      this.logger.error(`Notifying no container: ${error.message}`);
     }
   }
   // Notify a player that an item is not in their inventory
@@ -5075,7 +5162,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} doesn't have a ${itemName} in their inventory.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying item not in inventory: ${error.message}`, { error });
+      this.logger.error(`Notifying item not in inventory: ${error.message}`);
     }
   }
   // Notify a player that they put an item in a container
@@ -5083,7 +5170,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} put ${itemName} in ${containerName}.`, 'putMessage');
     } catch (error) {
-      this.logger.error(`Notifying item put in container: ${error.message}`, { error });
+      this.logger.error(`Notifying item put in container: ${error.message}`);
     }
   }
   // Notify a player that they have no items to put in a container
@@ -5091,7 +5178,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} has no items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no items to put: ${error.message}`, { error });
+      this.logger.error(`Notifying no items to put: ${error.message}`);
     }
   }
   // Notify a player about items put in a container
@@ -5099,7 +5186,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} put ${[...items].map(item => item.name).join(', ')} in ${containerName}.`, 'putMessage');
     } catch (error) {
-      this.logger.error(`Notifying items put in container: ${error.message}`, { error });
+      this.logger.error(`Notifying items put in container: ${error.message}`);
     }
   }
   // Notify a player that they have no specific items to put in a container
@@ -5107,7 +5194,7 @@ class MessageManager {
     try {
       return await this.notify(player, `${player.getName()} has no ${itemType} items to put in ${containerName}.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no specific items to put: ${error.message}`, { error });
+      this.logger.error(`Notifying no specific items to put: ${error.message}`);
     }
   }
   // Notify a player that there are no specific items here
@@ -5115,7 +5202,7 @@ class MessageManager {
     try {
       return await this.notify(player, `There are no ${itemType} items here.`, 'errorMessage');
     } catch (error) {
-      this.logger.error(`Notifying no specific items here: ${error.message}`, { error });
+      this.logger.error(`Notifying no specific items here: ${error.message}`);
     }
   }
   // Get a template message for auto-looting items from an Npc
@@ -5123,7 +5210,7 @@ class MessageManager {
     try {
       return `${playerName} auto-looted ${[...lootedItems].map(item => item.name).join(', ')} from ${npcName}.`;
     } catch (error) {
-      this.logger.error(`Getting auto-loot template: ${error.message}`, { error });
+      this.logger.error(`Getting auto-loot template: ${error.message}`);
     }
   }
   // Notify a player about the result of a combat
@@ -5131,7 +5218,7 @@ class MessageManager {
     try {
       player.server.messageManager.sendMessage(player, result, 'combatMessage');
     } catch (error) {
-      this.logger.error(`Notifying combat result: ${error.message}`, { error });
+      this.logger.error(`Notifying combat result: ${error.message}`);
     }
   }
   // Notify a player about the start of a combat
@@ -5139,7 +5226,7 @@ class MessageManager {
     try {
       player.server.messageManager.sendMessage(player, `You engage in combat with ${npc.getName()}!`, 'combatMessage');
     } catch (error) {
-      this.logger.error(`Notifying combat start: ${error.message}`, { error });
+      this.logger.error(`Notifying combat start: ${error.message}`);
     }
   }
   // Notify a player about the end of a combat
@@ -5147,7 +5234,7 @@ class MessageManager {
     try {
       player.server.messageManager.sendMessage(player, `Combat has ended.`, 'combatMessage');
     } catch (error) {
-      this.logger.error(`Notifying combat end: ${error.message}`, { error });
+      this.logger.error(`Notifying combat end: ${error.message}`);
     }
   }
   // Send a message to a player
@@ -5173,7 +5260,7 @@ class MessageManager {
       const action = isAddition ? 'gained' : 'spent';
       return await this.notify(player, `You ${action} ${Math.abs(amount)} coins.`, 'currencyChange');
     } catch (error) {
-      this.logger.error(`Notifying currency change: ${error.message}`, { error });
+      this.logger.error(`Notifying currency change: ${error.message}`);
     }
   }
   // Notify a player about experience gain
@@ -5181,7 +5268,7 @@ class MessageManager {
     try {
       return await this.notify(player, `You gained ${amount} experience points.`, 'experienceGain');
     } catch (error) {
-      this.logger.error(`Notifying experience gain: ${error.message}`, { error });
+      this.logger.error(`Notifying experience gain: ${error.message}`);
     }
   }
   static async notifyLeavingLocation(entity, oldLocationId, newLocationId) {
@@ -5205,7 +5292,7 @@ class MessageManager {
         );
       }
     } catch (error) {
-      this.logger.error(`Notifying leaving location: ${error.message}`, { error });
+      this.logger.error(`Notifying leaving location: ${error.message}`);
     }
   }
   static cleanup() {
