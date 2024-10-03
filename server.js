@@ -2036,13 +2036,13 @@ class GameManager extends IGameManager {
   cleanup() {
     try {
       this.logger.info("Cleaning up GameManager...");
-      // Clear NPC collections
+      // Clear Npc collections
       this.npcs.clear();
       this.mobileNpcs.clear();
       this.questNpcs.clear();
       this.merchantNpcs.clear();
       this.npcIds.clear();
-      // Stop NPC movement
+      // Stop Npc movement
       if (this.npcMovementManager) {
         this.npcMovementManager.stopMovement();
       }
@@ -3261,7 +3261,7 @@ class CombatManager {
         await this.removeCombatParticipant(await this.gameManager.getNpc(npcId), player);
       }
     }
-    // Check for aggressive NPCs after combat ends
+    // Check for aggressive Npcs after combat ends
     await this.checkAggressiveNpcs(player);
     this.logger.info(`Combat ended for player: ${player.getName()}`);
   }
@@ -3271,7 +3271,7 @@ class CombatManager {
       if (npc) {
         await this.server.gameManager.removeNpcFromGame(npc);
         this.defeatedNpcs.delete(npcId);
-        this.logger.debug(`Removed defeated NPC: ${npcId}`);
+        this.logger.debug(`Removed defeated Npc: ${npcId}`);
       }
     }
   }
