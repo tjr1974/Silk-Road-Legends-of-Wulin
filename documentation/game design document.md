@@ -100,6 +100,356 @@ Experience the ancient world of martial arts, as you never have before. Seize yo
    - Attack and Defense Mechanics
    - Special Abilities and Cooldowns
 
+### Gōngfu Styles and Techniques
+
+THis game features a diverse array of Gōngfu styles, each with its own set of techniques. Players can master multiple styles.
+
+#### Gōngfu Styles
+The game includes the following Gōngfu styles:
+
+- Assassin Style
+- Bagua Style
+- Beggar Style
+- Buddha Style
+- Celestial Style
+- Crane Style
+- Daoist Style
+- Demon Style
+- Dragon Style
+- Eagle Style
+- Ghost Style
+- Heavenly Style
+- Iron Style
+- Lightning Style
+- Mantis Style
+- Monk Style
+- Ninja Style
+- Reaper Style
+- Shadow Style
+- Shaolin Style
+- Snake Style
+- Thunder Style
+- Tiger Style
+- Wudang Style
+- Xingyi Style
+- Yongchun Style
+- Zen Style
+
+#### Techniques
+Each Gōngfu style utilizes various techniques:
+
+**Assassin Style**
+- Assassin Claw
+- Assassin Elbow
+- Assassin Fingers
+- Assassin Fist
+- Assassin Hand
+- Assassin Palm
+- Assassin Strike
+- Assassin Kick
+- Assassin Knee
+
+**Bagua Style**
+- Bagua Claw
+- Bagua Elbow
+- Bagua Fingers
+- Bagua Fist
+- Bagua Hand
+- Bagua Palm
+- Bagua Strike
+- Bagua Kick
+- Bagua Knee
+
+**Beggar Style**
+- Beggar Claw
+- Beggar Elbow
+- Beggar Fingers
+- Beggar Fist
+- Beggar Hand
+- Beggar Palm
+- Beggar Strike
+- Beggar Kick
+- Beggar Knee
+
+**Buddha Style**
+- Buddha Claw
+- Buddha Elbow
+- Buddha Fingers
+- Buddha Fist
+- Buddha Hand
+- Buddha Palm
+- Buddha Strike
+- Buddha Kick
+- Buddha Knee
+
+**Celestial Style**
+- Celestial Claw
+- Celestial Elbow
+- Celestial Fingers
+- Celestial Fist
+- Celestial Hand
+- Celestial Palm
+- Celestial Strike
+- Celestial Kick
+- Celestial Knee
+
+**Crane Style**
+- Crane Claw
+- Crane Wing
+- Crane Beak
+- Crane Fist
+- Crane Hand
+- Crane Palm
+- Crane Strike
+- Crane Kick
+- Crane Knee
+
+**Daoist Style**
+- Daoist Claw
+- Daoist Elbow
+- Daoist Fingers
+- Daoist Fist
+- Daoist Hand
+- Daoist Palm
+- Daoist Strike
+- Daoist Kick
+- Daoist Knee
+
+**Demon Style**
+- Demon Claw
+- Demon Elbow
+- Demon Fangs
+- Demon Fingers
+- Demon Fist
+- Demon Hand
+- Demon Palm
+- Demon Strike
+- Demon Kick
+- Demon Knee
+
+**Dragon Style**
+- Dragon Claw
+- Dragon Elbow
+- Dragon Fangs
+- Dragon Fist
+- Dragon Hand
+- Dragon Palm
+- Dragon Strike
+- Dragon Kick
+- Dragon Knee
+
+**Eagle Style**
+- Eagle Claw
+- Eagle Wing
+- Eagle Beak
+- Eagle Fist
+- Eagle Hand
+- Eagle Palm
+- Eagle Strike
+- Eagle Kick
+- Eagle Knee
+
+**Ghost Style**
+- Ghost Claw
+- Ghost Elbow
+- Ghost Fingers
+- Ghost Fist
+- Ghost Hand
+- Ghost Palm
+- Ghost Strike
+- Ghost Kick
+- Ghost Knee
+
+**Heavenly Style**
+- Heavenly Fist
+- Heavenly Hand
+- Heavenly Palm
+- Heavenly Strike
+- Heavenly Kick
+
+**Iron Style**
+- Iron Finger
+- Iron Fist
+- Iron Hand
+- Iron Palm
+
+**Lightning Style**
+- Lightning Claw
+- Lightning Elbow
+- Lightning Fingers
+- Lightning Fist
+- Lightning Hand
+- Lightning Palm
+- Lightning Strike
+- Lightning Kick
+- Lightning Knee
+
+**Mantis Style**
+- Mantis Bite
+- Mantis Elbow
+- Mantis Finger
+- Mantis Fist
+- Mantis Hand
+- Mantis Hook
+- Mantis Strike
+- Mantis Wrist
+- Mantis Kick
+- Mantis Knee
+
+**Monk Style**
+- Monk Claw
+- Monk Elbow
+- Monk Fingers
+- Monk Fist
+- Monk Hand
+- Monk Palm
+- Monk Strike
+- Monk Kick
+- Monk Knee
+
+**Ninja Style**
+- Ninja Claw
+- Ninja Elbow
+- Ninja Fingers
+- Ninja Fist
+- Ninja Hand
+- Ninja Palm
+- Ninja Strike
+- Ninja Kick
+- Ninja Knee
+
+**Reaper Style**
+- Reaper Claw
+- Reaper Elbow
+- Reaper Fingers
+- Reaper Fangs
+- Reaper Fist
+- Reaper Hand
+- Reaper Palm
+- Reaper Strike
+- Reaper Kick
+- Reaper Knee
+
+**Shadow Style**
+- Shadow Claw
+- Shadow Elbow
+- Shadow Fingers
+- Shadow Fist
+- Shadow Hand
+- Shadow Palm
+- Shadow Strike
+- Shadow Kick
+- Shadow Knee
+
+**Shaolin Style**
+- Shaolin Claw
+- Shaolin Elbow
+- Shaolin Fingers
+- Shaolin Fist
+- Shaolin Hand
+- Shaolin Palm
+- Shaolin Strike
+- Shaolin Kick
+- Shaolin Knee
+
+**Snake Style**
+- Snake Elbow
+- Snake Fingers
+- Snake Fangs
+- Snake Fist
+- Snake Hand
+- Snake Palm
+- Snake Strike
+- Snake Kick
+- Snake Knee
+
+**Thunder Style**
+- Thunder Claw
+- Thunder Elbow
+- Thunder Fingers
+- Thunder Fist
+- Thunder Hand
+- Thunder Palm
+- Thunder Strike
+- Thunder Kick
+- Thunder Knee
+
+**Tiger Style**
+- Tiger Claw
+- Tiger Claw Elbow
+- Tiger Fangs
+- Tiger Claw Fist
+- Tiger Claw Hand
+- Tiger Claw Palm
+- Tiger Claw Strike
+- Tiger Claw Kick
+- Tiger Claw Knee
+
+**Wudang Style**
+- Wudang Claw
+- Wudang Elbow
+- Wudang Fingers
+- Wudang Fist
+- Wudang Hand
+- Wudang Palm
+- Wudang Strike
+- Wudang Kick
+- Wudang Knee
+
+**Xingyi Style**
+- Xingyi Claw
+- Xingyi Elbow
+- Xingyi Fingers
+- Xingyi Fist
+- Xingyi Hand
+- Xingyi Palm
+- Xingyi Strike
+- Xingyi Kick
+- Xingyi Knee
+
+**Yongchun Style**
+- Yongchun Claw
+- Yongchun Elbow
+- Yongchun Fingers
+- Yongchun Fist
+- Yongchun Hand
+- Yongchun Palm
+- Yongchun Strike
+- Yongchun Kick
+- Yongchun Knee
+
+**Zen Style**
+- Zen Claw
+- Zen Elbow
+- One-finger Zen
+- Two-finger Zen
+- Zen Fist
+- Zen Hand
+- Zen Palm
+- Zen Strike
+- Zen Kick
+- Zen Knee
+
+#### Learning and Mastery
+Players can:
+- Learn techniques from masters, secret manuals, or through dedicated practice
+- Combine techniques from different styles to create a unique fighting approach
+- Improve techniques through repeated use and specialized training
+- Unlock advanced techniques as they progress in mastery of a style
+
+#### Combat Application
+- Different techniques are effective in various combat situations
+- Players must strategically choose techniques based on their opponent's style and weaknesses
+- Mastery of multiple styles allows for more versatile and unpredictable combat strategies
+
+#### Cultural and Historical Context
+- Each Gōngfu style has its own rich history and philosophical underpinnings
+- Players can delve into the lore of each style, understanding its origins and famous practitioners
+- Certain styles may be associated with specific factions or regions in the game world
+
+This comprehensive Gōngfu system adds depth to character development and overall immersion in the world .
+Wǔxiá.
+
 ### Non-combat Activities
    - Crafting
    - Trading
