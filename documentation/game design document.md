@@ -1,18 +1,25 @@
 # Game Design Document (GDD) for Silk Road: Legends of Wǔlín
-A browser-based (MUD) multiplayer online game
+
+## Project Description
+
+This project is a Multiplayer Game Server (MUD) designed for use with browser-based clients. It utilizes various technologies and architectural patterns to manage real-time communication, database interactions, game entity management, and player sessions. The server supports multiplayer gameplay by handling socket events, managing in-game entities like players, NPCs, and items, and by ensuring data consistency across connected clients. Its architecture is optimized for web-based interactions, making it ideal for games that can be played directly in web browsers without any need for additional software installation.
+
+## Notice
+
+This is a hobby project and is currently in a very early development stage. 
 
 ## I. Game Overview
 
    - **Game Title**
       - Silk Road: Legends of Wǔlín
    - **Genre**
-      - Browser-based MUD (Multi-User Dungeon), Wuxia, Historical Fantasy
+      - Browser-based MUD (Multi-User Dungeon), Wuxia, Historical Fantasy, Educational
    - **Platform**
       - Browser-based
    - **Player Capacity**
       - Multiplayer
    - **Core Gameplay Loop**
-      - Character creation, skill development, questing, combat, trading, and social interactions in a Wuxia-themed ancient Far East setting
+      - Character creation, skill development, combat, questing, trading, and social interactions in a Wuxia-themed ancient Far East setting
 
 ## II. Executive Summary
 
@@ -79,6 +86,10 @@ Experience the ancient world of martial arts, as you never have before. Seize yo
    - Mercenaries and assassins
    - Travelers, pilgrims, priests, and monks
 
+#### Possible NPC Professions
+
+Abbot, Admiral, Alchemist, Ambassador, Animal Trainer, Apothecary, Aquarian, Archeologist, Archer, Artisan, Assassin, Astrologer, Bailiff, Bandit, Barbarian, Beggar, Blacksmith, Boatman, Bodyguard, Bondsman, Bounty Hunter, Brawler, Brewer, Cadet, Cantor, Captain, Cartographer, Cat Burglar, Cenobite, Champion, Charlatan, Cityguard, Coachman, Consort, Courtier, Crime Lord, Crusader, Cultist, Dilettante, Diviner, Driver, Duellist, Dung Collector, Embalmer, Enforcer, Engineer, Entertainer, Envoy, Escort, Ex-Convict, Executioner, Exorcist, Explorer, Farmer, Fence, Ferryman, Field Warden, Fisherman, Foreman, Forger, Fortune Teller, Friar, Gambler, Gladiator, Grandmaster, Grave Robber, Grave Warden, Guild Master, Herald, Hermit, High Priest, Highwayman, Historian, Horse Coper, Horse Master, Hunter, Imperial Guard, Innkeeper, Interrogator, Investigator, Jailer, Judge, Knight, Lamplighter, Lancer, Locksmith, Marauder, Marine, Mate, Mediator, Mercenary, Merchant, Messenger, Militiaman, Miner, Minstrel, Monk, Monster Slayer, Muleskinner, Mystic, Navigator, Ninja, Noble, Nomad, Norse Berserker Viking, Oracle, Outlaw, Outlaw Chief, Peasant, Physician, Pilgrim, Pistolier, Pit Fighter, Politician, Priest, Questing Knight, Racketeer, Raconteur, Raider, Ranger, Rat Catcher, River Warden, Road Warden, Rogue, Samurai, Scholar, Scourge of God, Scout, Scribe, Sea Captain, Seaman, Seer, Servant, Shop Keeper, Slave, Slaver, Slave Trader, Smuggler, Soldier, Sorcerer, Spy, Squire, Student, Tax Collector, Temple Guardian, Thief, Thug, Toll Keeper, Tomb Raider, Tomb Robber, Tradesman, Vagabond, Valet, Vampire Hunter, Veteran, Village Elder, Warden, Warlock, Warlord, Warrior Monk, Warrior Priest, Watchman, Whaler, Winged Lancer, Wise Woman, Witch, Witch Hunter, Wizard, Woodsman, Wrecker, Yeoman, Zealot
+
 ### Player's Role in the World
    - Players can choose their own path: hero, villain, merchant, explorer, guardian, or any combination
    - Opportunity to master powerful techniques and coveted styles of Gōngfu (功夫)
@@ -87,8 +98,12 @@ Experience the ancient world of martial arts, as you never have before. Seize yo
 
 ## IV. Gameplay Mechanics
 ### Character Creation and Customization
-   - Classes/Professions
-   - Attributes and Skills
+
+#### Professions
+
+Professions are created by players during character creation. They have no actual impact on gameplay. They are simply vanity options to enhance character customization.
+
+#### Attributes and Skills
 
 ### Progression System
    - Experience Points
@@ -102,13 +117,13 @@ Experience the ancient world of martial arts, as you never have before. Seize yo
 
 ### Gōngfu Styles and Techniques
 
-THis game features a diverse array of Gōngfu styles, each with its own set of techniques. Players can master multiple styles.
+This game features a diverse selection of Gōngfu styles, each with its own set of techniques. Players can master multiple styles. These styles and techniques have no actual impact on gameplay. They are simply vanity options to enhance character customization.
 
 #### Gōngfu Styles
 The game includes the following Gōngfu styles:
 
 - Assassin Style
-- Bagua Style
+- Bāguà Style
 - Beggar Style
 - Buddha Style
 - Celestial Style
@@ -126,14 +141,14 @@ The game includes the following Gōngfu styles:
 - Ninja Style
 - Reaper Style
 - Shadow Style
-- Shaolin Style
+- Shàolín Style
 - Snake Style
 - Thunder Style
 - Tiger Style
-- Wudang Style
+- Wǔdāng Style
 - Xingyi Style
-- Yongchun Style
-- Zen Style
+- Yǒngchūn Style
+- Chán Style
 
 #### Techniques
 Each Gōngfu style utilizes various techniques:
@@ -149,16 +164,16 @@ Each Gōngfu style utilizes various techniques:
 - Assassin Kick
 - Assassin Knee
 
-**Bagua Style**
-- Bagua Claw
-- Bagua Elbow
-- Bagua Fingers
-- Bagua Fist
-- Bagua Hand
-- Bagua Palm
-- Bagua Strike
-- Bagua Kick
-- Bagua Knee
+**Bāguà Style**
+- Bāguà Claw
+- Bāguà Elbow
+- Bāguà Fingers
+- Bāguà Fist
+- Bāguà Hand
+- Bāguà Palm
+- Bāguà Strike
+- Bāguà Kick
+- Bāguà Knee
 
 **Beggar Style**
 - Beggar Claw
@@ -192,6 +207,18 @@ Each Gōngfu style utilizes various techniques:
 - Celestial Strike
 - Celestial Kick
 - Celestial Knee
+
+**Chán Style**
+- Chán Claw
+- Chán Elbow
+- One-finger Chán
+- Two-finger Chán
+- Chán Fist
+- Chán Hand
+- Chán Palm
+- Chán Strike
+- Chán Kick
+- Chán Knee
 
 **Crane Style**
 - Crane Claw
@@ -341,16 +368,16 @@ Each Gōngfu style utilizes various techniques:
 - Shadow Kick
 - Shadow Knee
 
-**Shaolin Style**
-- Shaolin Claw
-- Shaolin Elbow
-- Shaolin Fingers
-- Shaolin Fist
-- Shaolin Hand
-- Shaolin Palm
-- Shaolin Strike
-- Shaolin Kick
-- Shaolin Knee
+**Shàolín Style**
+- Shàolín Claw
+- Shàolín Elbow
+- Shàolín Fingers
+- Shàolín Fist
+- Shàolín Hand
+- Shàolín Palm
+- Shàolín Strike
+- Shàolín Kick
+- Shàolín Knee
 
 **Snake Style**
 - Snake Elbow
@@ -385,16 +412,16 @@ Each Gōngfu style utilizes various techniques:
 - Tiger Claw Kick
 - Tiger Claw Knee
 
-**Wudang Style**
-- Wudang Claw
-- Wudang Elbow
-- Wudang Fingers
-- Wudang Fist
-- Wudang Hand
-- Wudang Palm
-- Wudang Strike
-- Wudang Kick
-- Wudang Knee
+**Wǔdāng Style**
+- Wǔdāng Claw
+- Wǔdāng Elbow
+- Wǔdāng Fingers
+- Wǔdāng Fist
+- Wǔdāng Hand
+- Wǔdāng Palm
+- Wǔdāng Strike
+- Wǔdāng Kick
+- Wǔdāng Knee
 
 **Xingyi Style**
 - Xingyi Claw
@@ -407,28 +434,16 @@ Each Gōngfu style utilizes various techniques:
 - Xingyi Kick
 - Xingyi Knee
 
-**Yongchun Style**
-- Yongchun Claw
-- Yongchun Elbow
-- Yongchun Fingers
-- Yongchun Fist
-- Yongchun Hand
-- Yongchun Palm
-- Yongchun Strike
-- Yongchun Kick
-- Yongchun Knee
-
-**Zen Style**
-- Zen Claw
-- Zen Elbow
-- One-finger Zen
-- Two-finger Zen
-- Zen Fist
-- Zen Hand
-- Zen Palm
-- Zen Strike
-- Zen Kick
-- Zen Knee
+**Yǒngchūn Style**
+- Yǒngchūn Claw
+- Yǒngchūn Elbow
+- Yǒngchūn Fingers
+- Yǒngchūn Fist
+- Yǒngchūn Hand
+- Yǒngchūn Palm
+- Yǒngchūn Strike
+- Yǒngchūn Kick
+- Yǒngchūn Knee
 
 #### Learning and Mastery
 Players can:
@@ -447,8 +462,9 @@ Players can:
 - Players can delve into the lore of each style, understanding its origins and famous practitioners
 - Certain styles may be associated with specific factions or regions in the game world
 
-This comprehensive Gōngfu system adds depth to character development and overall immersion in the world .
-Wǔxiá.
+#### Gōngfu Styles and Techniques Summary
+
+This comprehensive Gōngfu system adds depth to character development and overall immersion in the world.
 
 ### Non-combat Activities
    - Crafting
@@ -461,6 +477,115 @@ Wǔxiá.
    - Guild/Clan Systems
 
 ### Quest and Mission Structure
+
+The quest system should be story-driven, informative, and educational, deeply immersing players in the rich tapestry of the game world. Quests serve multiple purposes beyond mere gameplay progression. They serve to enhance world-building, character development, and cultural exploration.
+
+#### Quest Design Principles
+
+- **Educational Value**
+   - Each quest should teach players something new about the game world, its history, or its cultures.
+
+- **Narrative Focus**
+   - Quests are primarily driven by compelling stories rather than simple fetch or kill objectives.
+
+- **Character Development**
+   - Missions should provide opportunities for players to develop their characters' skills, knowledge, and moral compass.
+
+- **Player Choice**
+   - Where possible, quests should offer multiple paths or solutions, allowing players to shape the outcome based on their decisions.
+
+- **Cultural Authenticity**
+   - Quests should accurately represent the diverse cultures along the Silk Road.
+
+- **Interconnected Storylines**
+   - Many quests will be part of larger, interconnected narratives, encouraging players to engage deeply with the game world.
+
+#### Quest Progression
+
+- **Introduction**
+   - Quests are introduced through engaging dialogues, discovered scrolls, or environmental storytelling.
+
+- **Investigation**
+   - Players often need to gather information, solve puzzles, or explore to progress in the quest.
+
+- **Challenges**
+   - These can include combat, negotiation, stealth, or puzzle-solving, tailored to the quest's theme.
+
+- **Moral Choices**
+   - Many quests will present players with ethical dilemmas, influencing the outcome and their character's reputation.
+
+- **Resolution**
+   - Quests conclude with meaningful resolutions that impact the game world or the player's understanding of it.
+
+- **Reflection**
+   - Post-quest dialogues or journal entries encourage players to reflect on what they've learned or experienced.
+
+#### Quest Types
+
+- **Historical Quests**
+   - These missions delve into the rich history of the Silk Road and ancient China, allowing players to participate in or uncover historical events.
+
+- **Cultural Exploration**
+   - Quests that introduce players to customs, traditions, and cultural practices of various regions along the Silk Road.
+
+- **NPC Storylines**
+   - Personal narratives of NPCs, revealing their backgrounds, motivations, and conflicts, which players can influence through their choices.
+
+- **Philosophical Journeys**
+   - Missions that explore various schools of thought, including Buddhism, Daoism, and Confucianism, challenging players to contemplate moral dilemmas and philosophical questions.
+
+- **Martial Arts Quests**
+   - Tasks centered around learning, mastering, or uncovering secrets of various Gōngfu styles, often involving legendary masters or lost manuals.
+
+- **Strategic Missions**
+   - Quests inspired by Sun Tzu's "Art of War," requiring players to apply strategic thinking in both combat and non-combat situations.
+
+- **Current Events**
+   - Missions that reflect the ongoing political, economic, or social issues in different regions of the game world.
+
+#### Reward System
+
+Rewards for completing quests go beyond traditional experience points and items:
+
+- **Knowledge**
+   - Players gain insights into the game world, unlocking new dialogue options or quest opportunities.
+
+- **Skills**
+   - Some quests reward players with new Gōngfu techniques or improved abilities.
+
+- **Reputation**
+   - Completing quests affects the player's standing with various factions or individuals.
+
+- **Cultural Artifacts**
+   - Unique items that provide glimpses into the cultures of the Silk Road.
+
+- **Philosophical Insights**
+   - Completion of certain quests grants wisdom points, unlocking deeper understanding of various philosophies.
+
+#### Quest and Mission Structure Summary
+
+By structuring quests in this manner, Silk Road: Legends of Wǔlín aims to create a deeply immersive and educational experience, where each mission contributes to the player's understanding and appreciation of the rich tapestry of cultures, philosophies, and histories along the Silk Road.
+
+
+#### Possible Bonus Rewards for Quests
+
+| Reward Type | Description |
+|-------------|-------------|
+| Authority | Receive some specific authority or duty, such as a military command, judging crimes, investigating crimes, protecting the peace, enforcing the law, or tax collection. |
+| Blessing | Receive some permanent bonus. Perhaps its luck, attribute bonus, special ability, or skill. |
+| Expertise | PC becomes known as an expert in some field of study. This character will forever be sought for his expertise in that field. |
+| Favor | Receive a single favor by someone with significant funds, ability, or political power. |
+| Honorary Title | Receive a title that has local significance or wide-spread significance over the realm. |
+| Property | Receive ownership, command, or responsibility of land, village, trade port, ship, business, or some other type of physical property. |
+| Recognition | Receive a hero's welcome whenever you pass this way. |
+| Statue | The town erects a statue, monument, or dedication of some such thing in the PC's honor. This may be immediate or the character may find out later. |
+| Stock | Receive financial interest in some business or asset the increases wealth and prestige. Note that stock can lose value, depending on the market, drought in the case of livestock or farming, etcetera. |
+| Treasure | Receive ownership, command, or responsibility of one or more lower-rank or minor NPCs, such as soldiers, mercenaries, scholars, navigators, merchants, servants, etcetera. |
+| Wealth | Receive some reward in the form of treasure, gold, silver, gems, artifacts, fine art, etcetera. |
+
+#### Quest Log
+
+#### Quest Outlines
 
 ### Economy
    - Currency Systems
@@ -565,8 +690,7 @@ Wǔxiá.
 - Features: lantern displays, riddles, yuan xiao (sweet rice balls)
 - Traditional symbol of family reunion and social harmony
 
-#### 3. Qingming Festival (清明节 / Qīngmíng jié)
-- Also known as Tomb Sweeping Day
+#### 3. Tomb Sweeping Festival (清明节 / Qīngmíng jié)
 - Usually falls on April 4th or 5th
 - Time for honoring ancestors and tending to family graves
 - Traditional activities include flying kites and spring outings
@@ -654,7 +778,7 @@ Wǔxiá.
 #### 10. Double Ninth Festival (重阳节 / Chóngyáng jié)
 - Falls on the 9th day of the 9th lunar month
 - Traditional activities include climbing mountains and drinking chrysanthemum wine
-- Also known as Senior Citizens' Festival in modern times
+- Also known as Senior CitiCháns' Festival in modern times
 
 #### 11. Halloween (October 31)
 - Cultural holiday with ancient Celtic roots
@@ -665,9 +789,9 @@ Wǔxiá.
   - Haunted houses
   - Fall festivals
 
-#### 12. Laba Festival (腊八节 / Làbā jié)
+#### 12. Rice Porridge Festival (腊八节 / Làbā jié)
 - Falls on the 8th day of the 12th lunar month
-- Traditional custom of eating Laba congee
+- Traditional custom of eating Làbā congee
 - Considered a prelude to Chinese New Year
 
 #### 13. Christmas (December 25)
@@ -693,7 +817,6 @@ Wǔxiá.
    - **Character Information Panel**
    - **Inventory Management**
    - **Chat Windows**
-   - **Quest Log**
    - **Map and Navigation Tools**
    - **Combat Interface**
    - **Social Features (Friends List, Party Management)**
@@ -741,34 +864,105 @@ Wǔxiá.
 ## XII. Legal Considerations
    - **Terms of Service**
    - **Privacy Policy**
-   - **Intellectual Property Protection**
+
+### License
+
+#### Public Domain Notice
+
+The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
+
+#### Warranty Disclaimer
+
+This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
 
 ## XIII. Appendices
-   - **Concept Art**
-   - **Detailed Character/Class Descriptions**
-   - **Item Database**
-   - **Monster/NPC Catalog**
-   - **Quest Outlines**
-   - **Technical Diagrams**
 
-## Possible Rewards
+### AI Coding Assistant Instructions
+Instructions for AI coding assistant to standardize and optimize code.
 
-| Reward Type | Description |
-|-------------|-------------|
-| Authority | Receive some specific authority or duty, such as a military command, judging crimes, investigating crimes, protecting the peace, enforcing the law, or tax collection. |
-| Blessing | Receive some permanent bonus. Perhaps its luck, attribute bonus, special ability, or skill. |
-| Expertise | PC becomes known as an expert in some field of study. This character will forever be sought for his expertise in that field. |
-| Favor | Receive a single favor by someone with significant funds, ability, or political power. |
-| Honorary Title | Receive a title that has local significance or wide-spread significance over the realm. |
-| Property | Receive ownership, command, or responsibility of land, village, trade port, ship, business, or some other type of physical property. |
-| Recognition | Receive a hero's welcome whenever you pass this way. |
-| Statue | The town erects a statue, monument, or dedication of some such thing in the PC's honor. This may be immediate or the character may find out later. |
-| Stock | Receive financial interest in some business or asset the increases wealth and prestige. Note that stock can lose value, depending on the market, drought in the case of livestock or farming, etcetera. |
-| Treasure | Receive ownership, command, or responsibility of one or more lower-rank or minor NPCs, such as soldiers, mercenaries, scholars, navigators, merchants, servants, etcetera. |
-| Wealth | Receive some reward in the form of treasure, gold, silver, gems, artifacts, fine art, etcetera. |
+1. Keep classes and methods organized in a logical order
+2. When generating code and applying generated code, avoid using blank lines
+3. Preserve existing comments
+4. Use object-oriented programming, classes, and methods when possible
+5. Write optimized and elegant code
+6. Maintain consistency throughout the codebase
+7. Use PascalCase for class names in JavaScript
+8. Use camelCase for instances and variables
+9. Use UPPER_SNAKE_CASE for constants
+10. Use template literals for string formatting
+11. Replace magic numbers with named constants
+12. Optimize imports, use only necessary modules and consolidate related imports
+13. Encapsulate related methods into classes
+14. Use dependency injection to pass instances of classes that need to interact with each other
+15. Use destructuring for cleaner object property access
+16. Ensure proper async/await usage and error handling
+17. Avoid unnecessary async/await
+18. Batch database operations when possible
+19. Implement proper memory management to prevent leaks
+20. Refactor repeated logic into utility methods
+21. Combine similar methods with parameterization
+22. Utilize inheritance for shared properties/methods
+23. Simplify conditionals with early returns
+24. Use efficient data structures like Sets or Maps where appropriate
+25. Optimize loops
+26. Minimize temporary object creation
+27. Use technically precise terminology to answer questions
 
-## Professions
+### Best Practices and Coding Standards
 
-Abbot, Admiral, Alchemist, Ambassador, Anchorite, Animal Trainer, Apothecary, Aquarian, Archeologist, Archer, Artisan, Assassin, Astrologer, Bailiff, Bandit, Barbarian, Barber-Surgeon, Blacksmith, Boatman, Bodyguard, Bondsman, Bonepicker, Bounty Hunter, Brawler, Brewer, Cadet, Cantor, Captain, Cartographer, Cat Burglar, Cenobite, Champion, Charlatan, Chimneysweep, City Guard, Coachman, Consort, Courtier, Crime Lord, Crusader, Cultist, Dilettante, Diviner, Driver, Duellist, Dung Collector, Embalmer, Enforcer, Engineer, Entertainer, Envoy, Escort, Ex-Convict, Executioner, Exorcist, Explorer, Farmer, Fence, Ferryman, Fieldwarden, Fisherman, Foreman, Forger, Fortune Teller, Friar, Gambler, Gladiator, Grandmaster, Grave Robber, Grave Warden, Guild Master, Herald, Hermit, High Priest, Highwayman, Historian, Horned Hunter, Horse Coper, Horse Master, Hunter, Imperial Guard, Innkeeper, Interrogator, Investigator, Jailer, Judge, Knight, Lamplighter, Lancer, Locksmith, Marauder, Marine, Mate, Mediator, Mercenary, Merchant, Messenger, Militiaman, Miner, Minstrel, Monk, Monster Slayer, Muleskinner, Mystic, Navigator, Newssheet Vendor, Noble, Nomad, Norse Berserker Viking, Oracle, Outlaw, Outlaw Chief, Peasant, Physician, Pilgrim, Pistolier, Pit Fighter, Politician, Priest, Questing Knight, Racketeer, Raconteur, Ranger, Rat Catcher, Riverwarden, Roadwarden, Rogue, Scholar, Scourge of God, Scout, Scribe, Sea Captain, Seaman, Seer, Servant, Shop Keeper, Slave, Slaver, Smuggler, Soldier, Sorcerer, Spy, Squire, Student, Tax Collector, Temple Guardian, Thief, Thug, Toll Keeper, Tomb Robber, Tradesman, Vagabond, Valet, Vampire Hunter, Veteran, Village Elder, Warden, Warlock, Warlord, Warrior Priest, Watchman, Whaler, Winged Lancer, Wise Woman, Witch, Witch Hunter, Wizard, Woodsman, Wrecker, Yeoman, Zealot
+This project adheres to modern JavaScript best practices and coding standards to ensure maintainability, readability, and efficiency. Here are some key principles we follow:
+
+#### Object-Oriented Programming (OOP)
+   - Utilize ES6+ class syntax for creating objects with shared behavior.
+   - Encapsulate related functionality within classes.
+   - Implement inheritance where appropriate using the `extends` keyword.
+
+#### Dependency Injection
+   - Pass instances of classes as parameters to constructors or methods to promote loose coupling and improve testability.
+
+#### Efficient Data Structures
+   - Use `Set` for unique values and fast lookups.
+   - Use `Map` for key-value pairs with any type of key.
+
+#### Naming Conventions
+   - Use PascalCase for class names (e.g., `class UserAccount {}`).
+   - Use camelCase for instances and variables (e.g., `const userAccount = new UserAccount()`).
+   - Use UPPER_SNAKE_CASE for constants (e.g., `const MAX_USERS = 100`).
+
+#### String Formatting
+   - Utilize template literals for string formatting and multiline strings.
+
+#### Constants and Magic Numbers
+   - Use named constants for magic numbers and strings.
+   - Group related constants in objects or enums.
+
+#### Variable Declarations
+   - Use `const` for variables that won't be reassigned, and `let` for those that will.
+
+#### Arrow Functions
+   - Prefer arrow functions for short, non-method functions and to preserve `this` context.
+
+#### Destructuring
+   - Use object and array destructuring for cleaner code.
+
+#### Error Handling
+   - Implement comprehensive error handling using try-catch blocks.
+
+#### Asynchronous Programming
+   - Use async/await for cleaner asynchronous code.
+
+#### Modularity
+   - Write modular code by separating concerns and using ES6 modules.
+
+#### Best Practices and Coding Standards Summary
+
+By adhering to these practices, we aim to create a codebase that is not only functional but also maintainable, scalable, and easy to understand for all contributors.
+
+### Concept Art
+
+### Item Database
+
+### NPC/Monster Catalog
+
 
 

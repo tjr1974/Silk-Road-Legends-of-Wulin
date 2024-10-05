@@ -26,7 +26,7 @@
 
 ## Project Description
 
-This project is a Multiplayer Game Server (MUD) designed for use with browser-based clients. It utilizes various technologies and architectural patterns to manage real-time communication, database interactions, game entity management, and player sessions. The server supports multiplayer gameplay by handling socket events, managing in-game entities like players, NPCs, and items, and by ensuring data consistency across connected clients. Its architecture is optimized for web-based interactions, making it ideal for games that can be played directly in web browsers without the need for additional software installation.
+This project is a Multiplayer Game Server (MUD) designed for use with browser-based clients. It utilizes various technologies and architectural patterns to manage real-time communication, database interactions, game entity management, and player sessions. The server supports multiplayer gameplay by handling socket events, managing in-game entities like players, NPCs, and items, and by ensuring data consistency across connected clients. Its architecture is optimized for web-based interactions, making it ideal for games that can be played directly in web browsers without any need for additional software installation.
 
 ## Minimum Viable Product (MVP)
 
@@ -307,12 +307,12 @@ Until he shared this game with his buds.
 
 ---
 
-# LICENSE
+# License
 
-## PUBLIC DOMAIN NOTICE
+## Public Domain Notice
 
 The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
 
-## WARRANTY DISCLAIMER
+## Warranty Disclaimer
 
 This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
