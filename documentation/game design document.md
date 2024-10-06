@@ -1188,8 +1188,3 @@
   And he played it all alone.
 
   Until he shared this game with his buds.
-
-
-
-
-

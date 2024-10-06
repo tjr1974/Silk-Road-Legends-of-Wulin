@@ -23,6 +23,7 @@
 - [License](#license)
   - [Public Domain Notice](#public-domain-notice)
   - [Warranty Disclaimer](#warranty-disclaimer)
+- [About the Author](#about-the-author)
 
 ## Project Description
 
@@ -292,6 +293,19 @@ This project adheres to modern JavaScript best practices and coding standards to
 
 By adhering to these practices, we aim to create a codebase that is not only functional but also maintainable, scalable, and easy to understand for all contributors.
 
+---
+
+# License
+
+## Public Domain Notice
+
+The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
+
+## Warranty Disclaimer
+
+This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
+
+---
 
 ## About the Author
 
@@ -304,15 +318,3 @@ Then he said, "I'll code one my own."
 And he played it all alone.
 
 Until he shared this game with his buds.
-
----
-
-# License
-
-## Public Domain Notice
-
-The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
-
-## Warranty Disclaimer
-
-This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
