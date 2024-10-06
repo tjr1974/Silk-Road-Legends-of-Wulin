@@ -1,5 +1,71 @@
 # Game Design Document for Silk Road: Legends of Wǔlín
 
+### Table of Contents
+- [Project Description](#project-description)
+- [Notice](#notice)
+- [Git Repository](#git-repository)
+- [About](#about)
+- [Tags](#tags)
+- [I. Game Overview](#i-game-overview)
+  - [Game Title](#game-title)
+  - [Genre](#genre)
+  - [Platform](#platform)
+  - [Player Capacity](#player-capacity)
+  - [Core Gameplay Loop](#core-gameplay-loop)
+- [II. Executive Summary](#ii-executive-summary)
+  - [Splash Page](#splash-page)
+  - [Game Concept](#game-concept)
+  - [Target Audience](#target-audience)
+  - [Unique Selling Points](#unique-selling-points)
+- [III. Story and Setting](#iii-story-and-setting)
+  - [World Background](#world-background)
+  - [Main Storyline](#main-storyline)
+  - [Factions](#factions)
+  - [Notable NPCs](#notable-npcs)
+  - [Possible NPC Professions](#possible-npc-professions)
+  - [Player's Role in the World](#players-role-in-the-world)
+- [IV. Gameplay Mechanics](#iv-gameplay-mechanics)
+  - [Character Creation and Customization](#character-creation-and-customization)
+  - [Professions](#professions)
+  - [Attributes and Skills](#attributes-and-skills)
+  - [Progression System](#progression-system)
+  - [Combat System](#combat-system)
+  - [Gōngfu Styles and Techniques](#gōngfu-styles-and-techniques)
+  - [Non-combat Activities](#non-combat-activities)
+  - [Social Interactions](#social-interactions)
+  - [Quest and Mission Structure](#quest-and-mission-structure)
+  - [Economy](#economy)
+  - [Wǔxiá Elements](#wǔxiá-elements)
+  - [Common Wǔxiá Tropes](#common-wǔxiá-tropes)
+- [V. World Design](#v-world-design)
+  - [Key Locations](#key-locations)
+  - [Dungeons and Raids](#dungeons-and-raids)
+  - [Environmental Hazards](#environmental-hazards)
+  - [Dynamic Events](#dynamic-events)
+  - [Day/Night Cycle](#daynight-cycle)
+  - [Holidays and Festivals](#holidays-and-festivals)
+- [VI. User Interface (UI) Design](#vi-user-interface-ui-design)
+- [VII. Technical Specifications](#vii-technical-specifications)
+- [VIII. Art and Audio](#viii-art-and-audio)
+- [IX. Community and Social Features](#ix-community-and-social-features)
+- [X. Onboarding and Tutorial System](#x-onboarding-and-tutorial-system)
+- [XI. Post-Launch Content and Support](#xi-post-launch-content-and-support)
+- [XII. Legal Considerations](#xii-legal-considerations)
+  - [Terms of Service](#terms-of-service)
+  - [Privacy Policy](#privacy-policy)
+  - [License](#license)
+    - [Public Domain Notice](#public-domain-notice)
+    - [Warranty Disclaimer](#warranty-disclaimer)
+- [XIII. Appendices](#xiii-appendices)
+  - [AI Coding Assistant Instructions](#ai-coding-assistant-instructions)
+  - [Best Practices and Coding Standards](#best-practices-and-coding-standards)
+  - [Concept Art](#concept-art)
+  - [Item Database](#item-database)
+  - [NPC/Monster Catalog](#npcmonster-catalog)
+  - [About the Author](#about-the-author)
+
+---
+
 - ### Project Description
 
   This project is a Multiplayer Game Server (MUD) designed for use with browser-based clients. It utilizes various technologies and architectural patterns to manage real-time communication, database interactions, game entity management, and player sessions. The server supports multiplayer gameplay by handling socket events, managing in-game entities like players, NPCs, and items, and by ensuring data consistency across connected clients. Its architecture is optimized for web-based interactions, making it ideal for games that can be played directly in web browsers without any need for additional software installation.
@@ -670,7 +736,7 @@
     - Receive some specific authority or duty, such as a military command, judging crimes, investigating crimes, protecting the peace, enforcing the law, or tax collection.
 
   - **Blessing**
-    - Receive some permanent bonus. Perhaps its luck, attribute bonus, special ability, or skill.
+    - Receive a permanent bonus. Perhaps its luck, attribute bonus, special ability, or skill.
 
   - **Expertise**
     - PC becomes known as an expert in some field of study. This character will forever be sought for his expertise in that field.
@@ -824,8 +890,9 @@
     - Features: dragon boat racing, eating zongzi (粽子, sticky rice dumplings)
     - Traditional customs include hanging calamus and wormwood
 
-  - #### Memorial Day (Last Monday in May)
-    - Honors military personnel who died in service
+  - #### Wǔxiá Festival (武侠节 / Wǔxiá jié)
+    - Last Monday in May
+    - Honors warriors and military personnel who died in service
     - Cemetery visits
     - Parades
     - Beginning of summer activities
@@ -895,20 +962,20 @@
     - Also known as Senior CitiCháns' Festival in modern times
 
   - #### Halloween (October 31)
-    - Cultural holiday with ancient Celtic roots
+    - Religious and cultural celebration
     - Trick-or-treating
     - Costume parties
     - Jack-o'-lanterns
     - Haunted houses
     - Fall festivals
 
-  - #### Rice Porridge Festival (腊八节 / Làbā jié)
+  - #### Làbā Rice Festival (腊八节 / Làbā jié)
     - Falls on the 8th day of the 12th lunar month
     - Traditional custom of eating Làbā congee
     - Considered a prelude to Chinese New Year
 
   - #### Christmas (December 25)
-    - Both religious and cultural celebration
+    - Religious and cultural celebration
     - Decorating Christmas trees
     - Exchanging gifts
     - Santa Claus traditions
@@ -1013,13 +1080,13 @@
 
   - ### License
 
-    - **Public Domain Notice**
+    - #### Public Domain Notice
 
-      - The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
+      The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
 
-    - **Warranty Disclaimer**
+    - #### Warranty Disclaimer
 
-      - This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
+      This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
 
 ## XIII. Appendices
 
