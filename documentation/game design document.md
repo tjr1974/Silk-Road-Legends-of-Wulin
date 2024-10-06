@@ -20,7 +20,7 @@
 
   - wuxia martial arts historical fantasy educational
 
----
+
 
 ## I. Game Overview
 
@@ -35,7 +35,7 @@
 - ### Core Gameplay Loop
   - Character creation, skill development, combat, questing, trading, and social interactions in a Wuxia-themed ancient Far East setting
 
----
+
 
 ## II. Executive Summary
 
@@ -52,7 +52,7 @@
 
   Experience the ancient world of martial arts, as you never have before. Seize your trusted weapon and join your martial brothers. It's time to become a **LEGEND**!
 
----
+
 
 - ### Game Concept
 
@@ -74,15 +74,15 @@
 
   Experience the ancient world of martial arts, as you never have before. Seize your trusted weapon and join your martial brothers. It's time to become a **LEGEND**!
 
----
+
 
 - ### Target Audience
 
----
+
 
 - ### Unique Selling Points
 
----
+
 
 ## III. Story and Setting
 
@@ -91,21 +91,21 @@
   - Deeply immersive ancient Far East setting
   - Focuses on the cultural and economic network of ancient trade routes connecting China with Egypt and Rome
 
----
+
 
 - ### Main Storyline
    - Players create unique characters and embark on journeys along the Silk Road
    - No fixed classes or professions, allowing players to freely undertake any task
    - Emphasis on becoming a legendary figure in the world of martial arts
 
----
+
 
 - ### Factions or Guilds
    - Jiānghú (江湖) brotherhood
    - Wǔlín (武林) martial arts world
    - Various clans and sects within the Wǔlín
 
----
+
 
 - ### Notable NPCs
    - Legendary warriors
@@ -118,13 +118,13 @@
    - Mercenaries and assassins
    - Travelers, pilgrims, priests, and monks
 
----
+
 
 - ### Possible NPC Professions
 
   - Abbot, Admiral, Alchemist, Ambassador, Animal Trainer, Apothecary, Aquarian, Archeologist, Archer, Artisan, Assassin, Astrologer, Bailiff, Bandit, Barbarian, Beggar, Blacksmith, Boatman, Bodyguard, Bondsman, Bounty Hunter, Brawler, Brewer, Cadet, Cantor, Captain, Cartographer, Cat Burglar, Cenobite, Champion, Charlatan, Cityguard, Coachman, Consort, Courtier, Crime Lord, Crusader, Cultist, Dilettante, Diviner, Driver, Duellist, Dung Collector, Embalmer, Enforcer, Engineer, Entertainer, Envoy, Escort, Ex-Convict, Executioner, Exorcist, Explorer, Farmer, Fence, Ferryman, Field Warden, Fisherman, Foreman, Forger, Fortune Teller, Friar, Gambler, Gladiator, Grandmaster, Grave Robber, Grave Warden, Guild Master, Herald, Hermit, High Priest, Highwayman, Historian, Horse Coper, Horse Master, Hunter, Imperial Guard, Innkeeper, Interrogator, Investigator, Jailer, Judge, Knight, Lamplighter, Lancer, Locksmith, Marauder, Marine, Mate, Mediator, Mercenary, Merchant, Messenger, Militiaman, Miner, Minstrel, Monk, Monster Slayer, Muleskinner, Mystic, Navigator, Ninja, Noble, Nomad, Norse Berserker Viking, Oracle, Outlaw, Outlaw Chief, Peasant, Physician, Pilgrim, Pistolier, Pit Fighter, Politician, Priest, Questing Knight, Racketeer, Raconteur, Raider, Ranger, Rat Catcher, River Warden, Road Warden, Rogue, Samurai, Scholar, Scourge of God, Scout, Scribe, Sea Captain, Seaman, Seer, Servant, Shop Keeper, Slave, Slaver, Slave Trader, Smuggler, Soldier, Sorcerer, Spy, Squire, Student, Tax Collector, Temple Guardian, Thief, Thug, Toll Keeper, Tomb Raider, Tomb Robber, Tradesman, Vagabond, Valet, Vampire Hunter, Veteran, Village Elder, Warden, Warlock, Warlord, Warrior Monk, Warrior Priest, Watchman, Whaler, Winged Lancer, Wise Woman, Witch, Witch Hunter, Wizard, Woodsman, Wrecker, Yeoman, Zealot
 
----
+
 
 - ### Player's Role in the World
   - Players can choose their own path: hero, villain, merchant, escort, thief, explorer, or any combination thereof
@@ -132,13 +132,13 @@
   - Ability to uncover forbidden mysteries and learn secret arts
   - Build a legendary reputation through actions and choices
 
----
+
 
 ## IV. Gameplay Mechanics
 
 - ### Character Creation and Customization
 
----
+
 
 - ### Professions
 
@@ -146,31 +146,31 @@
   - Professions have no actual impact on gameplay.
   - Professions are simply a vanity property to enhance character customization.
 
----
+
 
 - ### Attributes and Skills
 
----
+
 
 - ### Progression System
   - Experience Points
   - Leveling Mechanics
   - Skill Advancement
 
----
+
 
 - ### Combat System
   - Real-time Combat Simulation
   - Attack and Defense Mechanics
   - Special Combat Skills and Cooldowns
 
----
+
 
 - ### Gōngfu Styles and Techniques
 
   This game features a diverse selection of Gōngfu styles, each with its own set of techniques. Players can master multiple styles. These styles and techniques have no actual impact on gameplay. They are simply vanity options to enhance character customization.
 
----
+
 
 - #### Gōngfu Styles
   The game includes the following Gōngfu styles:
@@ -203,7 +203,7 @@
   - Yǒngchūn Style
   - Chán Style
 
----
+
 
 - #### Techniques
   Each Gōngfu style utilizes various techniques:
@@ -500,7 +500,7 @@
     - Yǒngchūn Kick
     - Yǒngchūn Knee
 
----
+
 
 -  #### Learning and Mastery
     Players can:
@@ -509,40 +509,40 @@
     - Improve techniques through repeated use and specialized training
     - Unlock advanced techniques as they progress in mastery of a style
 
----
+
 
 - #### Cultural and Historical Context
   - Each Gōngfu style has its own rich history and philosophical underpinnings
   - Players can delve into the lore of each style, understanding its origins and famous practitioners
   - Certain styles may be associated with specific factions or regions in the game world
 
----
+
 
 - #### Gōngfu Styles and Techniques Summary
 
   This comprehensive Gōngfu system adds depth to character development and overall immersion in the world.
 
----
+
 
 - ### Non-combat Activities
    - Crafting
    - Trading
    - Exploration
 
----
+
 
 - ### Social Interactions
    - Chat Systems
    - Party/Group Formation
    - Guild/Clan Systems
 
----
+
 
 - ### Quest and Mission Structure
 
   The quest system should be story-driven, informative, and educational, deeply immersing players in the rich tapestry of the game world. Quests serve multiple purposes beyond mere gameplay progression. They serve to enhance world-building, character development, and cultural exploration.
 
----
+
 
 - #### Quest Design Principles
 
@@ -564,7 +564,7 @@
   - **Interconnected Storylines**
     - Many quests will be part of larger, interconnected narratives, encouraging players to engage deeply with the game world.
 
----
+
 
 - #### Quest Progression
 
@@ -586,7 +586,7 @@
   - **Reflection**
     - Post-quest dialogues or journal entries encourage players to reflect on what they've learned or experienced.
 
----
+
 
 - #### Quest Types
 
@@ -611,7 +611,7 @@
   - **Current Events**
     - Missions that reflect the ongoing political, economic, or social issues in different regions of the game world.
 
----
+
 
 - #### Reward System
 
@@ -632,13 +632,13 @@
   - **Philosophical Insights**
     - Completion of certain quests grants wisdom points, unlocking deeper understanding of various philosophies.
 
----
+
 
 - #### Quest and Mission Structure Summary
 
   By structuring quests in this manner, Silk Road: Legends of Wǔlín aims to create a deeply immersive and educational experience, where each mission contributes to the player's understanding and appreciation of the rich tapestry of cultures, philosophies, and histories along the Silk Road.
 
----
+
 
 - #### Possible Bonus Rewards for Quests
 
@@ -675,22 +675,22 @@
   - **Wealth**
     - Receive some reward in the form of treasure, gold, silver, gems, artifacts, fine art, etcetera.
 
----
+
 
 - #### Quest Log
 
----
+
 
 - #### Quest Outlines
 
----
+
 
 - ### Economy
    - Currency Systems
    - Item Rarity and Value
    - Player-driven Markets
 
----
+
 
 - ### Wǔxiá Elements
 
@@ -712,7 +712,7 @@
   - #### Wǔlín Intrigue
     - Complex relationships and conflicts between characters and factions
 
----
+
 
 - ### Common Wǔxiá Tropes
 
@@ -731,7 +731,7 @@
   - #### Wǔlín Intrigue
     - Outside of insurgencies, inter-faction struggles, and so on, many Wǔxiá stories also examine the intricate relationships between larger-than-life characters. Common sub-themes include love, rivalry, greed, the burden of family name, and other human conflicts.
 
----
+
 
 ## V. World Design
 
@@ -770,23 +770,23 @@
   - Constantinople (modern Istanbul), Turkey
   - Rome (Roma), Italy
 
----
+
 
 - ### Dungeons and Raids
 
----
+
 
 - ### Environmental Hazards
 
----
+
 
 - ### Dynamic Events
 
----
+
 
 - ### Day/Night Cycle
 
----
+
 
 - ### Holidays and Festivals
 
@@ -921,67 +921,67 @@
     - Live entertainment
     - Competitions and contests
 
----
+
 
 ## VI. User Interface (UI) Design
 
    - ### Main Game Screen Layout
 
----
+
 
    - ### Character Information Panel
 
----
+
 
    - ### Inventory Management
 
----
+
 
    - ### Chat Windows
 
----
+
 
    - ### Map and Navigation Tools
 
----
+
 
    - ### Combat Interface
 
----
+
 
    - ### Social Features (Friends List, Party Management)
 
----
+
 
 ## VII. Technical Specifications
 
    - ### Browser Compatibility
 
----
+
 
    - ### Minimum System Requirements
 
----
+
 
    - ### Server Architecture
 
----
+
 
    - ### Database Design
 
----
+
 
    - ### Client-Server Communication
 
----
+
 
    - ### Security Measures
 
----
+
 
    - ### Scalability Considerations
 
----
+
 
 ## VIII. Art and Audio
 
@@ -989,111 +989,111 @@
       - Inspired by historical China and the Silk Road era
       - Emphasis on capturing the mystery and adventure of the ancient Far East
 
----
+
 
    - ### Character Designs
 
----
+
 
    - ### Environment Art
 
----
+
 
    - ### User Interface Art
 
----
+
 
    - ### Sound Effects
 
----
+
 
    - ### Background Music
 
----
+
 
    - ### Voice Acting
 
----
+
 
 ## IX. Community and Social Features
 
    - ### Forums or Community Boards
 
----
+
 
    - ### Player Ranking Systems
 
----
+
 
    - ### Events and Tournaments
 
----
+
 
    - ### Player-generated Content
 
----
+
 
    - ### Moderation Tools and Policies
 
----
+
 
 ## X. Onboarding and Tutorial System
 
    - ### New Player Experience
 
----
+
 
    - ### Tutorial Quests
 
----
+
 
    - ### Help System
 
----
+
 
    - ### Tips and Hints
 
----
+
 
 ## XI. Post-Launch Content and Support
 
    - ### Content Update Schedule
 
----
+
 
    - ### Expansion Plans
 
----
+
 
    - ### Customer Support Strategy
 
----
+
 
    - ### Bug Reporting and Feedback Systems
 
----
+
 
 ## XII. Legal Considerations
 
-   - ### Terms of Service
-
----
-
-   - ### Privacy Policy
-
----
-### License
-
-- #### Public Domain Notice
-
-   - The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
-
-- #### Warranty Disclaimer
-
-   - This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
+  - ### Terms of Service
 
 
----
+
+  - ### Privacy Policy
+
+
+  - ### License
+
+    - Public Domain Notice
+
+      - The content presented here is intended for entertainment, informational, educational, and research purposes. The textual content and source code for this website and game is in the public domain. You are free to share, copy, redistribute, adapt, remix, transform, and build upon this material in any medium or format and for any purpose.
+
+    - Warranty Disclaimer
+
+      - This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
+
+
+
 
 ## XIII. Appendices
 
@@ -1128,7 +1128,7 @@
   -  Minimize temporary object creation
   -  Use technically precise terminology to answer questions
 
----
+
 
 - ### Best Practices and Coding Standards
 
@@ -1180,19 +1180,19 @@
 
   By adhering to these practices, we aim to create a codebase that is not only functional but also maintainable, scalable, and easy to understand for all contributors.
 
----
+
 
 - ### Concept Art
 
----
+
 
 - ### Item Database
 
----
+
 
 - ### NPC/Monster Catalog
 
----
+
 
 - ### About the Author
 
@@ -1206,7 +1206,7 @@
 
   Until he shared this game with his buds.
 
----
+
 
 
 
