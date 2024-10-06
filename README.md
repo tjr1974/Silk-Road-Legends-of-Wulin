@@ -20,9 +20,9 @@
   - [WebSocket Endpoints](#websocket-endpoints)
 - [Advanced Features](#advanced-features)
 - [Best Practices and Coding Standards](#best-practices-and-coding-standards)
-- [LICENSE](#license)
-  - [PUBLIC DOMAIN NOTICE](#public-domain-notice)
-  - [WARRANTY DISCLAIMER](#warranty-disclaimer)
+- [License](#license)
+  - [Public Domain Notice](#public-domain-notice)
+  - [Warranty Disclaimer](#warranty-disclaimer)
 
 ## Project Description
 
