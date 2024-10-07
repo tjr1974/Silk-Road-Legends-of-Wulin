@@ -1070,61 +1070,61 @@
 
   Chinese culture is rich with unique customs, symbols, and beliefs that can deeply enhance a fictional narrative. Incorporating these elements adds depth and cultural nuance, and they carry a wealth of meaning beyond their visual appeal. Here are some interesting Chinese cultural tropes, customs, and behaviors that can bring "flavor" to a narrative:
 
-  - #### The Concept of "Face" (面子 / Mianzi)
+  - #### Concept of "Face" (面子 / Mianzi)
     - **Saving Face**
       - In Chinese culture, maintaining one’s dignity or "face" is of paramount importance. Face represents one’s social standing, reputation, and honor. People strive to save face, avoid losing face, and give face to others through compliments or respectful gestures. Public humiliation or criticism is a serious loss of face.
     - **Giving Face**
       - Elevating someone’s status in public by showing respect or deference is considered "giving face." This can be achieved through praise, offering a gift, or showing public support.
 
-  - #### The Concept of "Joss" (Luck/Fate)
+  - #### Concept of "Joss" (Luck/Fate)
     - Joss refers to a form of fate or luck, often tied to the whims of the gods or cosmic forces. The term is commonly used in Southern China, Hong Kong, and among overseas Chinese communities. People may refer to someone as having “good joss” or “bad joss” depending on their luck. Incense offerings (called joss sticks) are burned in temples to communicate with the gods and ask for good fortune.
 
   - #### Old Friend Status
     - The phrase "old friend" (老朋友 / Lǎo péngyǒu) carries deep significance. Someone who is referred to as an "old friend" is more than just a long-time acquaintance; they are a trusted ally, someone with whom one has shared history, loyalty, and favors. Relationships in Chinese culture are built on guanxi (关系), a system of personal connections, trust, and mutual obligation. "Old friends" are expected to help each other, often without needing to ask.
 
-  - #### Curved Tiled Roofs
-    - Traditional Chinese architecture, with its curved tiled roofs and upturned eaves, often represents harmony with nature. These structures reflect the principles of Fēngshuǐ, the belief that buildings must be designed to promote good fortune by balancing energy (qi). The curvature of the roofs is believed to ward off evil spirits, as the spirits are thought to only travel in straight lines.
-
-  - #### Paper Lanterns
-    - Paper lanterns, particularly red ones, are iconic in Chinese celebrations and are often symbols of joy, prosperity, and hope. Lantern festivals, especially during the Lunar New Year, are celebrated with thousands of lanterns lit up to welcome the New Year. Lanterns can also have spiritual significance, guiding souls in the afterlife or celebrating familial unity.
-
-  - #### Red as a Lucky Color
-    - Red is the most auspicious color in Chinese culture, symbolizing joy, luck, prosperity, and good fortune. It is used in celebrations, weddings, and festivals. Red envelopes (红包 / hóngbāo) filled with money are given during the Lunar New Year, weddings, or births as a token of good luck and blessings.
-
-  - #### The Importance of Food and Banquets
-    - Food is central to Chinese culture and plays a vital role in social interactions. The phrase "吃了吗?" (Have you eaten?) is a common greeting, indicating the cultural importance of food in daily life. Lavish banquets are held to honor guests, celebrate important events, and solidify business relationships or alliances.
-    - Symbolic Foods: Certain dishes and ingredients have specific symbolic meanings, such as fish (abundance), noodles (longevity), and dumplings (wealth).
+  - #### Concept of Yin and Yang
+    - Yin and Yang (阴阳) represent duality and balance. Everything in the universe is governed by these complementary forces. Yin is passive, feminine, and dark, while Yang is active, masculine, and bright. The harmony of these forces is essential to maintaining balance in life, health, and nature.
 
   - #### Fēngshuǐ (风水)
     - Fēngshuǐ is the ancient Chinese practice of harmonizing individuals with their surrounding environment. It is based on the belief that the layout of a space, the positioning of objects, and even the orientation of a building can influence the flow of energy (qi) and bring prosperity, health, and good fortune. This concept is important in architecture, urban planning, interior design, and burial practices.
 
-  - #### Ancestor Worship
-    - Honoring ancestors is a deeply rooted tradition in Chinese culture. Ancestors are believed to have the power to bless or curse their descendants. This reverence is shown through ancestral altars, burning joss sticks, and offering food or paper money to the spirits. Tomb Sweeping Day (清明节 / Qingming Festival) is a significant occasion where families visit ancestral graves to clean the tombstones and make offerings.
+  - #### Red as a Lucky Color
+    - Red is the most auspicious color in Chinese culture, symbolizing joy, luck, prosperity, and good fortune. It is used in celebrations, weddings, and festivals. Red envelopes (红包 / hóngbāo) filled with money are given during the Lunar New Year, weddings, or births as a token of good luck and blessings.
 
-  - #### Tea Culture
-    - Tea has profound cultural significance in China. It is not just a beverage but a symbol of hospitality, respect, and calmness. Tea ceremonies are used to welcome guests, conduct business, and mark important life events. The way tea is served and the selection of the tea itself carry messages about the host’s respect for the guest.
-    - Serving tea in weddings: The bride and groom serve tea to their elders as a sign of respect, and in return, they receive blessings and sometimes gifts.
-
-  - #### The Twelve Animals of the Chinese Zodiac
-    - The Chinese zodiac assigns a specific animal to each year in a 12-year cycle. These animals—Rat, Ox, Tiger, Rabbit, Dragon, Snake, Horse, Goat, Monkey, Rooster, Dog, and Pig—are believed to influence people’s personalities, compatibility, and destiny. Many festivals and customs revolve around these animals, such as the Year of the Dragon being considered particularly auspicious.
-
-  - #### Fortune Tellers and Divination
-    - The practice of consulting fortune tellers (算命师 / suànmìngshī) is common in Chinese culture, especially during life transitions, such as marriage, business decisions, or childbirth. Fortune tellers use various tools, such as the I Ching, face reading, and astrology, to predict the future or advise on auspicious dates.
-
-  - #### The Role of Scholars and Calligraphy
-    - Scholars hold a revered place in Chinese society, with the classic Confucian ideal of the "gentleman scholar" being a model for personal conduct. Calligraphy, considered the highest form of art, reflects a person’s moral integrity, education, and character. The strokes of the brush are thought to embody the soul of the calligrapher.
+  - #### Curved Tiled Roofs
+    - Traditional Chinese architecture, with its curved tiled roofs and upturned eaves, often represents harmony with nature. These structures reflect the principles of Fēngshuǐ, the belief that buildings must be designed to promote good fortune by balancing energy (qi). The curvature of the roofs is believed to ward off evil spirits, as the spirits are thought to only travel in straight lines.
 
   - #### Dragons as Symbols of Power
-    - Unlike Western dragons, Chinese dragons (龙 / Lóng) are auspicious creatures that symbolize strength, wisdom, and control over water. They are often seen as benevolent guardians and are associated with the emperor, who was historically referred to as the “Son of Heaven” and believed to have a dragon’s essence. Dragon dances during festivals are thought to ward off evil spirits and bring good fortune.
-
-  - #### The Concept of Yin and Yang
-    - Yin and Yang (阴阳) represent duality and balance. Everything in the universe is governed by these complementary forces. Yin is passive, feminine, and dark, while Yang is active, masculine, and bright. The harmony of these forces is essential to maintaining balance in life, health, and nature.
+    - Unlike Western dragons, Chinese dragons (龙 / Lóng) are auspicious creatures that symbolize strength, wisdom, and control over water. They are often seen as benevolent guardians and are associated with the emperor, who was historically referred to as the "Son of Heaven" and believed to have a dragon's essence. Dragon dances during festivals are thought to ward off evil spirits and bring good fortune.
 
   - #### Jade as a Symbol of Virtue and Immortality
     - Jade (玉 / yù) is highly prized in Chinese culture, not only for its beauty but also for its symbolic value. It represents purity, wisdom, and immortality. Many people wear jade as an amulet for protection or good fortune. In ancient times, jade burial suits were used to protect the body and soul in the afterlife.
 
-  - #### The Power of Silence
-    - Silence is often valued in Chinese social interactions, especially in tense or formal situations. It is used as a tool to avoid conflict, show respect, or gather one’s thoughts before responding. In many cases, what is left unsaid is as important as what is spoken.
+  - #### Paper Lanterns
+    - Paper lanterns, particularly red ones, are iconic in Chinese celebrations and are often symbols of joy, prosperity, and hope. Lantern festivals, especially during the Lunar New Year, are celebrated with thousands of lanterns lit up to welcome the New Year. Lanterns can also have spiritual significance, guiding souls in the afterlife or celebrating familial unity.
+
+  - #### Importance of Food and Banquets
+    - Food is central to Chinese culture and plays a vital role in social interactions. The phrase "吃了吗?" (Chīle ma / Have you eaten?) is a common greeting, indicating the cultural importance of food in daily life. Lavish banquets are held to honor guests, celebrate important events, and solidify business relationships or alliances.
+    - Symbolic Foods: Certain dishes and ingredients have specific symbolic meanings, such as fish (abundance), noodles (longevity), and dumplings (wealth).
+
+  - #### Tea Culture
+    - Tea has profound cultural significance in China. It is not just a beverage but a symbol of hospitality, respect, and calmness. Tea ceremonies are used to welcome guests, conduct business, and mark important life events. The way tea is served and the selection of the tea itself carry messages about the host's respect for the guest.
+    - Serving tea in weddings: The bride and groom serve tea to their elders as a sign of respect, and in return, they receive blessings and sometimes gifts.
+
+  - #### Power of Silence
+    - Silence is often valued in Chinese social interactions, especially in tense or formal situations. It is used as a tool to avoid conflict, show respect, or gather one's thoughts before responding. In many cases, what is left unsaid is as important as what is spoken.
+
+  - #### Ancestor Worship
+    - Honoring ancestors is a deeply rooted tradition in Chinese culture. Ancestors are believed to have the power to bless or curse their descendants. This reverence is shown through ancestral altars, burning joss sticks, and offering food or paper money to the spirits. Tomb Sweeping Day (清明节 / Qingming Festival) is a significant occasion where families visit ancestral graves to clean the tombstones and make offerings.
+
+  - #### Scholars and Calligraphy
+    - Scholars hold a revered place in Chinese society, with the classic Confucian ideal of the "gentleman scholar" being a model for personal conduct. Calligraphy, considered the highest form of art, reflects a person's moral integrity, education, and character. The strokes of the brush are thought to embody the soul of the calligrapher.
+
+  - #### Fortune Tellers and Divination
+    - The practice of consulting fortune tellers (算命师 / suànmìngshī) is common in Chinese culture, especially during life transitions, such as marriage, business decisions, or childbirth. Fortune tellers use various tools, such as the I Ching, face reading, and astrology, to predict the future or advise on auspicious dates.
+
+  - #### Twelve Animals of the Chinese Zodiac
+    - The Chinese zodiac assigns a specific animal to each year in a 12-year cycle. These animals—Rat, Ox, Tiger, Rabbit, Dragon, Snake, Horse, Goat, Monkey, Rooster, Dog, and Pig—are believed to influence people's personalities, compatibility, and destiny. Many festivals and customs revolve around these animals, such as the Year of the Dragon being considered particularly auspicious.
 
   By weaving these cultural elements into your narrative, you can create a rich and textured world that is steeped in Chinese tradition, full of symbolic meaning, and layered with social customs that give depth to characters and plot.
 
