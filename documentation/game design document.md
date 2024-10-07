@@ -845,21 +845,21 @@
   - Tǎlǐmù Basin (塔里木盆地), China
   - Hétián (和田), China
   - Níyǎ (尼雅), China
-  - Kāshí (喀什, formerly Shūlè 疏勒), China
+  - Kāshí (喀什), China
   - Kālākùnlún (喀喇昆仑) mountain range (between China, Pakistan, and India)
-  - Pāṭaliputra (पाटलिपुत्र, modern Patna), India
-  - Samarkand (समर्कंद), Uzbekistan
-  - Bukhara (बुखारा), Uzbekistan
-  - Baghdad (بغداد), Iraq
-  - Aleppo (حلب), Syria
-  - Damascus (دمشق), Syria
-  - Tyre (صور), Lebanon
-  - Petra (البتراء), Jordan
-  - Cairo (القاهرة), Egypt
-  - Alexandria (الإسكندرية), Egypt
-  - Antioch (modern Antakya), Turkey
-  - Constantinople (modern Istanbul), Turkey
-  - Rome (Roma), Italy
+  - Pāṭaliputra, India
+  - Samarkand, Uzbekistan
+  - Bukhara, Uzbekistan
+  - Baghdad, Iraq
+  - Aleppo, Syria
+  - Damascus, Syria
+  - Tyre, Lebanon
+  - Petra, Jordan
+  - Cairo, Egypt
+  - Alexandria, Egypt
+  - Antioch, Turkey
+  - Constantinople, Turkey
+  - Roma, Italy
 
 - ### Dungeons and Raids
 
@@ -884,7 +884,7 @@
     - Falls on the 7th day of the 1st lunar month
     - Game Event Duration: 1 day
     - Celebrated to commemorate the day human beings were created
-    - Celebrations include mountain climbing, family reunions, fireworks (花炮 / huāpào), eating "seven vegetable soup" (七菜羹 /Qīcàigēng), "seven vegetable congee" (七菜粥 / Qīcàizhōu) and "jidi congee" (及第粥 /Jídìzhōu)
+    - Celebrations include mountain climbing, family reunions, fireworks (花炮 / huāpào), eating "seven vegetable soup" (七菜羹 /Qīcàigēng), "seven vegetable congee" (七菜粥 / Qīcàizhōu) and "Jídì congee" (及第粥 /Jídìzhōu)
 
   - #### Lantern Festival (元宵节 / Yuánxiāo jié)
     - https://en.wikipedia.org/wiki/Lantern_Festival
@@ -894,19 +894,19 @@
     - Celebrated to commemorate family reunion and social harmony
     - Celebrations include lantern displays, parades, dragon/lion dances, riddles, eating sweet rice dumplings (汤圆 / Tāngyuán)
 
-  - #### Zhonghe Festival (中和节 / Zhōnghé jié)
+  - #### Zhōnghé Festival (中和节 / Zhōnghé jié)
     - https://en.wikipedia.org/wiki/Longtaitou_Festival
     - Falls on the 1st day of the 2nd lunar month
     - Game Event Duration: 1 day
-    - Celebrated to commemorate the begining of spring
+    - Celebrated to commemorate the beginning of spring
     - Celebrations include cleaning the house and eating dragon foods: “dragon’s ears" dumplings, pancakes are the "dragon’s scales" pancakes (春饼 / Chūnbǐng), and "dragon’s beard" noodles to express hopes for rain and a good harvest
 
   - #### Blue Dragon Festival (青龙节 / Qīnglóng jié)
     - https://en.wikipedia.org/wiki/Longtaitou_Festival
     - Falls on the 2nd day of the 2nd lunar month
     - Game Event Duration: 1 day
-    - Also known as Dragon Raising its head Festival (龙抬头 / Lóngtóu tóu)
-    - Celebrated to commemorate the begining of spring
+    - Also known as Dragon Raising its head Festival (龙抬头 / Lóng Táitóu)
+    - Celebrated to commemorate the beginning of spring
     - Celebrations include cleaning the house and eating dragon foods: “dragon’s ears" dumplings, pancakes are the "dragon’s scales" pancakes (春饼 / Chūnbǐng), and "dragon’s beard" noodles to express hopes for rain and a good harvest
 
   - #### Double Third Festival (三月三日 / sānyuèsān)
@@ -930,7 +930,7 @@
     - Falls on the Qingming solar term (usually April 4th or 5th)
     - Game Event Duration: 1 day
     - Celebrated to commemorate ancestors and tending to family graves
-    - Celebrations include flying kites, spring outings, visit, clean, and make offerings at ancestral gravesites
+    - Celebrations include flying kites, spring outings, visiting ancestral grave sites, and cleaning graves
 
   - #### God of Medicine's Birthday (	保生大帝誕辰 / Bǎoshēng dàdì dànchén)
     - https://en.wikipedia.org/wiki/Poh_Seng_Tai_Tay
@@ -1017,7 +1017,7 @@
     - Falls on the day of winter solstice (usually December 21st or 22nd)
     - Game Event Duration: 1 day
     - Celebrated to commemorate the return of longer days and the balance of yin and yang
-    - Celebrations include eating tangyuan (汤圆) and jiuniang (酒酿), ancestor worship, and family gatherings
+    - Celebrations include eating sweet rice dumplings (汤圆 / Tāngyuán), drinking fermented wine (酒酿 / Jiǔniàng), ancestor worship, and family gatherings
 
   - #### Làbā Festival (腊八节 / Làbā jié)
     - https://en.wikipedia.org/wiki/Laba_Festival
@@ -1049,7 +1049,7 @@
     - Fictional festival created for game. Inspired by American Memorial Day
     - Marks the beginning of summer activities
     - Celebrated to commemorate warriors, military personnel, and veterans
-    - Celebrations include parades, picnics or bbqs, and offerings placed on veterans' graves, visiting temples dedicated to Guān Yǔ (关羽)
+    - Celebrations include parades, picnics or bbq, and offerings placed on veterans' graves, visiting temples dedicated to Guān Yǔ (关羽)
 
   - #### Halloween
     - https://en.wikipedia.org/wiki/Halloween
@@ -1093,7 +1093,7 @@
     - Joss refers to a form of fate or luck, often tied to the whims of the gods or cosmic forces. The term is commonly used in Southern China, Hong Kong, and among overseas Chinese communities. People may refer to someone as having “good joss” or “bad joss” depending on their luck. Incense offerings (called joss sticks) are burned in temples to communicate with the gods and ask for good fortune.
 
   - #### Old Friend Status
-    - The phrase "old friend" (老朋友 / Lǎo péngyǒu) carries deep significance. Someone who is referred to as an "old friend" is more than just a long-time acquaintance; they are a trusted ally, someone with whom one has shared history, loyalty, and favors. Relationships in Chinese culture are built on guanxi (关系), a system of personal connections, trust, and mutual obligation. "Old friends" are expected to help each other, often without needing to ask.
+    - The phrase "old friend" (老朋友 / Lǎo péngyǒu) carries deep significance. Someone who is referred to as an "old friend" is more than just a long-time acquaintance; they are a trusted ally, someone with whom one has shared history, loyalty, and favors. Relationships in Chinese culture are built on Guānxì (关系), a system of personal connections, trust, and mutual obligation. "Old friends" are expected to help each other, often without needing to ask.
 
   - #### Concept of Yin and Yang
     - Yin and Yang (阴阳) represent duality and balance. Everything in the universe is governed by these complementary forces. Yin is passive, feminine, and dark, while Yang is active, masculine, and bright. The harmony of these forces is essential to maintaining balance in life, health, and nature.
@@ -1128,7 +1128,7 @@
     - Silence is often valued in Chinese social interactions, especially in tense or formal situations. It is used as a tool to avoid conflict, show respect, or gather one's thoughts before responding. In many cases, what is left unsaid is as important as what is spoken.
 
   - #### Ancestor Worship
-    - Honoring ancestors is a deeply rooted tradition in Chinese culture. Ancestors are believed to have the power to bless or curse their descendants. This reverence is shown through ancestral altars, burning joss sticks, and offering food or paper money to the spirits. Tomb Sweeping Day (清明节 / Qingming Festival) is a significant occasion where families visit ancestral graves to clean the tombstones and make offerings.
+    - Honoring ancestors is a deeply rooted tradition in Chinese culture. Ancestors are believed to have the power to bless or curse their descendants. This reverence is shown through ancestral altars, burning joss sticks, and offering food or paper money to the spirits. Tomb Sweeping Day (清明节 / Qīngmíng jié) is a significant occasion where families visit ancestral graves to clean the tombstones and make offerings.
 
   - #### Scholars and Calligraphy
     - Scholars hold a revered place in Chinese society, with the classic Confucian ideal of the "gentleman scholar" being a model for personal conduct. Calligraphy, considered the highest form of art, reflects a person's moral integrity, education, and character. The strokes of the brush are thought to embody the soul of the calligrapher.
