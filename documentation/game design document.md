@@ -922,7 +922,7 @@
     - https://en.wikipedia.org/wiki/Cold_Food_Festival
     - Falls on the day before Qingming Festival
     - Game Event Duration: 1 day
-    - Celebrated to commemorate Jie Zitui, a loyal official who was accidentally burned to death.
+    - Celebrated to commemorate Jiè Zhītuī, a loyal official who was accidentally burned to death.
     - Celebrations include eating cold food (no hot food or fire is allowed), visiting ancestors' graves, and flying kites
 
   - #### Tomb Sweeping Festival (清明节 / Qīngmíng jié)
