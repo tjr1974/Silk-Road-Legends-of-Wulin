@@ -859,136 +859,274 @@
 - ### Holidays and Festivals
 
   - #### Spring Festival (春节 / Chūnjié)
-    - Also known as Chinese New Year
+    - https://en.wikipedia.org/wiki/Chinese_New_Year
+    - Falls on the 1st day of 1st lunar month
+    - Game Event Duration: 15 days, ending with the Lantern Festival
     - Most important traditional festival in Chinese culture
-    - Occurs on the first day of the lunar calendar (usually January or February)
-    - Celebrations include family reunions, red envelopes (红包), fireworks, and special foods
-    - Traditional activities: temple visits, dragon/lion dances, family feasts
-    - Duration: 15 days, ending with the Lantern Festival
+    - Celebrated to commemorate Chinese New Year (农历新年 / Nónglì Xīnnián) or Lunar New Year
+    - Celebrations include family reunions, lucky money in red envelopes (红包), fireworks (花炮 / huāpào), traditional foods, temple visits, dragon/lion dances, family feasts
+
+  - #### Human Day Festival(人日节 / Rénrì jié)
+    - https://en.wikipedia.org/wiki/Renri
+    - Falls on the 7th day of the 1st lunar month
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the day human beings were created
+    - Celebrations include mountain climbing, family reunions, fireworks (花炮 / huāpào), eating "seven vegetable soup" (七菜羹 /Qīcàigēng), "seven vegetable congee" (七菜粥 / Qīcàizhōu) and "jidi congee" (及第粥 /Jídìzhōu)
 
   - #### Lantern Festival (元宵节 / Yuánxiāo jié)
+    - https://en.wikipedia.org/wiki/Lantern_Festival
+    - Falls on the 15th day of the 1st lunar month
+    - Game Event Duration: 1 day
     - Marks the end of Spring Festival celebrations
-    - Falls on the 15th day of the first lunar month
-    - Features: lantern displays, riddles, yuan xiao (sweet rice balls)
-    - Traditional symbol of family reunion and social harmony
+    - Celebrated to commemorate family reunion and social harmony
+    - Celebrations include lantern displays, parades, dragon/lion dances, riddles, eating sweet rice dumplings (汤圆 / Tāngyuán)
+
+  - #### Zhonghe Festival (中和节 / Zhōnghé jié)
+    - https://en.wikipedia.org/wiki/Longtaitou_Festival
+    - Falls on the 1st day of the 2nd lunar month
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the begining of spring
+    - Celebrations include cleaning the house and eating dragon foods: “dragon’s ears" dumplings, pancakes are the "dragon’s scales" pancakes (春饼 / Chūnbǐng), and "dragon’s beard" noodles to express hopes for rain and a good harvest
+
+  - #### Blue Dragon Festival (青龙节 / Qīnglóng jié)
+    - https://en.wikipedia.org/wiki/Longtaitou_Festival
+    - Falls on the 2nd day of the 2nd lunar month
+    - Game Event Duration: 1 day
+    - Also known as Dragon Raising its head Festival (龙抬头 / Lóngtóu tóu)
+    - Celebrated to commemorate the begining of spring
+    - Celebrations include cleaning the house and eating dragon foods: “dragon’s ears" dumplings, pancakes are the "dragon’s scales" pancakes (春饼 / Chūnbǐng), and "dragon’s beard" noodles to express hopes for rain and a good harvest
+
+  - #### Double Third Festival (三月三日 / sānyuèsān)
+    - https://en.wikipedia.org/wiki/Double_Third_Festival
+    - Falls on the 3rd day of the 3rd lunar month
+    - Game Event Duration: 1 day
+    - Also known as Shàngsì Festival (上巳节 / Shàngsì jié)
+    - Also known as Woman's Festival (妇女节 / Fùnǚ jié)
+    - Celebrated to commemorate Chinese Women's Day
+    - Celebrations include outdoor excursions, picnics, singing folk songs, and participating in traditional games and activities
+
+  - #### Cold Food Festival (寒食节 / Hánshí jié)
+    - https://en.wikipedia.org/wiki/Cold_Food_Festival
+    - Falls on the day before Qingming Festival
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate Jie Zitui, a loyal official who was accidentally burned to death.
+    - Celebrations include eating cold food (no hot food or fire is allowed), visiting ancestors' graves, and flying kites
 
   - #### Tomb Sweeping Festival (清明节 / Qīngmíng jié)
-    - Usually falls on April 4th or 5th
-    - Time for honoring ancestors and tending to family graves
-    - Traditional activities include flying kites and spring outings
+    - https://en.wikipedia.org/wiki/Qingming_Festival
+    - Falls on the Qingming solar term (usually April 4th or 5th)
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate ancestors and tending to family graves
+    - Celebrations include flying kites, spring outings, visit, clean, and make offerings at ancestral gravesites
 
-  - #### Easter (Spring - Date Varies)
-    - Religious and cultural celebration
-    - Easter egg hunts
-    - Easter Bunny
-    - Easter baskets
-    - Spring celebrations
+  - #### God of Medicine's Birthday (	保生大帝誕辰 / Bǎoshēng dàdì dànchén)
+    - https://en.wikipedia.org/wiki/Poh_Seng_Tai_Tay
+    - Falls on the 15th day of the 3rd lunar month
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the birthday of the God of Medicine
+    - Celebrations include visiting temples dedicated to the God of Medicine, making offerings, praying for good health, and participating in traditional medical practices or health-related activities
+
+  - #### Buddha's Birthday (佛诞节 / Fódàn jié)
+    - https://en.wikipedia.org/wiki/Buddha%27s_Birthday
+    - Falls on the 8th day of the 4th lunar month
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate Buddha's Birthday
+    - Celebrations include visiting Buddhist temples, offering food to monks
+
+  - #### Cheung Chau Bun Festival (长洲包山节 / Chángzhōu Bāoshān jié)
+    - https://en.wikipedia.org/wiki/Cheung_Chau_Bun_Festival
+    - Falls on the 8th day of the 4th lunar month
+    - Game Event Duration: 7 days
+    - Also known as 包山节 / Bāoshān jié
+    - Celebrated to commemorate began a Daoist ritual for fishing communities to pray for safety from pirates
+    - Celebrations include bun scrambling competition, lion dances, parades, and eating vegetarian food
 
   - #### Dragon Boat Festival (端午节 / Duānwǔ jié)
+    - https://en.wikipedia.org/wiki/Dragon_Boat_Festival
     - Falls on the 5th day of the 5th lunar month
-    - Commemorates poet Qu Yuan
-    - Features: dragon boat racing, eating zongzi (粽子, sticky rice dumplings)
-    - Traditional customs include hanging calamus and wormwood
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate poet Qu Yuan
+    - Celebrations include dragon boat racing, hanging calamus and wormwood, eating sticky rice dumplings (粽子 / Zòngzi), drinking realgar wine, related to the White Snake Lady legend
 
-  - #### Wǔxiá Festival (武侠节 / Wǔxiá jié)
-    - Last Monday in May
-    - Honors warriors and military personnel who died in service
-    - Cemetery visits
-    - Parades
-    - Beginning of summer activities
-    - Flags placed on veterans' graves
+  - #### Double Sixth Festival (六月六 / Liùyuè liù)
+    - https://en.wikipedia.org/wiki/Double_Sixth_Festival
+    - Falls on the 6th day of the 6th lunar month
+    - Game Event Duration: 1 day
+    - Also known as 天贶节 / Tiānkuì jié
+    - Celebrated to commemorate the summer solstice and to pray for a good harvest.
+    - Celebrations include washing in rivers or springs for good health, holding market fairs, and engaging in traditional games and activities
+
+  - #### Torch Festival (火把节 / Huǒbǎ jié)
+    - https://en.wikipedia.org/wiki/Torch_Festival
+    - Falls on the 24th or 25th day of the 6th lunar month
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the legendary wrestler Atilabia, who drove away a plague of locusts using torches made from pine trees.
+    - Celebrations include lighting torches, dancing, and eating traditional foods
 
   - #### Double Seventh Festival (七夕节 / Qīxì jié)
-    - Chinese Valentine's Day
+    - https://en.wikipedia.org/wiki/Qixi_Festival
     - Falls on the 7th day of the 7th lunar month
-    - Based on the legend of the Cowherd and Weaver Girl
-
-    - The Legend
-      - The festival celebrates the annual meeting of two lovers in Chinese mythology: Niulang (牛郎, the Cowherd) and Zhinü (织女, the Weaver Girl).
-      - According to the legend, Zhinü was a fairy and the daughter of the Jade Emperor who lived in heaven, where she wove beautiful clouds.
-      - She fell in love with Niulang, a mortal cowherd, and they married without the Jade Emperor's blessing.
-      - When the Jade Emperor discovered this, he was furious and ordered his wife, the Queen Mother of the West, to create the Milky Way to separate them.
-      - However, moved by their true love, he allowed them to meet once a year on the seventh day of the seventh lunar month, when a flock of magpies would form a bridge across the celestial river.
-
-    - Astronomical Significance
-      - The Weaver Girl is represented by the star Vega in the constellation Lyra
-      - The Cowherd is represented by the star Altair in the constellation Aquila
-      - The Milky Way separates these two bright stars
-
-    - Women's Activities
-      - Young women traditionally demonstrate domestic skills like threading needles
-      - They make offerings of fruit, flowers, and face powder
-      - Some practice traditional needle threading competitions
-      - Making wishes for finding good marriage partners
-
-    - Cultural Practices
-      - Writing romance poetry
-      - Stargazing to see Vega and Altair
-      - Making offerings to the celestial lovers
-      - Displaying skills in traditional crafts
-
-    - Modern Celebrations
-      - Similar to Western Valentine's Day with contemporary elements
-      - Couples exchange gifts and go on romantic dates
-      - Young people participate in matchmaking events
-      - Some cities hold cultural festivals and events
-      - Many restaurants offer special "Double Seventh" menus
-
-    - Regional Variations
-      - In some parts of China, women wash their hair with special water infused with flowers
-      - Some regions have specific local foods associated with the festival
-      - Different areas may have slight variations in how they tell the legend
-      - Some places focus more on traditional crafts, while others emphasize modern celebrations
-
-    - Cultural Significance
-      - Represents the Chinese ideal of eternal love
-      - Highlights the importance of dedication and perseverance in relationships
-      - Combines elements of romance with traditional Chinese values
+    - Game Event Duration: 1 day
+    - Chinese Valentine's Day
+    - Celebrated to commemorate the legend of the Cowherd and Weaver Girl (牛郎织女 / Niúláng Zhīnǚ)
+    - Celebrations include women praying for skills in needlework, making offerings to the stars, and young couples exchanging romantic gifts
 
   - #### Ghost Festival (中元节 / Zhōngyuán jié)
-    - Falls on the 15th day of the 7th lunar month
-    - Time for honoring ancestors and deceased family members
-    - Traditional offerings of food and burning of joss paper
+    - https://en.wikipedia.org/wiki/Ghost_Festival
+    - Falls on the 15th day of the 7th lunar month (14th in parts of southern China)
+    - Game Event Duration: 1 day
+    - Celebrated to comfort and appease spirits of the dead
+    - Celebrations include burning fake paper money and making offerings to ancestors
 
   - #### Mid-Autumn Festival (中秋节 / Zhōngqiū jié)
+    - https://en.wikipedia.org/wiki/Mid-Autumn_Festival
     - Falls on the 15th day of the 8th lunar month
-    - Celebrates family reunion and harvest
-    - Features moon viewing and eating mooncakes
-    - Traditional symbol of family unity and harmony
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate family reunion and harvest
+    - Celebrations include eating mooncakes, family reunions
+
+  - #### Monkey King Festival (齐天大圣千秋 / Qítiān Dàshèng Qiānqiū)
+    - https://en.wikipedia.org/wiki/Monkey_King_Festival
+    - Falls on the 16th day of the 8th lunar month
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the birth of Sun Wukong (孙悟空)
+    - Celebrations include visiting temples dedicated to Sun Wukong, watching performances of the Monkey King story, and participating in cultural activities related to the character
 
   - #### Double Ninth Festival (重阳节 / Chóngyáng jié)
+    - https://en.wikipedia.org/wiki/Double_Ninth_Festival
     - Falls on the 9th day of the 9th lunar month
-    - Traditional activities include climbing mountains and drinking chrysanthemum wine
-    - Also known as Senior CitiCháns' Festival in modern times
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate respect for elders and remembrance of ancestors
+    - Celebrations include autumn outings, mountain climbing, and visiting ancestors' graves
 
-  - #### Halloween (October 31)
-    - Religious and cultural celebration
-    - Trick-or-treating
-    - Costume parties
-    - Jack-o'-lanterns
-    - Haunted houses
-    - Fall festivals
+  - #### Winter Solstice (冬至节 / Dōngzhì jié)
+    - https://en.wikipedia.org/wiki/Dongzhi_Festival
+    - Falls on the day of winter solstice (usually December 21st or 22nd)
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the return of longer days and the balance of yin and yang
+    - Celebrations include eating tangyuan (汤圆) and jiuniang (酒酿), ancestor worship, and family gatherings
 
-  - #### Làbā Rice Festival (腊八节 / Làbā jié)
+  - #### Làbā Festival (腊八节 / Làbā jié)
+    - https://en.wikipedia.org/wiki/Laba_Festival
     - Falls on the 8th day of the 12th lunar month
-    - Traditional custom of eating Làbā congee
-    - Considered a prelude to Chinese New Year
+    - Game Event Duration: 1 day
+    - Marks the beginning of preparations for Chinese New Year
+    - Celebrated to commemorate Buddha's attainment of enlightenment
+    - Celebrations include eating Laba congee, made of mixed grains and fruits
 
-  - #### Christmas (December 25)
-    - Religious and cultural celebration
-    - Decorating Christmas trees
-    - Exchanging gifts
-    - Santa Claus traditions
-    - Christmas carols
-    - Family meals
-    - Holiday light displays
+  - #### Chinese New Year's Eve (除夕 / Chúxí)
+    - https://en.wikipedia.org/wiki/Chinese_New_Year%27s_Eve
+    - Falls on the last day of the lunar year
+    - Game Event Duration: 1 day
+    - Also known as 大年夜 / Dàniányè
+    - Celebrated to commemorate the end of the lunar year and the beginning of a new one
+    - Celebrations include family reunions, fireworks, and traditional foods
+
+  - #### Easter
+    - https://en.wikipedia.org/wiki/Easter
+    - Falls on the 1st Sunday after the 1st full moon following the vernal equinox
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the resurrection of Jesus Christ
+    - Celebrations include Easter egg hunts, Easter baskets, and Easter Bunny
+
+  - #### Wǔxiá Festival (武侠节 / Wǔxiá jié)
+    - https://en.wikipedia.org/wiki/Guan_Yu
+    - Falls on the last Monday in May
+    - Game Event Duration: 1 day
+    - Fictional festival created for game. Inspired by American Memorial Day
+    - Marks the beginning of summer activities
+    - Celebrated to commemorate warriors, military personnel, and veterans
+    - Celebrations include parades, picnics or bbqs, and offerings placed on veterans' graves, visiting temples dedicated to Guān Yǔ (关羽)
+
+  - #### Halloween
+    - https://en.wikipedia.org/wiki/Halloween
+    - Falls on October 31st
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the day of the dead
+    - Celebrations include costume parties, trick-or-treating, jack-o'-lanterns, and haunted houses
+
+  - #### Thanksgiving
+    - https://en.wikipedia.org/wiki/Thanksgiving
+    - Falls on the fourth Thursday in November
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the harvest and blessings
+    - Celebrations include family gatherings, feasts, and giving thanks
+
+  - #### Christmas
+    - https://en.wikipedia.org/wiki/Christmas
+    - Falls on December 25th
+    - Game Event Duration: 1 day
+    - Celebrated to commemorate the birth of Jesus Christ and the spirit of giving gifts
+    - Celebrations include Christmas trees, exchanging gifts, Santa Claus traditions, Christmas carols, family meals, and holiday light displays
 
   - #### Fairs, Carnivals, and Circuses
-    - Agricultural exhibitions
-    - Carnival amusements
-    - Food vendors
-    - Live entertainment
-    - Competitions and contests
+    - https://en.wikipedia.org/wiki/Fair
+    - https://en.wikipedia.org/wiki/Traveling_carnival
+    - https://en.wikipedia.org/wiki/Circus
+    - Game Event Duration: 1 week
+    - Celebrations include agricultural exhibitions, carnival amusements, food vendors, live entertainment, and competitions and contests
+
+- ### Chinese Cultural Elements
+
+  Chinese culture is rich with unique customs, symbols, and beliefs that can deeply enhance a fictional narrative. Incorporating these elements adds depth and cultural nuance, and they carry a wealth of meaning beyond their visual appeal. Here are some interesting Chinese cultural tropes, customs, and behaviors that can bring "flavor" to a narrative:
+
+  - #### The Concept of "Face" (面子 / Mianzi)
+    - **Saving Face**
+      - In Chinese culture, maintaining one’s dignity or "face" is of paramount importance. Face represents one’s social standing, reputation, and honor. People strive to save face, avoid losing face, and give face to others through compliments or respectful gestures. Public humiliation or criticism is a serious loss of face.
+    - **Giving Face**
+      - Elevating someone’s status in public by showing respect or deference is considered "giving face." This can be achieved through praise, offering a gift, or showing public support.
+
+  - #### The Concept of "Joss" (Luck/Fate)
+    - Joss refers to a form of fate or luck, often tied to the whims of the gods or cosmic forces. The term is commonly used in Southern China, Hong Kong, and among overseas Chinese communities. People may refer to someone as having “good joss” or “bad joss” depending on their luck. Incense offerings (called joss sticks) are burned in temples to communicate with the gods and ask for good fortune.
+
+  - #### Old Friend Status
+    - The phrase "old friend" (老朋友 / Lǎo péngyǒu) carries deep significance. Someone who is referred to as an "old friend" is more than just a long-time acquaintance; they are a trusted ally, someone with whom one has shared history, loyalty, and favors. Relationships in Chinese culture are built on guanxi (关系), a system of personal connections, trust, and mutual obligation. "Old friends" are expected to help each other, often without needing to ask.
+
+  - #### Curved Tiled Roofs
+    - Traditional Chinese architecture, with its curved tiled roofs and upturned eaves, often represents harmony with nature. These structures reflect the principles of Fēngshuǐ, the belief that buildings must be designed to promote good fortune by balancing energy (qi). The curvature of the roofs is believed to ward off evil spirits, as the spirits are thought to only travel in straight lines.
+
+  - #### Paper Lanterns
+    - Paper lanterns, particularly red ones, are iconic in Chinese celebrations and are often symbols of joy, prosperity, and hope. Lantern festivals, especially during the Lunar New Year, are celebrated with thousands of lanterns lit up to welcome the New Year. Lanterns can also have spiritual significance, guiding souls in the afterlife or celebrating familial unity.
+
+  - #### Red as a Lucky Color
+    - Red is the most auspicious color in Chinese culture, symbolizing joy, luck, prosperity, and good fortune. It is used in celebrations, weddings, and festivals. Red envelopes (红包 / hóngbāo) filled with money are given during the Lunar New Year, weddings, or births as a token of good luck and blessings.
+
+  - #### The Importance of Food and Banquets
+    - Food is central to Chinese culture and plays a vital role in social interactions. The phrase "吃了吗?" (Have you eaten?) is a common greeting, indicating the cultural importance of food in daily life. Lavish banquets are held to honor guests, celebrate important events, and solidify business relationships or alliances.
+    - Symbolic Foods: Certain dishes and ingredients have specific symbolic meanings, such as fish (abundance), noodles (longevity), and dumplings (wealth).
+
+  - #### Fēngshuǐ (风水)
+    - Fēngshuǐ is the ancient Chinese practice of harmonizing individuals with their surrounding environment. It is based on the belief that the layout of a space, the positioning of objects, and even the orientation of a building can influence the flow of energy (qi) and bring prosperity, health, and good fortune. This concept is important in architecture, urban planning, interior design, and burial practices.
+
+  - #### Ancestor Worship
+    - Honoring ancestors is a deeply rooted tradition in Chinese culture. Ancestors are believed to have the power to bless or curse their descendants. This reverence is shown through ancestral altars, burning joss sticks, and offering food or paper money to the spirits. Tomb Sweeping Day (清明节 / Qingming Festival) is a significant occasion where families visit ancestral graves to clean the tombstones and make offerings.
+
+  - #### Tea Culture
+    - Tea has profound cultural significance in China. It is not just a beverage but a symbol of hospitality, respect, and calmness. Tea ceremonies are used to welcome guests, conduct business, and mark important life events. The way tea is served and the selection of the tea itself carry messages about the host’s respect for the guest.
+    - Serving tea in weddings: The bride and groom serve tea to their elders as a sign of respect, and in return, they receive blessings and sometimes gifts.
+
+  - #### The Twelve Animals of the Chinese Zodiac
+    - The Chinese zodiac assigns a specific animal to each year in a 12-year cycle. These animals—Rat, Ox, Tiger, Rabbit, Dragon, Snake, Horse, Goat, Monkey, Rooster, Dog, and Pig—are believed to influence people’s personalities, compatibility, and destiny. Many festivals and customs revolve around these animals, such as the Year of the Dragon being considered particularly auspicious.
+
+  - #### Fortune Tellers and Divination
+    - The practice of consulting fortune tellers (算命师 / suànmìngshī) is common in Chinese culture, especially during life transitions, such as marriage, business decisions, or childbirth. Fortune tellers use various tools, such as the I Ching, face reading, and astrology, to predict the future or advise on auspicious dates.
+
+  - #### The Role of Scholars and Calligraphy
+    - Scholars hold a revered place in Chinese society, with the classic Confucian ideal of the "gentleman scholar" being a model for personal conduct. Calligraphy, considered the highest form of art, reflects a person’s moral integrity, education, and character. The strokes of the brush are thought to embody the soul of the calligrapher.
+
+  - #### Dragons as Symbols of Power
+    - Unlike Western dragons, Chinese dragons (龙 / Lóng) are auspicious creatures that symbolize strength, wisdom, and control over water. They are often seen as benevolent guardians and are associated with the emperor, who was historically referred to as the “Son of Heaven” and believed to have a dragon’s essence. Dragon dances during festivals are thought to ward off evil spirits and bring good fortune.
+
+  - #### The Concept of Yin and Yang
+    - Yin and Yang (阴阳) represent duality and balance. Everything in the universe is governed by these complementary forces. Yin is passive, feminine, and dark, while Yang is active, masculine, and bright. The harmony of these forces is essential to maintaining balance in life, health, and nature.
+
+  - #### Jade as a Symbol of Virtue and Immortality
+    - Jade (玉 / yù) is highly prized in Chinese culture, not only for its beauty but also for its symbolic value. It represents purity, wisdom, and immortality. Many people wear jade as an amulet for protection or good fortune. In ancient times, jade burial suits were used to protect the body and soul in the afterlife.
+
+  - #### The Power of Silence
+    - Silence is often valued in Chinese social interactions, especially in tense or formal situations. It is used as a tool to avoid conflict, show respect, or gather one’s thoughts before responding. In many cases, what is left unsaid is as important as what is spoken.
+
+  By weaving these cultural elements into your narrative, you can create a rich and textured world that is steeped in Chinese tradition, full of symbolic meaning, and layered with social customs that give depth to characters and plot.
 
 ## VI. User Interface (UI) Design
 
@@ -1138,9 +1276,9 @@
     - Use `Map` for key-value pairs with any type of key.
 
   - #### Naming Conventions
-   - Use PascalCase for class names (e.g., `class UserAccount {}`).
-   - Use camelCase for instances and variables (e.g., `const userAccount = new UserAccount()`).
-   - Use UPPER_SNAKE_CASE for constants (e.g., `const MAX_USERS = 100`).
+    - Use PascalCase for class names (e.g., `class UserAccount {}`).
+    - Use camelCase for instances and variables (e.g., `const userAccount = new UserAccount()`).
+    - Use UPPER_SNAKE_CASE for constants (e.g., `const MAX_USERS = 100`).
 
   - #### String Formatting
     - Utilize template literals for string formatting and multiline strings.
@@ -1166,8 +1304,6 @@
 
   - #### Modularity
     - Write modular code by separating concerns and using ES6 modules.
-
-- ### Best Practices and Coding Standards Summary
 
   By adhering to these practices, we aim to create a codebase that is not only functional but also maintainable, scalable, and easy to understand for all contributors.
 
