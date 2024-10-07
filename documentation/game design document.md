@@ -35,8 +35,7 @@
   - [Social Interactions](#social-interactions)
   - [Quest and Mission Structure](#quest-and-mission-structure)
   - [Economy](#economy)
-  - [Wǔxiá Elements](#wǔxiá-elements)
-  - [Common Wǔxiá Tropes](#common-wǔxiá-tropes)
+  - [Triangular Trade Conflict](#triangular-trade-conflict)
 - [V. World Design](#v-world-design)
   - [Key Locations](#key-locations)
   - [Dungeons and Raids](#dungeons-and-raids)
@@ -44,6 +43,9 @@
   - [Dynamic Events](#dynamic-events)
   - [Day/Night Cycle](#daynight-cycle)
   - [Holidays and Festivals](#holidays-and-festivals)
+  - [Chinese Cultural Elements](#chinese-cultural-elements)
+  - [Wǔxiá Elements](#wǔxiá-elements)
+  - [Common Wǔxiá Tropes](#common-wǔxiá-tropes)
 - [VI. User Interface (UI) Design](#vi-user-interface-ui-design)
 - [VII. Technical Specifications](#vii-technical-specifications)
 - [VIII. Art and Audio](#viii-art-and-audio)
@@ -68,7 +70,7 @@
 
 - ### Project Description
 
-  This project is a Multiplayer Game Server (MUD) designed for use with browser-based clients. It utilizes various technologies and architectural patterns to manage real-time communication, database interactions, game entity management, and player sessions. The server supports multiplayer gameplay by handling socket events, managing in-game entities like players, NPCs, and items, and by ensuring data consistency across connected clients. Its architecture is optimized for web-based interactions, making it ideal for games that can be played directly in web browsers without any need for additional software installation.
+  - This project is a Multiplayer Game Server (MUD) designed for use with browser-based clients. It utilizes various technologies and architectural patterns to manage real-time communication, database interactions, game entity management, and player sessions. The server supports multiplayer gameplay by handling socket events, managing in-game entities like players, NPCs, and items, and by ensuring data consistency across connected clients. Its architecture is optimized for web-based interactions, making it ideal for games that can be played directly in web browsers without any need for additional software installation.
 
 - ### Notice
   - This is a hobby project and is currently in a very early development stage.
@@ -193,8 +195,8 @@
   - #### Player-driven Economy
     - Create a living, breathing economic system where player actions and choices directly influence trade, scarcity, and value of goods along the Silk Road.
 
-  - #### Cultural Authenticity
-    - Showcase the diversity of cultures along the Silk Road, from China to Rome, with authentic representations of customs, languages, and traditions.
+  - #### Cultural Flavor
+    - Showcase the diversity of cultures along the Silk Road, from China to Rome, with representations of customs, languages, and traditions.
 
   - #### Narrative-rich Questing
     - Offer branching, consequence-driven quests that go beyond simple kil and fetch tasks, immersing players in complex storylines and moral dilemmas.
@@ -276,6 +278,7 @@
   - Real-time Combat Simulation
   - Attack and Defense Mechanics
   - Special Combat Skills and Cooldowns
+  - Dynamic Scaling
 
 - ### Gōngfu Styles and Techniques
 
@@ -290,6 +293,7 @@
   - Beggar Style
   - Buddha Style
   - Celestial Style
+  - Chán Style
   - Crane Style
   - Daoist Style
   - Demon Style
@@ -311,7 +315,6 @@
   - Wǔdāng Style
   - Xingyi Style
   - Yǒngchūn Style
-  - Chán Style
 
 - #### Techniques
 
@@ -642,132 +645,228 @@
 
 - ### Quest and Mission Structure
 
-  The quest system should be story-driven, informative, and educational, deeply immersing players in the rich tapestry of the game world. Quests serve multiple purposes beyond mere gameplay progression. They serve to enhance world-building, character development, and cultural exploration.
+  - #### Quest Log and Tracking
 
-- #### Quest Design Principles
+    - Provide a quest log system that tracks the player's quests. It is accessed through the quest menu. The quest log will display the player's current quests, their objectives, and their rewards.
 
-  - **Educational Value**
-    - Each quest should teach players something new about the game world, its history, or its cultures.
+  - #### Quest Outline System
 
-  - **Narrative Focus**
-    - Quests are primarily driven by compelling stories rather than simple fetch or kill objectives.
+    - Provide a quest outline system that provides a summary of the quest's objectives and rewards. This is accessed through the quest menu. The quest outline will display the player's current quest, its objectives, and its rewards..
 
-  - **Character Development**
-    - Missions should provide opportunities for players to develop their characters' skills, knowledge, and moral compass.
+  - #### Quest Design Principles
 
-  - **Player Choice**
-    - Where possible, quests should offer multiple paths or solutions, allowing players to shape the outcome based on their decisions.
+    - The quest system should be story-driven, informative, and educational, deeply immersing players in the rich tapestry of the game world. Quests serve multiple purposes beyond mere gameplay progression. They serve to enhance world-building, character development, and cultural exploration
 
-  - **Cultural Authenticity**
-    - Quests should accurately represent the diverse cultures along the Silk Road.
+    - **Educational Value**
+      - Each quest should teach players something new about the game world, its history, or its cultures.
 
-  - **Interconnected Storylines**
-    - Many quests will be part of larger, interconnected narratives, encouraging players to engage deeply with the game world.
+    - **Narrative Focus**
+      - Quests are primarily driven by compelling stories rather than simple fetch or kill objectives.
 
-- #### Quest Progression
+    - **Character Development**
+      - Missions should provide opportunities for players to develop their characters' skills, knowledge, and moral compass.
 
-  - **Introduction**
-    - Quests are introduced through engaging dialogues, discovered scrolls, or environmental storytelling.
+    - **Player Choice**
+      - Where possible, quests should offer multiple paths or solutions, allowing players to shape the outcome based on their decisions.
 
-  - **Investigation**
-    - Players often need to gather information, solve puzzles, or explore to progress in the quest.
+    - **Cultural Flavor**
+      - Quests should represent the diverse cultures along the Silk Road.
 
-  - **Challenges**
-    - These can include combat, negotiation, stealth, or puzzle-solving, tailored to the quest's theme.
+    - **Quest Chains and Interconnected Storylines**
+      - Quests may be part of larger, interconnected narratives, encouraging players to engage deeply with the game world.
 
-  - **Moral Choices**
-    - Many quests will present players with ethical dilemmas, influencing the outcome and their character's reputation.
+  - #### Compelling Themes for Quest Plots
 
-  - **Resolution**
-    - Quests conclude with meaningful resolutions that impact the game world or the player's understanding of it.
+      - **Faction Conflict**
+        - Storylines that revolve around the tension and battles between factions.
+      - **Tyranny and Rebellion**
+        - Storylines that involve themes of tyranny and rebellion.
+      - **Rebellion against the Aristocracy**
+        - Storylines that involve a rebellion against the aristocracy.
+      - **Protecting the Weak or Fighting for the Underdog**
+        - Storylines that involve themes of protecting the weak or fighting for the underdog.
+      - **Betrayal and Revenge**
+        - Storylines that involve themes of betrayal and revenge.
+      - **Betrayal and Redemption**
+        - Storylines that involve themes of betrayal and redemption.
+      - **Espionage, Betrayal, and Resistance**
+        - Storylines that involve espionage, betrayal, and resistance.
+      - **Villain's Redemption**
+        - Storylines that involve a villains's transformation to a hero.
+      - **Fallen Hero's Redemption**
+        - Storylines that involve redemption of a fallen hero.
+      - **Moral Uncertainty**
+        - Storylines that involve moral uncertainty, such as a character's struggle to do what is right.
+      - **Investigate an Intriguing Mystery**
+        - Storylines that involve investigating an intriguing mystery.
 
-  - **Reflection**
-    - Post-quest dialogues or journal entries encourage players to reflect on what they've learned or experienced.
+  - #### Elements of Compelling Quest Plots
 
-- #### Quest Types
+      - **High Emotional Stakes and Consequences**
+        - Storylines that involve high emotional stakes and consequences, such as the death of a loved one, the death of a major character, or the destruction of a city.
+      - **Morally Ambiguous Character**
+        - Storylines that involve a character that is complex and morally ambiguous, creating an intriguing narrative as players try to understand his motivations.
+      - **Morally Ambiguous Conflicts**
+        - Provide players dual perspectives, allowing them to see conflicts from both sides.
+      - **Engaging Quest Mechanics**
+        - Provide engaging quest mechanics, such as disguises to infiltrate the city, gain allies, and participate in covert missions. This variety adds layers of gameplay beyond traditional questing.
+      - **Epic Confrontations**
+        - Storylines that build up to a climactic confrontation, with players feeling a sense of anticipation and resolution when the final battle is won.
 
-  - **Historical Quests**
-    - These missions delve into the rich history of the Silk Road and ancient China, allowing players to participate in or uncover historical events.
+  - #### Quest Progression
 
-  - **Cultural Exploration**
-    - Quests that introduce players to customs, traditions, and cultural practices of various regions along the Silk Road.
+    - **Introduction**
+      - Quests are introduced through engaging dialogues, discovered scrolls, or environmental storytelling.
 
-  - **NPC Storylines**
-    - Personal narratives of NPCs, revealing their backgrounds, motivations, and conflicts, which players can influence through their choices.
+    - **Investigation**
+      - Players often need to gather information, solve puzzles, or explore to progress in the quest.
 
-  - **Philosophical Journeys**
-    - Missions that explore various schools of thought, including Buddhism, Daoism, and Confucianism, challenging players to contemplate moral dilemmas and philosophical questions.
+    - **Challenges**
+      - These can include combat, negotiation, stealth, or puzzle-solving, tailored to the quest's theme.
 
-  - **Martial Arts Quests**
-    - Tasks centered around learning, mastering, or uncovering secrets of various Gōngfu styles, often involving legendary masters or lost manuals.
+    - **Moral Choices**
+      - Many quests will present players with ethical dilemmas, influencing the outcome and their character's reputation.
 
-  - **Strategic Missions**
-    - Quests inspired by Sun Tzu's "Art of War," requiring players to apply strategic thinking in both combat and non-combat situations.
+    - **Resolution**
+      - Quests conclude with meaningful resolutions that impact the game world or the player's understanding of it.
 
-  - **Current Events**
-    - Missions that reflect the ongoing political, economic, or social issues in different regions of the game world.
+    - **Reflection**
+      - Post-quest dialogues or journal entries encourage players to reflect on what they've learned or experienced.
 
-- #### Reward System
+  - #### Quest Types
 
-  Rewards for completing quests go beyond traditional experience points and items:
+    - **Historical Quests**
+      - These missions delve into the rich history of the Silk Road and ancient China, allowing players to participate in or uncover historical events.
 
-  - **Knowledge**
-    - Players gain insights into the game world, unlocking new dialogue options or quest opportunities.
+    - **Cultural Exploration**
+      - Quests that introduce players to customs, traditions, and cultural practices of various regions along the Silk Road.
 
-  - **Skills**
-    - Some quests reward players with new Gōngfu techniques or improved abilities.
+    - **NPC Storylines**
+      - Personal narratives of NPCs, revealing their backgrounds, motivations, and conflicts, which players can influence through their choices.
 
-  - **Reputation**
-    - Completing quests affects the player's standing with various factions or individuals.
+    - **Philosophical Journeys**
+      - Missions that explore various schools of thought, including Buddhism, Daoism, and Confucianism, challenging players to contemplate moral dilemmas and philosophical questions.
 
-  - **Cultural Artifacts**
-    - Unique items that provide glimpses into the cultures of the Silk Road.
+    - **Martial Arts Quests**
+      - Tasks centered around learning, mastering, or uncovering secrets of various Gōngfu styles, often involving legendary masters or lost manuals.
 
-  - **Philosophical Insights**
-    - Completion of certain quests grants wisdom points, unlocking deeper understanding of various philosophies.
+    - **Strategic Missions**
+      - Quests inspired by Sun Tzu's "Art of War," requiring players to apply strategic thinking in both combat and non-combat situations.
 
-- #### Quest and Mission Structure Summary
+    - **Current Events**
+      - Missions that reflect the ongoing political, economic, or social issues in different regions of the game world.
 
-  By structuring quests in this manner, Silk Road: Legends of Wǔlín aims to create a deeply immersive and educational experience, where each mission contributes to the player's understanding and appreciation of the rich tapestry of cultures, philosophies, and histories along the Silk Road.
+    - **Main Story Quests**
+      - These quests drive the primary narrative of the game, involving key characters, significant events, and pivotal plot points. They are the backbone of the game's story, introducing players to major locations, conflicts, and characters. Each region of the game world has its own set of main quests, which guide players through new areas and immerse them in the central conflict. Main story quests typically follow a linear or semi-linear progression, requiring completion of one set to unlock the next, ensuring a cohesive and immersive storyline.
 
-- #### Possible Bonus Rewards for Quests
+    - **Side Quests**
+      - Side quests are supplementary tasks that provide additional world-building. They often focus on local events, characters, or smaller storylines not directly tied to the main storyline. These quests can range from collecting items to defeating specific enemies or helping an NPC with a personal problem.
 
-  - **Authority**
-    - Receive some specific authority or duty, such as a military command, judging crimes, investigating crimes, protecting the peace, enforcing the law, or tax collection.
+    - **World Quests**
+      - World Quests require travel to various areas throughout the world map. They encourage players to explore the world and engage in a variety of activities like combat, gathering, or even puzzles.
 
-  - **Blessing**
-    - Receive a permanent bonus. Perhaps its luck, attribute bonus, special ability, or skill.
+    - **Daily Quests**
+      - These quests can be completed once per day and are often tied to factions or specific areas. Daily quests often involve tasks like killing mobs, gathering items, or completing objectives in certain areas.
 
-  - **Expertise**
-    - PC becomes known as an expert in some field of study. This character will forever be sought for his expertise in that field.
+    - **Dungeon Raid Quests**
+      - These quests require players to complete dungeon raids, often culminating in boss fights or specific objectives within the instance.
 
-  - **Favor**
-    - Receive a single favor by someone with significant funds, ability, or political power.
+    - **Reputation Quests**
+      - Tied to specific factions, these quests allow players to gain reputation with certain groups in the game world.
 
-  - **Honorary Title**
-    - Receive a title that has local significance or wide-spread significance over the realm.
+    - **PvP Quests**
+      - These quests involve Player vs. Player (PvP) activities, such as participating in Battlegrounds,  Arenas, or Triangular Trade Conflicts.
 
-  - **Property**
-    - Receive ownership, command, or responsibility of land, village, trade port, ship, business, or some other type of physical property.
+    - **Crafting Quests**
+      - Quests designed for players to advance crafting and gathering skills. They involve tasks like collecting specific materials, creating items, or learning new recipes.
 
-  - **Recognition**
-    - Receive a hero's welcome whenever you pass this way.
+    - **Puzzle Quests**
+      - These quests require players to solve a puzzle or riddle.
 
-  - **Statue**
-    - The town erects a statue, monument, or dedication of some such thing in the PC's honor. This may be immediate or the character may find out later.
+    - **Survival Quests**
+      - These quests require players to survive a certain amount of time or complete a certain number of objectives.
 
-  - **Stock**
-    - Receive financial interest in some business or asset the increases wealth and prestige. Note that stock can lose value, depending on the market, drought in the case of livestock or farming, etcetera.
+    - **Negotiation and Diplomatic Quests**
+      - These quests require players to negotiate with NPCs or factions to complete objectives.
 
-  - **Treasure**
-    - Receive ownership, command, or responsibility of one or more lower-rank or minor NPCs, such as soldiers, mercenaries, scholars, navigators, merchants, servants, etcetera.
+    - **Talk Quests**
+      - These quests require players to talk to an NPC.
 
-  - **Wealth**
-    - Receive some reward in the form of treasure, gold, silver, gems, artifacts, fine art, etcetera.
+    - **Fetch Quests**
+      - These quests require players to fetch an item.
 
-- #### Quest Log
+    - **Deliver Quests**
+      - These quests require players to deliver an item.
 
-- #### Quest Outlines
+    - **Kill Quests**
+      - These quests require players to kill a specific number of enemies or a certain type of enemy.
+
+    - **Escort Quests**
+      - These quests require players to escort an NPC to a specific location. Escort quests are often more challenging, as they require players to protect the NPC from attacks.
+
+    - **Explore Quests**
+      - These quests require players to explore a specific area, from lush forests and peaceful villages to treacherous mountain paths and hidden caves.
+
+    - **Event Quests**
+      - These quests require players to participate in timed or holiday events.
+
+  - #### Reward System
+
+    - Rewards for completing quests go beyond traditional experience points and items:
+
+    - **Knowledge**
+      - Players gain insights into the game world, unlocking new dialogue options or quest opportunities.
+
+    - **Skills**
+      - Some quests reward players with new Gōngfu techniques or improved abilities.
+
+    - **Reputation**
+      - Completing quests affects the player's standing with various factions or individuals.
+
+    - **Cultural Artifacts**
+      - Unique items that provide glimpses into the cultures of the Silk Road.
+
+    - **Philosophical Insights**
+      - Completion of certain quests grants wisdom points, unlocking deeper understanding of various philosophies.
+
+  - #### Possible Bonus Rewards for Quests
+
+    - **Authority**
+      - Receive some specific authority or duty, such as a military command, judging crimes, investigating crimes, protecting the peace, enforcing the law, or tax collection.
+
+    - **Blessing**
+      - Receive a permanent bonus. Perhaps its luck, attribute bonus, special ability, or skill.
+
+    - **Expertise**
+      - PC becomes known as an expert in some field of study. This character will forever be sought for his expertise in that field.
+
+    - **Favor**
+      - Receive a single favor by someone with significant funds, ability, or political power.
+
+    - **Honorary Title**
+      - Receive a title that has local significance or wide-spread significance over the realm.
+
+    - **Property**
+      - Receive ownership, command, or responsibility of land, village, trade port, ship, business, or some other type of physical property.
+
+    - **Recognition**
+      - Receive a hero's welcome whenever you pass this way.
+
+    - **Statue**
+      - The town erects a statue, monument, or dedication of some such thing in the PC's honor. This may be immediate or the character may find out later.
+
+    - **Stock**
+      - Receive financial interest in some business or asset the increases wealth and prestige. Note that stock can lose value, depending on the market, drought in the case of livestock or farming, etcetera.
+
+    - **Treasure**
+      - Receive ownership, command, or responsibility of one or more lower-rank or minor NPCs, such as soldiers, mercenaries, scholars, navigators, merchants, servants, etcetera.
+
+    - **Wealth**
+      - Receive some reward in the form of treasure, gold, silver, gems, artifacts, fine art, etcetera.
+
+  - #### Quest and Mission Structure Summary
+
+    By structuring quests in this manner, Silk Road: Legends of Wǔlín aims to create a deeply immersive and educational experience, where each mission contributes to the player's understanding and appreciation of the rich tapestry of cultures, philosophies, and histories along the Silk Road.
 
 - ### Economy
 
