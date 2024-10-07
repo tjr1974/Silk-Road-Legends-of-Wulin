@@ -775,42 +775,55 @@
    - Item Rarity and Value
    - Player-driven Markets
 
-- ### Wǔxiá Elements
+- ### Triangular Trade Conflict
 
-  - #### Martial Arts Mastery
-    - Focus on learning and improving various Gōngfu styles
+  Triangular Trade Conflict refers to a dynamic and strategic aspect of the game involving three main factions: Traders, Escorts, and Thieves. This conflict is designed to create a balanced and engaging player-versus-player (PVP) experience, where each faction has its own objectives and methods of interaction. Here's a breakdown of each faction and their role in this conflict:
 
-  - #### Legendary Weapons
-    - Quests for coveted, non-magical but exceptional weapons
+  - #### Traders
 
-  - #### Secret Manuals
-    - Discovery and mastery of forbidden or lost Gōngfu techniques
+    - **Role**
+      - Traders are the primary driving force behind the economy. They transport goods between towns to make a profit by buying low and selling high.
 
-  - #### Wǔlín Dominance
-    - Struggle for power and influence within the martial arts world
+    - **Objective**
+      - The main goal of Traders is to safely transport goods to their destination to maximize profits. They often travel in caravans for added protection.
 
-  - #### Vengeance Quests
-    - Opportunities for players to seek revenge or redemption
+    - **Challenges**
+      - Traders are frequently targeted by Thieves who aim to steal their goods. They must be vigilant and may hire Escorts to protect their caravans.
 
-  - #### Wǔlín Intrigue
-    - Complex relationships and conflicts between characters and factions
+  - #### Escorts
 
-- ### Common Wǔxiá Tropes
+    - **Role**
+      - Escorts are players who specialize in combat and are often hired by Traders to protect their caravans from Thieves.
 
-  - #### Insurgency
-    - Wǔxiá stories are frequently set during the Míng and Qīng Dynasty (清朝) periods, and to a lesser extent, the Yuán (元朝) and Southern Sòng Dynasty (南宋). As is well-known, these were the centuries when China was under threat, or already conquered and ruled by foreign powers. Wǔxiá stories set in these periods thus often feature martial artists gathering to resist invasion or to overthrow occupying forces.
+    - **Objective**
+      - Escorts aim to defend Traders' goods from being stolen by Thieves. They are rewarded for successfully protecting caravans and eliminating Thieves.
 
-  - #### Legendary Weapons or Skills
-    - With Gōngfu being the heart of Wǔxiá, many stories naturally involve quests or competitions for legendary weapons (兵器 bīngqì) and skills. In the case of the latter, it is usually some forbidden manual (秘笈 mìjí) that records exotic or lost Gōngfu techniques. To repeat, legendary weapons in Wǔxiá do not possess magical properties too. They are typically coveted for their finesse or are themselves keys to greater treasures.
+    - **Challenges**
+      - Escorts must be skilled in combat and strategic planning to defend against Thieves, who are typically well-prepared and aggressive.
 
-  - #### Wǔlín Dominance
-    - Wǔlín (武林), or Jiānghú (江湖), is the world of Chinese martial artists. It encompasses all clans and sects, unaffiliated individuals, as well as the interactions between these characters and factions. Wǔxiá novels centered on Wǔlín thus frequently feature one clan or individual rising to power through sheer pugilistic superiority or ruthless machinations. The bulk of the story is then about the struggle to overthrow this tyrant. Typically, with the "main hero" mastering some form of superior technique.
+  - #### Thieves
 
-  - #### Vengeance
-    - The trope of vengeance is heavily used in Wǔxiá stories. Usually, it involves a conflicted individual seeking revenge for the murder of his clan or sect. Or it could be the quest to redeem one's honor after a mortifying defeat.
+    - **Role**
+      - Thieves are players who target Traders' caravans to steal their goods. Stealing adds an element of risk and reward to the game.
 
-  - #### Wǔlín Intrigue
-    - Outside of insurgencies, inter-faction struggles, and so on, many Wǔxiá stories also examine the intricate relationships between larger-than-life characters. Common sub-themes include love, rivalry, greed, the burden of family name, and other human conflicts.
+    - **Objective**
+      - The main goal of Thieves is to intercept and steal the goods being transported by Traders. Successful thefts can be highly profitable.
+
+    - **Challenges**
+      - Thieves face opposition from both Traders and Escorts. They must be stealthy, quick, and skilled in combat to successfully steal goods.
+
+  - #### Interaction and Dynamics
+
+    - **Triangular Conflict**
+      - The dynamic between Traders, Escorts, and Thieves creates an engaging PVP environment. Traders must navigate the risks associated with transporting goods, Escorts provide protection and security, while Thieves add an element of unpredictability and danger.
+
+    - **Balance and Strategy**
+      - The game aims to maintain a balance between these three factions, ensuring that none becomes overly dominant. Strategic planning and cooperation are essential for success.
+
+    - **Rewards and Consequences**
+      - Successfully completing objectives as a Trader, Escort, or Thief can yield significant rewards. Conversely, failure can result in financial loss.
+
+  This Triangular Trade Conflict adds depth and excitement to the game's PVP experience. It encourages strategic thinking, cooperation, and competition among players, creating a rich and dynamic gameplay environment.
 
 ## V. World Design
 
@@ -1127,6 +1140,43 @@
     - The Chinese zodiac assigns a specific animal to each year in a 12-year cycle. These animals—Rat, Ox, Tiger, Rabbit, Dragon, Snake, Horse, Goat, Monkey, Rooster, Dog, and Pig—are believed to influence people's personalities, compatibility, and destiny. Many festivals and customs revolve around these animals, such as the Year of the Dragon being considered particularly auspicious.
 
   By weaving these cultural elements into your narrative, you can create a rich and textured world that is steeped in Chinese tradition, full of symbolic meaning, and layered with social customs that give depth to characters and plot.
+
+- ### Wǔxiá Elements
+
+  - #### Martial Arts Mastery
+    - Focus on learning and improving various Gōngfu styles
+
+  - #### Legendary Weapons
+    - Quests for coveted, non-magical but exceptional weapons
+
+  - #### Secret Manuals
+    - Discovery and mastery of forbidden or lost Gōngfu techniques
+
+  - #### Wǔlín Dominance
+    - Struggle for power and influence within the martial arts world
+
+  - #### Vengeance Quests
+    - Opportunities for players to seek revenge or redemption
+
+  - #### Wǔlín Intrigue
+    - Complex relationships and conflicts between characters and factions
+
+- ### Common Wǔxiá Tropes
+
+  - #### Insurgency
+    - Wǔxiá stories are frequently set during the Míng and Qīng Dynasty (清朝) periods, and to a lesser extent, the Yuán (元朝) and Southern Sòng Dynasty (南宋). As is well-known, these were the centuries when China was under threat, or already conquered and ruled by foreign powers. Wǔxiá stories set in these periods thus often feature martial artists gathering to resist invasion or to overthrow occupying forces.
+
+  - #### Legendary Weapons or Skills
+    - With Gōngfu being the heart of Wǔxiá, many stories naturally involve quests or competitions for legendary weapons (兵器 bīngqì) and skills. In the case of the latter, it is usually some forbidden manual (秘笈 mìjí) that records exotic or lost Gōngfu techniques. To repeat, legendary weapons in Wǔxiá do not possess magical properties too. They are typically coveted for their finesse or are themselves keys to greater treasures.
+
+  - #### Wǔlín Dominance
+    - Wǔlín (武林), or Jiānghú (江湖), is the world of Chinese martial artists. It encompasses all clans and sects, unaffiliated individuals, as well as the interactions between these characters and factions. Wǔxiá novels centered on Wǔlín thus frequently feature one clan or individual rising to power through sheer pugilistic superiority or ruthless machinations. The bulk of the story is then about the struggle to overthrow this tyrant. Typically, with the "main hero" mastering some form of superior technique.
+
+  - #### Vengeance
+    - The trope of vengeance is heavily used in Wǔxiá stories. Usually, it involves a conflicted individual seeking revenge for the murder of his clan or sect. Or it could be the quest to redeem one's honor after a mortifying defeat.
+
+  - #### Wǔlín Intrigue
+    - Outside of insurgencies, inter-faction struggles, and so on, many Wǔxiá stories also examine the intricate relationships between larger-than-life characters. Common sub-themes include love, rivalry, greed, the burden of family name, and other human conflicts.
 
 ## VI. User Interface (UI) Design
 
