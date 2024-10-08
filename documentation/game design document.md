@@ -163,6 +163,7 @@
   - [Best Practices and Coding Standards](#best-practices-and-coding-standards)
   - [Instructional Guide: Optimize Server Side Code](#instructional-guide-optimize-server-side-code)
   - [Instructional Guide: Optimize Client Side Code](#instructional-guide-optimize-client-side-code)
+  - [Móguǐ](#móguǐ)
   - [About the Author](#about-the-author)
 
 ---
@@ -2102,6 +2103,30 @@
 
   - #### Algorithms
     - Use efficient algorithms for sorting, searching, and other operations.
+
+
+- ### Móguǐ
+
+  - #### History
+    The origin of Móguǐ (魔鬼) dates back to ancient China, where they were created by the sibling deities of creation, Fúxī (伏羲) and Nüwa (女娲), as part of a divine wager. The gods sought to test their differing views on humanity. Nüwa believed humans were inherently good, while Fúxī took a more cynical view, believing humans to be prone to corruption.
+
+    As part of the wager, Nüwa created the Móguǐ, embodying the purity and potential of goodness. However, Fúxī cursed them, giving young Móguǐ a chaotic and destructive nature. The wager’s outcome hinged on the humans of Fēngdū Ghost City (丰都鬼城 / Fēngdū Guǐ Chéng), who were tasked with caring for the Móguǐ. If they could nurture and preserve the Móguǐ, Nüwa would win, proving that humanity was indeed good at its core. If they failed, Fúxī would win.
+
+    Initially, all went well. Humans adored the Móguǐ and their presence became highly sought after. However, the chaos caused by proliferation of mischievous young Móguǐ led to widespread disorder and death. Over time, the situation spiraled out of control. Fearing for the safety of the world, Nüwa intervened, conceding the wager to Fúxī. As her final act of creation, she secluded the Móguǐ in the Valley of Jade, where they could live in peace, away from the rest of the world.
+
+  - #### Biology
+    Móguǐ are small and mystical creatures, typically standing under two feet tall. They're covered in soft fur and exhibit a variety of colors. Their most distinctive features include broad heads, large bat-like ears, big expressive eyes, and a softly curved tail. Their limbs are short and stubby, adding to their endearing appearance. While there is little physical difference between males and females, females are distinguished by their long eyelashes.
+
+    Móguǐ are highly intelligent and generally cheerful creatures. They like to eat just about anything, except each other.
+
+    Possessing extraordinary healing and rejuvenation abilities, Móguǐ are natural healers. They freely use their powers to aid other creatures in need. Their own healing ability is so potent that it continuously regenerates their bodies, making them resistant to illness and nearly immune to pain.
+
+  - #### Behavior
+    Móguǐ behavior changes significantly with age. Young Móguǐ, under the curse of the god Fúxī, are notorious for causing mischief and chaos. For the first hundred years of their lives, they act as destructive tricksters, often causing havoc wherever they go. Each young Móguǐ has its own unique personality, but they all share a mischievous and sometimes malicious streak during their early years.
+
+    Once they surpass a century of life, however, they become far more docile and peaceful. Mature Móguǐ are altruistic, courageous, and known for their heroic qualities. While they may retain a few mischievous traits and occasionally make trouble, it's not due to any ill intent.
+
+    Móguǐ are typically shy, but they are also caring and friendly toward creatures that show them kindness. They form deep bonds with those they trust, offering protection, healing, and even guidance to their companions. As loyal companions, Móguǐ often follow their chosen caretakers, eager to serve and assist.
 
 - ### About the Author
 
