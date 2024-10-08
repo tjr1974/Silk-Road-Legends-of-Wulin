@@ -169,6 +169,7 @@
   - [Efficient Data Structure Types](#efficient-data-structure-types)
   - [Móguǐ](#móguǐ)
   - [About the Author](#about-the-author)
+  - [Todo List](#todo-list)
 
 ---
 
@@ -2974,3 +2975,54 @@
   And he played it all alone.
 
   Until he shared this game with his buds.
+
+- ### Todo List
+
+  - #### User Authentication and Management
+    - Implement character creation, login, and session management to handle player accounts securely.
+  - #### User Interface
+    - Develop a user interface for players to interact with the game, including inventory management, character stats, and game notifications.
+  - #### Game State Synchronization
+    - Ensure that the game state is synchronized across all connected clients, especially during events like combat or item transactions.
+  - #### Player Customization
+    - Allow players to customize their characters (appearance, skills, etc.).
+  - #### Quest System
+    - Implement a quest system with objectives, rewards, and tracking.
+  - #### Skill Trees
+    - Implement skill trees for character progression, allowing players to specialize.
+  - #### Multiplayer Features
+    - Add support for multiplayer interactions (groups, clans, etcetera).
+  - #### Event System
+    - Create a more comprehensive event system to handle various game events (e.g., player actions, NPC interactions) and allow for extensibility.
+  - #### Dynamic Events
+    - Create dynamic world events that can change the game state (e.g., invasions, festivals).
+  - #### Environmental Effects
+    - Add weather and time-of-day effects that influence gameplay.
+  - #### NPC Interactions
+    - Enhance NPC interactions with dialogue trees and relationship systems.
+  - #### NPC AI
+    - Develop AI behaviors for NPCs to make them more interactive and responsive to player actions.
+  - #### Crafting System
+    - Introduce a crafting system for players to create items from resources.
+  - #### Achievements and Leaderboards
+    - Implement achievements and leaderboards to encourage competition.
+  - #### Tutorial System
+    - Create a tutorial to help new players understand game mechanics.
+  - #### Feedback System
+    - Implement a feedback system for players to report bugs or suggest features.
+  - #### Community Features
+    - Add features for player interaction, such as chat, forums, and player-run events.
+  - #### Server Management Tools
+    - Develop tools for server administrators to manage player data, events, and game settings.
+  - #### Backup and Restore
+    - Implement a backup system to restore game data in case of server crashes.
+  - #### Security
+    - Implement security measures to prevent unauthorized access to the server and player data, prevent cheating, provide input validation, rate limiting, and secure data transmission.
+  - #### Performance Optimization
+    - Optimize server performance to handle a large number of players and events.
+  - #### Online Creation
+    - For adding new locations, npcs, items, quests, etc. we should have a fully online creation system, where builders can edit the game world.
+  - #### Maintain Configuration System
+    - Use configuration file to define game elements, reducing the need for hardcoded values.
+  - #### Maintain Documentation
+    - Provide comprehensive documentation for the server's API, game mechanics, and setup instructions for future developers.
