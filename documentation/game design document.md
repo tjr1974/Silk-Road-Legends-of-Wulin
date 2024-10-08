@@ -24,6 +24,18 @@
     - [Community-Oriented Players](#community-oriented-players)
     - [Narrative Enthusiasts](#narrative-enthusiasts)
   - [Unique Selling Points](#unique-selling-points)
+    - [Browser-based Accessibility](#browser-based-accessibility)
+    - [Educational Value](#educational-value)
+    - [Rich Historical Setting](#rich-historical-setting)
+    - [Cultural Flavor](#cultural-flavor)
+    - [Regular Cultural Events](#regular-cultural-events)
+    - [Wǔxiá-inspired Gameplay](#wǔxiá-inspired-gameplay)
+    - [Flexible Character Development](#flexible-character-development)
+    - [Dynamic Faction System](#dynamic-faction-system)
+    - [Narrative-rich Questing](#narrative-rich-questing)
+    - [Player-driven Economy](#player-driven-economy)
+    - [Community-centric Design](#community-centric-design)
+    - [Adaptive Difficulty](#adaptive-difficulty)
 - [III. Story and Setting](#iii-story-and-setting)
   - [World Background](#world-background)
   - [Main Storyline](#main-storyline)
@@ -230,38 +242,39 @@
   This game's browser-based nature and the blend of historical, cultural, and fantastical elements make it accessible to a wide age range, typically 10 and above, with a core demographic of 18-50 year-olds. The game's depth and complexity should appeal to dedicated gamers, while its educational aspects and cultural richness should attract a broader audience interested in Chinese history and culture.
 
 - ### Unique Selling Points
-  - #### Rich Historical Setting
-    - Immerse players in the vibrant world of ancient China and the Silk Road, offering a unique blend of historical accuracy and fantasy elements.
-
-  - #### Educational Value
-    - Seamlessly integrate learning about Chinese history, culture, and philosophy into engaging gameplay mechanics and quests.
-
-  - #### Wǔxiá-inspired Gameplay
-    - Offer players the chance to live out their martial arts fantasies with a deep, customizable Gōngfu system inspired by classic Wǔxiá literature and films.
 
   - #### Browser-based Accessibility
     - Provide a deep, multiplayer experience directly through web browsers, eliminating the need for downloads or installations.
 
-  - #### Dynamic Faction System
-    - Allow players to navigate complex political and social landscapes, with their choices affecting their standing in various factions and guilds.
+  - #### Educational Value
+    - Seamlessly integrate learning about Chinese history, culture, and philosophy into engaging gameplay mechanics and quests.
 
-  - #### Flexible Character Development
-    - Break away from rigid class systems, allowing players to craft truly unique characters by mixing and matching skills, professions, and martial arts styles.
-
-  - #### Player-driven Economy
-    - Create a living, breathing economic system where player actions and choices directly influence trade, scarcity, and value of goods along the Silk Road.
+  - #### Rich Historical Setting
+    - Immerse players in the vibrant world of ancient China and the Silk Road, offering a unique blend of historical accuracy and fantasy elements.
 
   - #### Cultural Flavor
     - Showcase the diversity of cultures along the Silk Road, from China to Rome, with representations of customs, languages, and traditions.
 
+  - #### Regular Cultural Events
+    - Celebrate cultures with in-game events tied to historical festivals and holidays, offering unique rewards and experiences.
+
+  - #### Wǔxiá-inspired Gameplay
+    - Offer players an opportunity to experience martial arts fantasy with a deep, customizable Gōngfu system inspired by classic Wǔxiá literature and films.
+
+  - #### Flexible Character Development
+    - Break away from rigid class systems, allowing players to craft truly unique characters by mixing and matching skills, professions, and martial arts styles.
+
+  - #### Dynamic Faction System
+    - Allow players to navigate complex political and social landscapes, with their choices affecting their standing in various factions and guilds.
+
   - #### Narrative-rich Questing
-    - Offer branching, consequence-driven quests that go beyond simple kil and fetch tasks, immersing players in complex storylines and moral dilemmas.
+    - Offer branching, consequence-driven quests that go beyond simple kill and fetch tasks, immersing players in complex storylines and moral dilemmas.
+
+  - #### Player-driven Economy
+    - Create a living, breathing economic system where player actions and choices directly influence trade, scarcity, and value of goods along the Silk Road.
 
   - #### Community-centric Design
     - Foster a strong sense of community through guild systems, player-run events, and collaborative challenges that encourage teamwork and social interaction.
-
-  - #### Regular Cultural Events
-    - Celebrate Chinese and other Silk Road cultures with in-game events tied to historical festivals and holidays, offering unique rewards and experiences.
 
   - #### Adaptive Difficulty
     - Provide a challenging experience for veteran MUD players while remaining accessible to newcomers through intelligent difficulty scaling and optional tutorials.
@@ -1117,7 +1130,7 @@
     - **Dynamic Relationships**
       - Allow players to build relationships with quest-giving characters, potentially influencing future quests based on trust or enmity.
     - **Unique Dialogues**
-      - Use distinctive speech patterns or languages for different cultures and races within the game to increase authenticity and immersion.
+      - Use distinctive speech patterns or languages for different cultures within the game to increase authenticity and immersion.
 
   - #### **Engaging Rewards and Incentives**
     Properly balancing the reward structure in quests keeps players invested:
