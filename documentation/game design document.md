@@ -7,6 +7,7 @@
   - [Genre](#genre)
   - [Platform](#platform)
   - [Player Capacity](#player-capacity)
+  - [Monetization](#monetization)
   - [Core Gameplay Loop](#core-gameplay-loop)
 - [II. Executive Summary](#ii-executive-summary)
   - [Splash Page](#splash-page)
@@ -54,14 +55,27 @@
     - [Techniques](#techniques)
     - [Learning and Mastery](#learning-and-mastery)
     - [Cultural and Historical Context](#cultural-and-historical-context)
-  - [Non-combat Activities](#non-combat-activities)
-  - [Social Interactions](#social-interactions)
-  - [Economy](#economy)
+  - [PvE and PvP](#pve-and-pvp)
   - [Triangular Trade Conflict](#triangular-trade-conflict)
     - [Traders](#traders)
     - [Escorts](#escorts)
     - [Thieves](#thieves)
     - [Interaction and Dynamics](#interaction-and-dynamics)
+  - [Non-combat Activities](#non-combat-activities)
+    - [Crafting](#crafting)
+    - [Trading](#trading)
+    - [Exploration](#exploration)
+    - [Pet and Companion Acquisition](#pet-and-companion-acquisition)
+    - [Mount Acquisition](#mount-acquisition)
+  - [Social Interactions](#social-interactions)
+    - [Chat Systems](#chat-systems)
+    - [Party/Group Formation](#partygroup-formation)
+    - [Guild/Clan Systems](#guildclan-systems)
+    - [Social Commands](#social-commands)
+  - [Economy](#economy)
+    - [Currency Systems](#currency-systems)
+    - [Item Rarity and Value](#item-rarity-and-value)
+    - [Player-driven Markets](#player-driven-markets)
 - [V. Quest System](#v-quest-system)
   - [Quest Log and Tracking](#quest-log-and-tracking)
   - [Quest Outline System](#quest-outline-system)
@@ -75,11 +89,11 @@
   - [Instructional Guide: Quest Design](#instructional-guide-quest-design)
 - [VI. World Design](#vi-world-design)
   - [Key Locations](#key-locations)
-  - [Dungeons and Raids](#dungeons-and-raids)
+  - [Dungeon Raids](#dungeon-raids)
   - [Environmental Hazards](#environmental-hazards)
   - [Dynamic Events](#dynamic-events)
   - [Day/Night Cycle](#daynight-cycle)
-  - [Holidays and Festivals](#holidays-and-festivals)
+  - [Seasonal Events, Holidays, and Festivals](#seasonal-events-holidays-and-festivals)
   - [Chinese Cultural Elements](#chinese-cultural-elements)
   - [Wǔxiá Elements](#wǔxiá-elements)
   - [Common Wǔxiá Tropes](#common-wǔxiá-tropes)
@@ -182,6 +196,9 @@
 
 - ### Player Capacity
   - Multiplayer
+
+- ### Monetization
+  - Free-to-Play Model
 
 - ### Core Gameplay Loop
   - Character creation, skill development, combat, questing, trading, and social interactions in a Wuxia-themed ancient Far East setting
@@ -361,16 +378,16 @@
 
 - ### Progression System
 
-  - Experience Points
-  - Leveling Mechanics
-  - Skill Advancement
+  - #### Experience Points
+  - #### Leveling Mechanics
+  - #### Skill Advancement
 
 - ### Combat System
 
-  - Real-time Combat Simulation
-  - Attack and Defense Mechanics
-  - Special Combat Skills and Cooldowns
-  - Dynamic Scaling
+  - #### Real-time Combat Simulation
+  - #### Attack and Defense Mechanics
+  - #### Special Combat Skills and Cooldowns
+  - #### Dynamic Scaling
 
 - ### Gōngfu Styles and Techniques
 
@@ -714,26 +731,10 @@
     - Players delve into the lore of each style, understanding its origins and famous practitioners
     - Certain styles may be associated with specific factions or regions in the game world
 
-
   This comprehensive Gōngfu system adds depth to character development and overall immersion in the world.
 
-- ### Non-combat Activities
-
-   - Crafting
-   - Trading
-   - Exploration
-
-- ### Social Interactions
-
-   - Chat Systems
-   - Party/Group Formation
-   - Guild/Clan Systems
-
-- ### Economy
-
-   - Currency Systems
-   - Item Rarity and Value
-   - Player-driven Markets
+- ### PvE and PvP
+  Players may participate in both Player vs. Environment (PvE) content, such as dungeons, boss fights, and quests, as well as Player vs. Player (PvP) modes.
 
 - ### Triangular Trade Conflict
 
@@ -785,19 +786,56 @@
 
   This Triangular Trade Conflict adds depth and excitement to the game's PVP experience. It encourages strategic thinking, cooperation, and competition among players, creating a rich and dynamic gameplay environment.
 
+- ### Non-combat Activities
+
+  - #### Crafting
+    - Players may craft various items, weapons, and gear by collecting resources found throughout the world.
+
+  - #### Trading
+    - Players may trade goods with other players or NPCs.
+
+  - #### Exploration
+    - Players may  explore the game world to discover new areas, hidden treasures, and secrets.
+
+  - #### Pet and Companion Acquisition
+    - Players may acquire pets, including Móguǐ (魔鬼), by completing special pet quests. Pets may attack and provide buffs.
+
+  - #### Mount Acquisition
+    - Players may acquire mounts, including dragons, by completing special mount quests.
+
+- ### Social Interactions
+
+  - #### Chat Systems
+    - Players may chat with other players or NPCs.
+
+  - #### Party/Group Formation
+    - Players may form parties or groups to complete quests or engage in combat.
+
+  - #### Guild/Clan Systems
+    - Players may join guilds or clans to gain access to special benefits and engage in faction-based PvP.
+
+  - #### Social Commands
+    - Players may use social commands for enhanced role-play interactions with other players or NPCs.
+
+- ### Economy
+
+  - #### Currency Systems
+  - #### Item Rarity and Value
+  - #### Player-driven Markets
+
 - ## V. Quest System
 
   - ### Quest Log and Tracking
 
-    - Provide a quest log system that tracks the player's quests. It is accessed through the quest menu. The quest log will display the player's current quests, their objectives, and their rewards.
+    Provide a quest log system that tracks the player's quests. It is accessed through the quest menu. The quest log will display the player's current quests, their objectives, and their rewards.
 
   - ### Quest Outline System
 
-    - Provide a quest outline system that provides a summary of the quest's objectives and rewards. This is accessed through the quest menu. The quest outline will display the player's current quest, its objectives, and its rewards..
+    Provide a quest outline system that provides a summary of the quest's objectives and rewards. This is accessed through the quest menu. The quest outline will display the player's current quest, its objectives, and its rewards..
 
   - ### Quest Design Principles
 
-    - The quest system should be story-driven, informative, and educational, deeply immersing players in the rich tapestry of the game world. Quests serve multiple purposes beyond mere gameplay progression. They serve to enhance world-building, character development, and cultural exploration
+    The quest system should be story-driven, informative, and educational, deeply immersing players in the rich tapestry of the game world. Quests serve multiple purposes beyond mere gameplay progression. They serve to enhance world-building, character development, and cultural exploration
 
     - **Educational Value**
       - Each quest should teach players something new about the game world, its history, or its cultures.
@@ -819,178 +857,178 @@
 
   - ### Compelling Themes for Quest Plots
 
-      - **Invasion from foreign powers**
-        - Storylines that revolve around invasions from foreign powers.
+    - **Invasion from foreign powers**
+      - Storylines that revolve around invasions from foreign powers.
 
-      - **Faction Conflict**
-        - Storylines that revolve around the tension and battles between factions.
+    - **Faction Conflict**
+      - Storylines that revolve around the tension and battles between factions.
 
-      - **Tyranny and Rebellion**
-        - Storylines that involve themes of tyranny and rebellion.
+    - **Tyranny and Rebellion**
+      - Storylines that involve themes of tyranny and rebellion.
 
-      - **Rebellion against the Aristocracy**
-        - Storylines that involve a rebellion against the aristocracy.
+    - **Rebellion against the Aristocracy**
+      - Storylines that involve a rebellion against the aristocracy.
 
-      - **Protecting the Weak or Fighting for the Underdog**
-        - Storylines that involve themes of protecting the weak or fighting for the underdog.
+    - **Protecting the Weak or Fighting for the Underdog**
+      - Storylines that involve themes of protecting the weak or fighting for the underdog.
 
-      - **Betrayal and Revenge**
-        - Storylines that involve themes of betrayal and revenge.
+    - **Betrayal and Revenge**
+      - Storylines that involve themes of betrayal and revenge.
 
-      - **Betrayal and Redemption**
-        - Storylines that involve themes of betrayal and redemption.
+    - **Betrayal and Redemption**
+      - Storylines that involve themes of betrayal and redemption.
 
-      - **Espionage, Betrayal, and Resistance**
-        - Storylines that involve espionage, betrayal, and resistance.
+    - **Espionage, Betrayal, and Resistance**
+      - Storylines that involve espionage, betrayal, and resistance.
 
-      - **Villain's Redemption**
-        - Storylines that involve a villains's transformation to a hero.
+    - **Villain's Redemption**
+      - Storylines that involve a villains's transformation to a hero.
 
-      - **Fallen Hero's Redemption**
-        - Storylines that involve redemption of a fallen hero.
+    - **Fallen Hero's Redemption**
+      - Storylines that involve redemption of a fallen hero.
 
-      - **Moral Uncertainty**
-        - Storylines that involve moral uncertainty, such as a character's struggle to do what is right.
+    - **Moral Uncertainty**
+      - Storylines that involve moral uncertainty, such as a character's struggle to do what is right.
 
-      - **Investigate an Intriguing Mystery**
-        - Storylines that involve investigating an intriguing mystery.
+    - **Investigate an Intriguing Mystery**
+      - Storylines that involve investigating an intriguing mystery.
 
-      - **Rise to Power**
-        - Storylines that involve a character's rise to power, whether through ambition, leadership, or sheer force of will.
+    - **Rise to Power**
+      - Storylines that involve a character's rise to power, whether through ambition, leadership, or sheer force of will.
 
-      - **Quest for Immortality**
-        - Storylines that explore a character's quest for immortality, often balancing themes of life, death, and consequences.
+    - **Quest for Immortality**
+      - Storylines that explore a character's quest for immortality, often balancing themes of life, death, and consequences.
 
-      - **The Cost of Immortality**
-        - Storylines that explore the burden of immortality, such as eternal loneliness, loss, or the gradual erosion of humanity.
+    - **The Cost of Immortality**
+      - Storylines that explore the burden of immortality, such as eternal loneliness, loss, or the gradual erosion of humanity.
 
-      - **Disaster Survival**
-        - Storylines set on the brink of, or recovering from, an disaster, where survival is the primary goal.
+    - **Disaster Survival**
+      - Storylines set on the brink of, or recovering from, an disaster, where survival is the primary goal.
 
-      - **Survivor's Guilt**
-        - Storylines that explore the psychological burden of being the lone survivor of a disaster or battle, and their quest to find purpose after tragedy.
+    - **Survivor's Guilt**
+      - Storylines that explore the psychological burden of being the lone survivor of a disaster or battle, and their quest to find purpose after tragedy.
 
-      - **Reclaiming a Lost Legacy**
-        - Storylines where a character seeks to reclaim their heritage, lost kingdom, or birthright.
+    - **Reclaiming a Lost Legacy**
+      - Storylines where a character seeks to reclaim their heritage, lost kingdom, or birthright.
 
-      - **Pursuit of Forbidden Knowledge**
-        - Storylines that involve characters seeking out dangerous or forbidden knowledge, often with dark consequences.
+    - **Pursuit of Forbidden Knowledge**
+      - Storylines that involve characters seeking out dangerous or forbidden knowledge, often with dark consequences.
 
-      - **Restoring Balance to Nature**
-        - Storylines where a character must restore harmony to nature or the world, battling environmental collapse or corruption.
+    - **Restoring Balance to Nature**
+      - Storylines where a character must restore harmony to nature or the world, battling environmental collapse or corruption.
 
-      - **Corruption of Power**
-        - Storylines that explore how power can corrupt, with characters facing the consequences of their moral downfall or trying to stop those corrupted by it.
+    - **Corruption of Power**
+      - Storylines that explore how power can corrupt, with characters facing the consequences of their moral downfall or trying to stop those corrupted by it.
 
-      - **Search for Identity**
-        - Storylines where the central character is on a journey of self-discovery, learning about their past or true nature.
+    - **Search for Identity**
+      - Storylines where the central character is on a journey of self-discovery, learning about their past or true nature.
 
-      - **Sacrifice for the Greater Good**
-        - Storylines that involve characters making significant personal sacrifices for the greater good, often at great cost to themselves.
+    - **Sacrifice for the Greater Good**
+      - Storylines that involve characters making significant personal sacrifices for the greater good, often at great cost to themselves.
 
-      - **Redemption Through Sacrifice**
-        - Storylines that revolve around a character seeking redemption through a final, sacrificial act of heroism.
+    - **Redemption Through Sacrifice**
+      - Storylines that revolve around a character seeking redemption through a final, sacrificial act of heroism.
 
-      - **Forbidden Love**
-        - Storylines where a romantic relationship is challenged by societal rules, feuding families, or conflicting duties.
+    - **Forbidden Love**
+      - Storylines where a romantic relationship is challenged by societal rules, feuding families, or conflicting duties.
 
-      - **Rescuing a Loved One**
-        - Storylines centered on the protagonist’s quest to rescue a loved one from danger or captivity, often fraught with personal risk.
+    - **Rescuing a Loved One**
+      - Storylines centered on the protagonist’s quest to rescue a loved one from danger or captivity, often fraught with personal risk.
 
-      - **Unlikely Alliances**
-        - Storylines where rival factions or characters with deep-seated differences must band together against a common enemy.
+    - **Unlikely Alliances**
+      - Storylines where rival factions or characters with deep-seated differences must band together against a common enemy.
 
-      - **Breaking an Ancient Curse**
-        - Storylines that involve breaking a powerful curse that haunts a family, kingdom, or individual, often linked to ancient sins or mistakes.
+    - **Breaking an Ancient Curse**
+      - Storylines that involve breaking a powerful curse that haunts a family, kingdom, or individual, often linked to ancient sins or mistakes.
 
-      - **Retribution from Beyond**
-        - Storylines where spirits, ancestors, or forces from the afterlife demand justice, drawing characters into a supernatural quest.
+    - **Retribution from Beyond**
+      - Storylines where spirits, ancestors, or forces from the afterlife demand justice, drawing characters into a supernatural quest.
 
-      - **Prophecy and Destiny**
-        - Storylines where a character is either chosen or defies a grand prophecy, struggling with the weight of destiny and personal freedom.
+    - **Prophecy and Destiny**
+      - Storylines where a character is either chosen or defies a grand prophecy, struggling with the weight of destiny and personal freedom.
 
-      - **Warrior's Last Stand**
-        - Storylines that focus on a seasoned warrior or hero making a final stand against overwhelming odds, often leading to a legendary end.
+    - **Warrior's Last Stand**
+      - Storylines that focus on a seasoned warrior or hero making a final stand against overwhelming odds, often leading to a legendary end.
 
-      - **The Quest for a Legendary Weapon or Treasure**
-        - Storylines that revolve around a character's quest to obtain a legendary weapon or treasure, often with profound consequences.
+    - **The Quest for a Legendary Weapon or Treasure**
+      - Storylines that revolve around a character's quest to obtain a legendary weapon or treasure, often with profound consequences.
 
   - ### Elements of Compelling Quest Plots
 
-      - **High Emotional Stakes and Consequences**
-        - Storylines that involve high emotional stakes and consequences, such as the death of a loved one, the death of a major character, or the destruction of a city.
+    - **High Emotional Stakes and Consequences**
+      - Storylines that involve high emotional stakes and consequences, such as the death of a loved one, the death of a major character, or the destruction of a city.
 
-      - **Morally Ambiguous Character**
-        - Storylines that involve a character that is complex and morally ambiguous, creating an intriguing narrative as players try to understand his motivations.
+    - **Morally Ambiguous Character**
+      - Storylines that involve a character that is complex and morally ambiguous, creating an intriguing narrative as players try to understand his motivations.
 
-      - **Morally Ambiguous Conflicts**
-        - Provide players dual perspectives, allowing them to see conflicts from both sides.
+    - **Morally Ambiguous Conflicts**
+      - Provide players dual perspectives, allowing them to see conflicts from both sides.
 
-      - **Engaging Quest Mechanics**
-        - Provide engaging quest mechanics, such as disguises to infiltrate the city, gain allies, and participate in covert missions. This variety adds layers of gameplay beyond traditional questing.
+    - **Engaging Quest Mechanics**
+      - Provide engaging quest mechanics, such as disguises to infiltrate the city, gain allies, and participate in covert missions. This variety adds layers of gameplay beyond traditional questing.
 
-      - **Epic Confrontations**
-        - Storylines that build up to a climactic confrontation, with players feeling a sense of anticipation and resolution when the final battle is won.
+    - **Epic Confrontations**
+      - Storylines that build up to a climactic confrontation, with players feeling a sense of anticipation and resolution when the final battle is won.
 
-      - **Unexpected Twists and Betrayals**
-        - Storylines that include unexpected plot twists, betrayals by trusted allies, or shocking reveals that change the course of the quest.
+    - **Unexpected Twists and Betrayals**
+      - Storylines that include unexpected plot twists, betrayals by trusted allies, or shocking reveals that change the course of the quest.
 
-      - **Time-Sensitive Missions**
-        - Introduce quests with time constraints, where failure to complete an objective in time results in dire consequences, heightening urgency and tension.
+    - **Time-Sensitive Missions**
+      - Introduce quests with time constraints, where failure to complete an objective in time results in dire consequences, heightening urgency and tension.
 
-      - **Mysterious Lore and World Building**
-        - Storylines rich in hidden lore, ancient civilizations, and mysterious artifacts that slowly unravel as players progress, deepening immersion in the world.
+    - **Mysterious Lore and World Building**
+      - Storylines rich in hidden lore, ancient civilizations, and mysterious artifacts that slowly unravel as players progress, deepening immersion in the world.
 
-      - **Choices with Lasting Impact**
-        - Storylines that present players with difficult moral choices, where decisions shape the world, characters' fates, or future events, giving a sense of agency.
+    - **Choices with Lasting Impact**
+      - Storylines that present players with difficult moral choices, where decisions shape the world, characters' fates, or future events, giving a sense of agency.
 
-      - **Relatable Character Arcs**
-        - Characters with personal struggles that players can relate to, such as dealing with loss, guilt, or redemption, making the emotional journey more powerful.
+    - **Relatable Character Arcs**
+      - Characters with personal struggles that players can relate to, such as dealing with loss, guilt, or redemption, making the emotional journey more powerful.
 
-      - **Rising Personal Stakes**
-        - A quest that starts small but grows in scale, making it personal to the character as it intertwines with their backstory or personal ambitions.
+    - **Rising Personal Stakes**
+      - A quest that starts small but grows in scale, making it personal to the character as it intertwines with their backstory or personal ambitions.
 
-      - **Mysterious Villain with Hidden Agenda**
-        - Storylines where the antagonist’s true motivations and plans are slowly revealed over time, keeping players guessing about the real threat.
+    - **Mysterious Villain with Hidden Agenda**
+      - Storylines where the antagonist’s true motivations and plans are slowly revealed over time, keeping players guessing about the real threat.
 
-      - **Allies with Conflicting Agendas**
-        - Introduce companions or allies with their own goals and beliefs, leading to internal party conflicts or betrayals, making relationships more dynamic.
+    - **Allies with Conflicting Agendas**
+      - Introduce companions or allies with their own goals and beliefs, leading to internal party conflicts or betrayals, making relationships more dynamic.
 
-      - **Shifting Alliances**
-        - Storylines where factions and alliances shift throughout the quest, with characters or nations frequently changing sides, forcing players to adapt to new realities.
+    - **Shifting Alliances**
+      - Storylines where factions and alliances shift throughout the quest, with characters or nations frequently changing sides, forcing players to adapt to new realities.
 
-      - **Psychological Challenges**
-        - Incorporate mental or psychological trials, such as overcoming illusions, fears, or ethical dilemmas, adding depth to both the character’s development and gameplay.
+    - **Psychological Challenges**
+      - Incorporate mental or psychological trials, such as overcoming illusions, fears, or ethical dilemmas, adding depth to both the character’s development and gameplay.
 
-      - **Environmental Storytelling**
-        - Use the world itself—weather, landscapes, ruins, and hidden secrets—to tell parts of the story, giving players a sense of discovery through exploration.
+    - **Environmental Storytelling**
+      - Use the world itself—weather, landscapes, ruins, and hidden secrets—to tell parts of the story, giving players a sense of discovery through exploration.
 
-      - **Symbolic or Metaphorical Themes**
-        - Storylines that weave in symbolic or metaphorical themes, where the quest reflects larger philosophical or existential ideas, offering deeper meaning to events.
+    - **Symbolic or Metaphorical Themes**
+      - Storylines that weave in symbolic or metaphorical themes, where the quest reflects larger philosophical or existential ideas, offering deeper meaning to events.
 
-      - **Survival Against Overwhelming Odds**
-        - Storylines that force characters to survive with limited resources or against seemingly unbeatable forces, emphasizing perseverance and tactical thinking.
+    - **Survival Against Overwhelming Odds**
+      - Storylines that force characters to survive with limited resources or against seemingly unbeatable forces, emphasizing perseverance and tactical thinking.
 
-      - **Sacrifice for Greater Good**
-        - Quests that demand difficult sacrifices, such as letting go of personal goals, allies, or loved ones to achieve a greater, noble objective.
+    - **Sacrifice for Greater Good**
+      - Quests that demand difficult sacrifices, such as letting go of personal goals, allies, or loved ones to achieve a greater, noble objective.
 
-      - **Falling into Darkness**
-        - Introduce quests where failure is a very real possibility, and characters face the risk of succumbing to dark influences, corruption, or madness.
+    - **Falling into Darkness**
+      - Introduce quests where failure is a very real possibility, and characters face the risk of succumbing to dark influences, corruption, or madness.
 
-      - **Redemption Arcs for NPCs**
-        - NPCs with dark pasts or flaws who evolve throughout the quest, offering players the chance to influence their path toward either redemption or ruin.
+    - **Redemption Arcs for NPCs**
+      - NPCs with dark pasts or flaws who evolve throughout the quest, offering players the chance to influence their path toward either redemption or ruin.
 
-      - **Recurring Themes of Hope and Despair**
-        - Storylines that alternate between moments of triumph and overwhelming despair, emotionally engaging players and making victories feel hard-earned.
+    - **Recurring Themes of Hope and Despair**
+      - Storylines that alternate between moments of triumph and overwhelming despair, emotionally engaging players and making victories feel hard-earned.
 
-      - **Mysterious and Powerful Artifacts**
-        - Introduce powerful artifacts or items that hold significant importance to the quest but come with risks, adding layers of choice and danger.
+    - **Mysterious and Powerful Artifacts**
+      - Introduce powerful artifacts or items that hold significant importance to the quest but come with risks, adding layers of choice and danger.
 
-      - **Epic Battles with Multiple Phases**
-        - Climax the story with epic multi-phase battles where enemies evolve or tactics shift mid-fight, adding complexity and a sense of progression during the confrontation.
+    - **Epic Battles with Multiple Phases**
+      - Climax the story with epic multi-phase battles where enemies evolve or tactics shift mid-fight, adding complexity and a sense of progression during the confrontation.
 
-      - **Evolving World Reactions**
-        - As players make choices and progress, the world around them evolves—townspeople, factions, or the environment changes in response to their actions.
+    - **Evolving World Reactions**
+      - As players make choices and progress, the world around them evolves—townspeople, factions, or the environment changes in response to their actions.
 
   - ### Quest Progression
 
@@ -1014,26 +1052,32 @@
 
   - ### Quest Types
 
+    - **Martial Arts Quests**
+      - Tasks centered around learning, mastering, or uncovering secrets of various Gōngfu styles, often involving legendary masters or lost manuals.
+
     - **Historical Quests**
       - These missions delve into the rich history of the Silk Road and ancient China, allowing players to participate in or uncover historical events.
 
     - **Cultural Exploration**
       - Quests that introduce players to customs, traditions, and cultural practices of various regions along the Silk Road.
 
-    - **NPC Storylines**
-      - Personal narratives of NPCs, revealing their backgrounds, motivations, and conflicts, which players influence through their choices.
-
     - **Philosophical Journeys**
       - Missions that explore various schools of thought, including Buddhism, Daoism, and Confucianism, challenging players to contemplate moral dilemmas and philosophical questions.
-
-    - **Martial Arts Quests**
-      - Tasks centered around learning, mastering, or uncovering secrets of various Gōngfu styles, often involving legendary masters or lost manuals.
 
     - **Strategic Missions**
       - Quests inspired by Sun Tzu's "Art of War," requiring players to apply strategic thinking in both combat and non-combat situations.
 
     - **Current Events**
       - Missions that reflect the ongoing political, economic, or social issues in different regions of the game world.
+
+    - **NPC Storylines**
+      - Personal narratives of NPCs, revealing their backgrounds, motivations, and conflicts, which players influence through their choices.
+
+    - **Pet Quests**
+      - Quests that involve the capture, training, and use of pets, such as Móguǐ (魔鬼).
+
+    - **Mount Quests**
+      - Quests that involve the capture, training, and use of mounts, such as dragons.
 
     - **Main Story Quests**
       - These quests drive the primary narrative of the game, involving key characters, significant events, and pivotal plot points. They are the backbone of the game's story, introducing players to major locations, conflicts, and characters. Each region of the game world has its own set of main quests, which guide players through new areas and immerse them in the central conflict. Main story quests typically follow a linear or semi-linear progression, requiring completion of one set to unlock the next, ensuring a cohesive and immersive storyline.
@@ -1243,7 +1287,6 @@
 
     This guide outlines how to structure and design quests that not only drive gameplay but also enhance the overall experience through immersive storytelling, educational content, and player agency.
 
-
 ## VI. World Design
 
 - ### Key Locations
@@ -1280,7 +1323,9 @@
   - Constantinople, Turkey
   - Roma, Italy
 
-- ### Dungeons and Raids
+- ### Dungeon Raids
+  Public and Private Dungeon Instances
+  Levels of Difficulty
 
 - ### Environmental Hazards
 
@@ -1288,7 +1333,7 @@
 
 - ### Day/Night Cycle
 
-- ### Holidays and Festivals
+- ### Seasonal Events, Holidays, and Festivals
 
   - #### Spring Festival (春节 / Chūnjié)
     - https://en.wikipedia.org/wiki/Chinese_New_Year
