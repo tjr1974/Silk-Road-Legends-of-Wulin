@@ -23,7 +23,6 @@
 - [License](#license)
   - [Public Domain Notice](#public-domain-notice)
   - [Warranty Disclaimer](#warranty-disclaimer)
-- [About the Author](#about-the-author)
 
 For more detailed information refer to the file: "game design document.md" located in the "documentation" folder.
 
@@ -304,15 +303,3 @@ By adhering to these practices, we aim to create a codebase that is not only fun
    - ### Warranty Disclaimer
 
       This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with this software or the use or other dealings in this software.
-
-## About the Author
-
-There once was a guy who played MUDs.
-
-But all the MUDs he played were duds.
-
-Then he said, "I'll code one my own."
-
-And he played it all alone.
-
-Until he shared this game with his buds.

@@ -1,4 +1,4 @@
-# Types of Data Structures
+# Data Structure Types
 JavaScript provides several types of data structures that are essential for handling and organizing data. These data structures can be categorized into two groups: **Primitive Data Structures** and **Non-Primitive Data Structures** (also known as complex or composite data structures). Below are the key types:
 
 ### 1. **Primitive Data Structures**
