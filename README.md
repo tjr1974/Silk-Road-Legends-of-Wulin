@@ -25,6 +25,8 @@
   - [Warranty Disclaimer](#warranty-disclaimer)
 - [About the Author](#about-the-author)
 
+For more detailed information refer to the file: "game design document.md" located in the "documentation" folder.
+
 ## Project Description
 
 This project is a Multiplayer Game Server (MUD) designed for use with browser-based clients. It utilizes various technologies and architectural patterns to manage real-time communication, database interactions, game entity management, and player sessions. The server supports multiplayer gameplay by handling socket events, managing in-game entities like players, NPCs, and items, and by ensuring data consistency across connected clients. Its architecture is optimized for web-based interactions, making it ideal for games that can be played directly in web browsers without any need for additional software installation.
