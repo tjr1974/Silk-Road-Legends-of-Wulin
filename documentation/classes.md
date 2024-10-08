@@ -23,63 +23,62 @@ List of all classes in 'server.js':
 12. **ReplicationManager**
 13. **AsyncLock**
 
-
 ## Task and Queue Management
-13. **QueueManager**
-14. **ObjectPool**
-15. **TaskManager**
-16. **MessageQueueSystem**
+14. **QueueManager**
+15. **ObjectPool**
+16. **TaskManager**
+17. **MessageQueueSystem**
 
 ## Database and Data Management
-17. **DatabaseManager**
-18. **GameDataLoader**
-19. **UidGenerator**
+18. **DatabaseManager**
+19. **GameDataLoader**
+20. **UidGenerator**
 
 ## Game Management
-20. **GameManager**
-21. **GameComponentInitializer**
+21. **GameManager**
+22. **GameComponentInitializer**
 
 ## Entity Management
-22. **Entity**
-23. **Character**
+23. **Entity**
+24. **Character**
 
 ## Player Management
-24. **CreateNewPlayer**
-25. **Player**
-26. **AuthenticationManager**
-27. **SessionManager**
-28. **HealthRegenerator**
+25. **CreateNewPlayer**
+26. **Player**
+27. **AuthenticationManager**
+28. **SessionManager**
+29. **HealthRegenerator**
 
 ## Command Management
-29. **GameCommandManager**
-30. **LookAtCommandHandler**
+30. **GameCommandManager**
+31. **LookAtCommandHandler**
 
 ## Combat Management
-31. **CombatManager**
-32. **CombatAction**
+32. **CombatManager**
+33. **CombatAction**
 
 ## Locations and Navigation Management
-33. **Locations**
-34. **LocationCoordinateManager**
-35. **DescribeLocationManager**
-36. **DirectionManager**
+34. **Locations**
+35. **LocationCoordinateManager**
+36. **DescribeLocationManager**
+37. **DirectionManager**
 
 ## Npc Management
-37. **Npc**
-38. **MobileNpc**
-39. **QuestNpc**
-40. **MerchantNpc**
-41. **NpcMovementManager**
+38. **Npc**
+39. **MobileNpc**
+40. **QuestNpc**
+41. **MerchantNpc**
+42. **NpcMovementManager**
 
 ## Item Management
 40. **BaseItem**
-42. **Item**
-43. **ConsumableItem**
-44. **ContainerItem**
-45. **WeaponItem**
-46. **ItemManager**
-47. **InventoryManager**
-48. **Currency**
+43. **Item**
+44. **ConsumableItem**
+45. **ContainerItem**
+46. **WeaponItem**
+47. **ItemManager**
+48. **InventoryManager**
+49. **Currency**
 50. **TransactionManager**
 51. **TradeSession**
 52. **AtomicTransaction**
