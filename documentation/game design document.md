@@ -50,8 +50,8 @@
   - [Attributes and Skills](#attributes-and-skills)
   - [Progression System](#progression-system)
   - [Combat System](#combat-system)
-  - [Gōngfu Styles and Techniques](#gōngfu-styles-and-techniques)
-    - [Gōngfu Styles](#gōngfu-styles)
+  - [Gōngfū Styles and Techniques](#Gōngfū-styles-and-techniques)
+    - [Gōngfū Styles](#Gōngfū-styles)
     - [Techniques](#techniques)
     - [Learning and Mastery](#learning-and-mastery)
     - [Cultural and Historical Context](#cultural-and-historical-context)
@@ -227,7 +227,7 @@
 
   Welcome to a land that never was, yet always is. The ancient Far East is a land of mystery and adventure, a land of excruciating passion and exquisite despair. A land where the dreams and ambitions of mighty heroes collide violently.
 
-  Join the Jiānghú brotherhood. Enter the Wǔlín itself. Become a great hero or an insidious villain. Master an arsenal of powerful techniques and highly coveted styles of Gōngfu. Pierce the veil of forbidden mysteries and learn secret arts. Prove that legendary reputation, which precedes you, is justified.
+  Join the Jiānghú brotherhood. Enter the Wǔlín itself. Become a great hero or an insidious villain. Master an arsenal of powerful techniques and highly coveted styles of Gōngfū. Pierce the veil of forbidden mysteries and learn secret arts. Prove that legendary reputation, which precedes you, is justified.
 
   Experience the ancient world of martial arts, as you never have before. Seize your trusted weapon and join your martial brothers. It's time to become a **LEGEND**!
 
@@ -307,7 +307,7 @@
     - Celebrate cultures with in-game events tied to historical festivals and holidays, offering unique rewards and experiences.
 
   - #### Wǔxiá-inspired Gameplay
-    - Offer players an opportunity to experience martial arts fantasy with a deep, customizable Gōngfu system inspired by classic Wǔxiá literature and films.
+    - Offer players an opportunity to experience martial arts fantasy with a deep, customizable Gōngfū system inspired by classic Wǔxiá literature and films.
 
   - #### Flexible Character Development
     - Break away from rigid class systems, allowing players to craft truly unique characters by mixing and matching skills, professions, and martial arts styles.
@@ -368,7 +368,7 @@
 - ### Player's Role in the World
 
   - Players choose their own path: hero, villain, trader, escort, thief, explorer, or any combination thereof
-  - Opportunity to master powerful techniques and coveted styles of Gōngfu (功夫)
+  - Opportunity to master powerful techniques and coveted styles of Gōngfū (功夫)
   - Ability to uncover forbidden mysteries and learn secret arts
   - Build a legendary reputation through actions and choices
 
@@ -397,13 +397,13 @@
   - #### Special Combat Skills and Cooldowns
   - #### Dynamic Scaling
 
-- ### Gōngfu Styles and Techniques
+- ### Gōngfū Styles and Techniques
 
-  This game features a diverse selection of Gōngfu styles, each with its own set of techniques. Players may choose to master multiple styles. These styles and techniques have no actual impact on gameplay. They are simply vanity options to enhance character customization.
+  This game features a diverse selection of Gōngfū styles, each with its own set of techniques. Players may choose to master multiple styles. These styles and techniques have no actual impact on gameplay. They are simply vanity options to enhance character customization.
 
-  - #### Gōngfu Styles
+  - #### Gōngfū Styles
 
-    The game includes the following Gōngfu styles:
+    The game includes the following Gōngfū styles:
 
     - Assassin Style
     - Bāguà Style
@@ -435,7 +435,7 @@
 
   - #### Techniques
 
-    Each Gōngfu style utilizes various techniques:
+    Each Gōngfū style utilizes various techniques:
 
     - **Assassin Style**
       - Assassin Claw
@@ -735,11 +735,11 @@
 
   - #### Cultural and Historical Context
 
-    - Each Gōngfu style has its own rich history and philosophical underpinnings
+    - Each Gōngfū style has its own rich history and philosophical underpinnings
     - Players delve into the lore of each style, understanding its origins and famous practitioners
     - Certain styles may be associated with specific factions or regions in the game world
 
-  This comprehensive Gōngfu system adds depth to character development and overall immersion in the world.
+  This comprehensive Gōngfū system adds depth to character development and overall immersion in the world.
 
 - ### PvE and PvP
   Players may participate in both Player vs. Environment (PvE) content, such as dungeons, boss fights, and quests, as well as Player vs. Player (PvP) modes.
@@ -1061,7 +1061,7 @@
   - ### Quest Types
 
     - **Martial Arts Quests**
-      - Tasks centered around learning, mastering, or uncovering secrets of various Gōngfu styles, often involving legendary masters or lost manuals.
+      - Tasks centered around learning, mastering, or uncovering secrets of various Gōngfū styles, often involving legendary masters or lost manuals.
 
     - **Historical Quests**
       - These missions delve into the rich history of the Silk Road and ancient China, allowing players to participate in or uncover historical events.
@@ -1149,7 +1149,7 @@
       - Players gain insights into the game world, unlocking new dialogue options or quest opportunities.
 
     - **Skills**
-      - Some quests reward players with new Gōngfu techniques or improved abilities.
+      - Some quests reward players with new Gōngfū techniques or improved abilities.
 
     - **Reputation**
       - Completing quests affects the player's standing with various factions or individuals.
@@ -1616,13 +1616,13 @@
 - ### Wǔxiá Elements
 
   - #### Martial Arts Mastery
-    - Focus on learning and improving various Gōngfu styles
+    - Focus on learning and improving various Gōngfū styles
 
   - #### Legendary Weapons
     - Quests for coveted, non-magical but exceptional weapons
 
   - #### Secret Manuals
-    - Discovery and mastery of forbidden or lost Gōngfu techniques
+    - Discovery and mastery of forbidden or lost Gōngfū techniques
 
   - #### Wǔlín Dominance
     - Struggle for power and influence within the martial arts world
@@ -1639,7 +1639,7 @@
     - Wǔxiá stories are frequently set during the Míng and Qīng Dynasty (清朝) periods, and to a lesser extent, the Yuán (元朝) and Southern Sòng Dynasty (南宋). As is well-known, these were the centuries when China was under threat, or already conquered and ruled by foreign powers. Wǔxiá stories set in these periods thus often feature martial artists gathering to resist invasion or to overthrow occupying forces.
 
   - #### Legendary Weapons or Skills
-    - With Gōngfu being the heart of Wǔxiá, many stories naturally involve quests or competitions for legendary weapons (兵器 bīngqì) and skills. In the case of the latter, it is usually some forbidden manual (秘笈 mìjí) that records exotic or lost Gōngfu techniques. To repeat, legendary weapons in Wǔxiá do not possess magical properties too. They are typically coveted for their finesse or are themselves keys to greater treasures.
+    - With Gōngfū being the heart of Wǔxiá, many stories naturally involve quests or competitions for legendary weapons (兵器 bīngqì) and skills. In the case of the latter, it is usually some forbidden manual (秘笈 mìjí) that records exotic or lost Gōngfū techniques. To repeat, legendary weapons in Wǔxiá do not possess magical properties too. They are typically coveted for their finesse or are themselves keys to greater treasures.
 
   - #### Wǔlín Dominance
     - Wǔlín (武林), or Jiānghú (江湖), is the world of Chinese martial artists. It encompasses all clans and sects, unaffiliated individuals, as well as the interactions between these characters and factions. Wǔxiá novels centered on Wǔlín thus frequently feature one clan or individual rising to power through sheer pugilistic superiority or ruthless machinations. The bulk of the story is then about the struggle to overthrow this tyrant. Typically, with the "main hero" mastering some form of superior technique.
