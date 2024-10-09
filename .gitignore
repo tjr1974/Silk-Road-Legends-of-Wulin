@@ -90,6 +90,7 @@ public
 ehthumbs.db
 Thumbs.db
 # Project specific
+temp.html
 temp.js
 temp.md
 *.pem

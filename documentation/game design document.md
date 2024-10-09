@@ -2390,90 +2390,90 @@
   List of all classes in 'server.js':
 
   - #### Interface Classes
-    01. **ILogger**
-    02. **ISocketEventEmitter**
-    03. **IBaseManager**
-    04. **IDatabaseManager**
-    05. **IGameManager**
+    - 01. Logger
+    - 02. ISocketEventEmitter
+    - 03. IBaseManager
+    - 04. IDatabaseManager
+    - 05. IGameManager
 
   - #### Logging
-    06. **Logger**
+    - 06. Logger
 
   - #### Configuration Management
-    07. **ConfigManager**
+    - 07. ConfigManager
 
   - #### Server Core Components
-    08. **Server**
-    09. **ServerInitializer**
-    10. **ServerConfigurator**
-    11. **SocketEventManager**
-    12. **SocketEventEmitter**
-    13. **ReplicationManager**
-    14. **AsyncLock**
+    - 08. Server
+    - 09. ServerInitializer
+    - 10. ServerConfigurator
+    - 11. SocketEventManager
+    - 12. SocketEventEmitter
+    - 13. ReplicationManager
+    - 14. AsyncLock
 
   - #### Task and Queue Management
-    15. **QueueManager**
-    16. **ObjectPool**
-    17. **TaskManager**
-    18. **MessageQueueSystem**
+    - 15. QueueManager
+    - 16. ObjectPool
+    - 17. TaskManager
+    - 18. MessageQueueSystem
 
   - #### Database and Data Management
-    19. **DatabaseManager**
-    20. **GameDataLoader**
-    21. **UidGenerator**
+    - 19. DatabaseManager
+    - 20. GameDataLoader
+    - 21. UidGenerator
 
   - #### Game Management
-    22. **GameManager**
-    23. **GameComponentInitializer**
+    - 22. GameManager
+    - 23. GameComponentInitializer
 
   - #### Entity Management
-    24. **Entity**
-    25. **Character**
+    - 24. Entity
+    - 25. Character
 
   - #### Player Management
-    26. **CreateNewPlayer**
-    27. **Player**
-    28. **AuthenticationManager**
-    29. **SessionManager**
-    30. **HealthRegenerator**
+    - 26. CreateNewPlayer
+    - 27. Player
+    - 28. AuthenticationManager
+    - 29. SessionManager
+    - 30. HealthRegenerator
 
   - #### Command Management
-    31. **GameCommandManager**
-    32. **LookAtCommandHandler**
+    - 31. GameCommandManager
+    - 32. LookAtCommandHandler
 
   - #### Combat Management
-    33. **CombatManager**
-    34. **CombatAction**
+    - 33. CombatManager
+    - 34. CombatAction
 
   - #### Locations and Navigation Management
-    35. **Locations**
-    36. **LocationCoordinateManager**
-    37. **DescribeLocationManager**
-    38. **DirectionManager**
+    - 35. Locations
+    - 36. LocationCoordinateManager
+    - 37. DescribeLocationManager
+    - 38. DirectionManager
 
   - #### Npc Management
-    39. **Npc**
-    40. **MobileNpc**
-    41. **QuestNpc**
-    42. **MerchantNpc**
-    43. **NpcMovementManager**
+    - 39. Npc
+    - 40. MobileNpc
+    - 41. QuestNpc
+    - 42. MerchantNpc
+    - 43. NpcMovementManager
 
   - #### Item Management
-    44. **BaseItem**
-    45. **Item**
-    46. **ConsumableItem**
-    47. **ContainerItem**
-    48. **WeaponItem**
-    49. **ItemManager**
-    50. **InventoryManager**
-    51. **Currency**
-    52. **TransactionManager**
-    53. **TradeSession**
-    54. **AtomicTransaction**
+    - 44. BaseItem
+    - 45. Item
+    - 46. ConsumableItem
+    - 47. ContainerItem
+    - 48. WeaponItem
+    - 49. ItemManager
+    - 50. InventoryManager
+    - 51. Currency
+    - 52. TransactionManager
+    - 53. TradeSession
+    - 54. AtomicTransaction
 
   - #### Messaging Management
-    55. **FormatMessageManager**
-    56. **MessageManager**
+    - 55. FormatMessageManager
+    - 56. MessageManager
 
 - ### Instance and Singleton Classes
 
