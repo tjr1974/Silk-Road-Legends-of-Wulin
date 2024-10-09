@@ -2390,21 +2390,21 @@
   List of all classes in 'server.js':
 
   - #### Interface Classes
-    - 01. Logger
-    - 02. ISocketEventEmitter
-    - 03. IBaseManager
-    - 04. IDatabaseManager
-    - 05. IGameManager
+    - 1. Logger
+    - 2. ISocketEventEmitter
+    - 3. IBaseManager
+    - 4. IDatabaseManager
+    - 5. IGameManager
 
   - #### Logging
-    - 06. Logger
+    - 6. Logger
 
   - #### Configuration Management
-    - 07. ConfigManager
+    - 7. ConfigManager
 
   - #### Server Core Components
-    - 08. Server
-    - 09. ServerInitializer
+    - 8. Server
+    - 9. ServerInitializer
     - 10. ServerConfigurator
     - 11. SocketEventManager
     - 12. SocketEventEmitter
