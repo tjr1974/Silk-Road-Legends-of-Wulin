@@ -20,6 +20,8 @@
       flex-direction: column;
       height: calc(100vh - 7px);
       overflow: hidden;
+      justify-content: center;
+      align-items: center;
     }
     /* CSS for main user interface */
     #score-container {
@@ -144,6 +146,7 @@
       border: 2px solid #ff0000;
       border-radius: 10px;
       padding: 20px;
+      max-width: 400px;
     }
     #login-container input[type="text"],
     #login-container input[type="password"],
@@ -237,6 +240,10 @@
       display: none;
       color: #ff0000;
       margin-bottom: 10px;
+    }
+    #create-character-container, #score-container,
+    #game-container, #input-container {
+      display: none;
     }
   </style>
 <body>
@@ -376,21 +383,18 @@
         this.socket = null;
         this.sessionToken = null;
         this.connect();
+        this.showContainer('login-container');
       }
-
       connect() {
         const isSecure = window.location.protocol === 'https:';
         const wsProtocol = isSecure ? 'wss:' : 'ws:';
         const host = window.location.host;
         const url = `${wsProtocol}//${host}`;
-
         this.socket = new WebSocket(url);
-
         this.socket.onopen = () => {
           console.log('Connected to server');
           this.restoreSession();
         };
-
         this.socket.onerror = (error) => {
           console.error('WebSocket error:', error);
           if (isSecure) {
@@ -398,32 +402,26 @@
             this.fallbackToInsecure();
           }
         };
-
         this.socket.onmessage = (event) => {
           const data = JSON.parse(event.data);
           this.handleServerMessage(data);
         };
       }
-
       fallbackToInsecure() {
         const insecureUrl = `ws://${window.location.host}`;
         this.socket = new WebSocket(insecureUrl);
-
         this.socket.onopen = () => {
           console.log('Connected to server using insecure WebSocket');
           this.restoreSession();
         };
-
         this.socket.onerror = (error) => {
           console.error('Insecure WebSocket error:', error);
         };
-
         this.socket.onmessage = (event) => {
           const data = JSON.parse(event.data);
           this.handleServerMessage(data);
         };
       }
-
       async login(characterName, password) {
         this.socket.send(JSON.stringify({
           type: 'login',
@@ -431,14 +429,12 @@
           password
         }));
       }
-
       createNewCharacter(characterData) {
         this.socket.send(JSON.stringify({
           type: 'createNewCharacter',
           data: characterData
         }));
       }
-
       restoreSession() {
         const storedToken = localStorage.getItem('sessionToken');
         if (storedToken) {
@@ -446,14 +442,12 @@
           this.socket.send(JSON.stringify({ type: 'restoreSession', token: this.sessionToken }));
         }
       }
-
       logout() {
         this.socket.send(JSON.stringify({ type: 'logout', token: this.sessionToken }));
         localStorage.removeItem('sessionToken');
         this.sessionToken = null;
         // Redirect to login page or show login UI
       }
-
       handleServerMessage(data) {
         switch (data.type) {
           case 'loginResult':
@@ -465,7 +459,6 @@
           // ... handle other message types ...
         }
       }
-
       handleLoginResult(data) {
         if (data.success) {
           console.log('Login successful');
@@ -478,7 +471,6 @@
           alert(data.message || 'Login failed. Please try again.');
         }
       }
-
       handleCharacterCreationResult(data) {
         if (data.success) {
           alert("Character created successfully!");
@@ -487,18 +479,18 @@
           alert("Character creation failed: " + data.message);
         }
       }
-
       showContainer(containerId) {
         ['login-container', 'create-character-container', 'game-container'].forEach(id => {
           document.getElementById(id).style.display = id === containerId ? 'block' : 'none';
         });
       }
     }
-
     class LoginManager {
       constructor(gameClient) {
         this.gameClient = gameClient;
         this.elements = {
+          loginContainer: document.getElementById('login-container'),
+          createCharacterContainer: document.getElementById('create-character-container'),
           loginButton: document.getElementById('login-button'),
           passwordInput: document.getElementById('password'),
           characterNameInput: document.getElementById('character-name'),
@@ -509,7 +501,12 @@
       setupEventListeners() {
         this.elements.loginButton.addEventListener('click', this.handleLogin.bind(this));
         this.elements.passwordInput.addEventListener('keypress', this.handleEnterKeyPress.bind(this));
-        this.elements.createNewCharacterButton.addEventListener('click', () => this.gameClient.showContainer('create-character-container'));
+        this.elements.createNewCharacterButton.addEventListener('click', this.showCreateCharacterForm.bind(this));
+      }
+      showCreateCharacterForm() {
+        console.log('Create New Character button clicked');
+        this.elements.loginContainer.style.display = 'none';
+        this.elements.createCharacterContainer.style.display = 'flex';
       }
       async handleLogin() {
         const { characterNameInput, passwordInput } = this.elements;

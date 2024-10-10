@@ -186,7 +186,7 @@ class Logger extends ILogger {
 }
 /**************************************************************************************************
 Config Manager Class
-The ConfigManager class is responsible for managing the game's configuration settings. It implements
+The ConfigManager class is responsible for managing configuration settings. It implements
 the Singleton pattern to ensure a single, globally accessible instance of configuration data.
 This class handles loading configuration from external sources, providing access to configuration
 values, and maintaining the integrity of the game's settings.
@@ -198,42 +198,50 @@ Key features:
 The ConfigManager plays a crucial role in centralizing and standardizing access to game settings,
 facilitating easier maintenance and modification of game parameters.
 ***************************************************************************************************/
-class ConfigManager {
+class ConfigManager extends IBaseManager {
   static instance;
-  static config;
-  static getInstance(config) {
+
+  static getInstance({ logger, config, server }) {
     if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager(config);
+      ConfigManager.instance = new ConfigManager({ logger, config, server });
     }
     return ConfigManager.instance;
   }
-  constructor(config) {
-    if (ConfigManager.instance) {
-      return ConfigManager.instance;
-    }
-    ConfigManager.config = config;
-    ConfigManager.instance = this;
+
+  constructor({ logger, config, server }) {
+    super({ server, logger });
+    this.config = config;
+    this.socketEventManager = server.socketEventManager;
   }
+
+  // Methods from the original ConfigManager
   get(key) {
-    if (!(key in ConfigManager.config)) {
+    if (!(key in this.config)) {
       this.logger.error(`Configuration key "${key}" not found`);
       return null;
     }
-    return ConfigManager.config[key];
+    return this.config[key];
   }
+
   set(key, value) {
-    ConfigManager.config[key] = value;
+    this.config[key] = value;
   }
-  // Add this new method
+
+  getMultiple(keys) {
+    const values = {};
+    for (const key of keys) {
+      values[key] = this.get(key);
+    }
+    return values;
+  }
+
   async loadConfig() {
-    // If config is already loaded, just return
-    if (Object.keys(ConfigManager.config).length > 0) {
+    if (Object.keys(this.config).length > 0) {
       return;
     }
     try {
-      // Assuming config is imported from a separate file
       const importedConfig = await import('./config.js');
-      ConfigManager.config = importedConfig.default;
+      this.config = importedConfig.default;
     } catch (error) {
       this.logger.error(`Failed to load configuration: ${error.message}`);
     }
@@ -245,6 +253,115 @@ class ConfigManager {
       values[key] = this.get(key);
     }
     return values;
+  }
+  async configureServer() {
+    const { logger, server } = this;
+    try {
+      await this.setupExpress();
+    } catch (error) {
+      logger.error(`During Express Configuration: ${error.message}`);
+      logger.error(error.stack);
+    }
+    try {
+      await server.setupHttpServer();
+    } catch (error) {
+      logger.error(`During http server configuration: ${error.message}`);
+    }
+    try {
+      this.configureMiddleware();
+    } catch (error) {
+      logger.error(`During middleware configuration: ${error.message}`);
+      logger.error(error.stack);
+    }
+    try {
+      server.queueManager = new QueueManager();
+    } catch (error) {
+      logger.error(`During queue manager configuration: ${error.message}`);
+    }
+  }
+  async setupExpress() {
+    try {
+      this.server.app = express();
+    } catch (error) {
+      this.logger.error(`Setting up express: ${error.message}`);
+    }
+  }
+  configureMiddleware() {
+    try {
+      this.server.app.use(express.static('public'));
+      this.server.app.use((err, req, res, next) => {
+        this.logger.error(`Middleware Error: ${err.message}`, { error: err });
+        res.status(500).send('An unexpected error occurred. Please try again later.');
+      });
+    } catch (error) {
+      this.logger.error(`Configuring middleware: ${error.message}`);
+    }
+  }
+  async cleanup() {
+    this.logger.info("Starting server cleanup...");
+    try {
+      // Stop the game loop
+      if (this.gameManager) {
+        this.gameManager.stopGameLoop();
+      }
+      // Cleanup GameManager
+      if (this.gameManager) {
+        await this.gameManager.cleanup();
+      }
+      // Cleanup DatabaseManager
+      if (this.databaseManager) {
+        await this.databaseManager.cleanup();
+      }
+      // Cleanup SocketEventManager
+      if (this.socketEventManager) {
+        await this.socketEventManager.cleanup();
+      }
+      // Cleanup QueueManager
+      if (this.queueManager) {
+        await this.queueManager.cleanup();
+      }
+      // Cleanup MessageManager
+      MessageManager.cleanup();
+      // Cleanup ItemManager
+      if (this.itemManager) {
+        await this.itemManager.cleanup();
+      }
+      // Cleanup TransactionManager
+      if (this.transactionManager) {
+        await this.transactionManager.cleanup();
+      }
+      // Cleanup ReplicationManager
+      if (this.replicationManager) {
+        await this.replicationManager.cleanup();
+      }
+      // Cleanup AuthManager
+      if (this.authManager) {
+        await this.authManager.cleanup();
+      }
+      // Cleanup SessionManager
+      if (this.sessionManager) {
+        await this.sessionManager.cleanup();
+      }
+      // Cleanup NpcMovementManager
+      if (this.npcMovementManager) {
+        await this.npcMovementManager.cleanup();
+      }
+      // Close database connection
+      if (this.db) {
+        await this.db.close();
+        this.logger.info('Database connection closed');
+      }
+      // Close socket connection
+      if (this.io) {
+        await new Promise(resolve => this.io.close(resolve));
+        this.logger.info('Socket connection closed');
+      }
+      // Clear all active sessions
+      this.activeSessions.clear();
+      this.logger.info("Server cleanup completed successfully.");
+    } catch (error) {
+      this.logger.error(`During server cleanup: ${error.message}`);
+    }
   }
 }
 /**************************************************************************************************
@@ -275,11 +392,10 @@ class Server {
       return Server.instance;
     }
     this.SocketEventEmitter = new SocketEventEmitter();
-    this.configManager = configManager || ConfigManager.getInstance();
+    this.configManager = configManager || ConfigManager.getInstance({ logger, config: CONFIG, server: this });
     this.logger = logger;
     this.databaseManager = null;
     this.socketEventManager = null;
-    this.serverConfigurator = null;
     this.activeSessions = new Map();
     this.gameManager = null;
     this.isHttps = false;
@@ -301,8 +417,9 @@ class Server {
     const initSteps = [
       { name: 'Configure Server Components', action: this.configureServerComponents.bind(this) },
       { name: 'Initialize Socket Event Manager', action: this.initializeSocketEventManager.bind(this) },
-      { name: 'Configure Server', action: this.configureServer.bind(this) },
+      { name: 'Configure Server', action: this.configManager.configureServer.bind(this.configManager) },
       { name: 'Initialize Game Manager', action: this.initializeGameManager.bind(this) },
+      { name: 'Initialize Game Data Loader', action: this.initializeGameDataLoader.bind(this) },
       { name: 'Setup Game Components', action: this.setupGameComponents.bind(this) },
       { name: 'Start Game', action: this.startGame.bind(this) }
     ];
@@ -318,25 +435,11 @@ class Server {
       }
     }
   }
-  async configureServerComponents() {
-    // Implementation details...
-  }
   async initializeSocketEventManager() {
     if (!this.socketEventManager) {
       this.socketEventManager = new SocketEventManager({ logger: this.logger, server: this });
     }
     await this.socketEventManager.initializeSocketEvents();
-  }
-  async configureServer() {
-    if (!this.serverConfigurator) {
-      this.serverConfigurator = new ServerConfigurator({
-        logger: this.logger,
-        config: this.configManager,
-        server: this,
-        socketEventManager: this.socketEventManager
-      });
-    }
-    await this.serverConfigurator.configureServer();
   }
   async initializeGameManager() {
     try {
@@ -363,24 +466,6 @@ class Server {
       this.logger.error(`Initializing Game Manager: ${error.message}`);
       throw error; // Rethrow the error to stop the initialization process
     }
-  }
-  async initializeGameDataLoader() {
-    try {
-      this.logger.debug('- Initialize Game Data Loader');
-      this.gameDataLoader = GameDataLoader.getInstance({ server: this });
-      await this.gameDataLoader.fetchGameData();
-      this.logger.debug('- Initialize Game Data Loader Finished');
-    } catch (error) {
-      this.logger.error(`Initializing Game Data Loader: ${error.message}`);
-      throw error; // Rethrow the error to stop the initialization process
-    }
-  }
-  async setupGameComponents() {
-    if (!this.gameComponentInitializer) {
-      this.logger.error('GameComponentInitializer not initialized');
-      throw new Error('GameComponentInitializer not initialized');
-    }
-    await this.gameComponentInitializer.setupGameComponents();
   }
   handleSetupError(error) {
     this.logger.error(`Setting up game components: ${error.message}`);
@@ -427,7 +512,6 @@ class Server {
   cleanup() {
     this.databaseManager = null;
     this.socketEventManager = null;
-    this.serverConfigurator = null;
     this.activeSessions.clear();
   }
   logServerRunningMessage() {
@@ -590,14 +674,8 @@ class ServerInitializer {
       RED: config.RED,
       RESET: config.RESET
     });
-    this.configManager = ConfigManager.getInstance(config);
+    this.configManager = ConfigManager.getInstance({ logger: this.logger, config, server: null });
     this.server = new Server({ logger: this.logger, configManager: this.configManager });
-    this.serverConfigurator = new ServerConfigurator({
-      logger: this.logger,
-      config: this.server.configManager,
-      server: this.server,
-      socketEventManager: this.server.socketEventManager
-    });
     this.gameComponentInitializer = new GameComponentInitializer({ logger: this.logger, server: this.server });
     ServerInitializer.instance = this;
   }
@@ -649,145 +727,6 @@ class ServerInitializer {
       this.logger.info('Server cleanup completed');
     } catch (error) {
       this.logger.error('During server cleanup:', error);
-    }
-  }
-}
-/**************************************************************************************************
-Server Configurator Class
-The ServerConfigurator class is responsible for setting up and configuring the game server
-environment. It handles the initialization of various server components, including Express
-middleware, HTTP/HTTPS server setup, and socket connections. This class ensures that all
-necessary server configurations are properly applied before the game server becomes operational.
-Key features:
-1. Express application setup and middleware configuration
-2. HTTP/HTTPS server initialization with SSL/TLS support
-3. Socket.io integration for real-time communication
-4. Error handling middleware setup
-5. Queue manager initialization for task management
-The ServerConfigurator plays a crucial role in establishing the server's infrastructure,
-enabling secure and efficient communication between clients and the game server.
-***************************************************************************************************/
-class ServerConfigurator extends IBaseManager {
-  static instance;
-  static getInstance({ logger, config, server, socketEventManager }) {
-    if (!ServerConfigurator.instance) {
-      ServerConfigurator.instance = new ServerConfigurator({ logger, config, server, socketEventManager });
-    }
-    return ServerConfigurator.instance;
-  }
-  constructor({ logger, config, server, socketEventManager }) {
-    super({ server, logger });
-    this.config = config;
-    this.socketEventManager = socketEventManager;
-    this.server.app = null;
-  }
-  async configureServer() {
-    const { logger, server } = this;
-    try {
-      await this.setupExpress();
-    } catch (error) {
-      logger.error(`During Express Configuration: ${error.message}`);
-      logger.error(error.stack);
-    }
-    try {
-      await server.setupHttpServer();
-    } catch (error) {
-      logger.error(`During http server configuration: ${error.message}`);
-    }
-    try {
-      this.configureMiddleware();
-    } catch (error) {
-      logger.error(`During middleware configuration: ${error.message}`);
-      logger.error(error.stack);
-    }
-    try {
-      server.queueManager = new QueueManager();
-    } catch (error) {
-      logger.error(`During queue manager configuration: ${error.message}`);
-    }
-  }
-  async setupExpress() {
-    try {
-      this.server.app = express();
-    } catch (error) {
-      this.logger.error(`Setting up express: ${error.message}`);
-    }
-  }
-  configureMiddleware() {
-    try {
-      this.server.app.use(express.static('public'));
-      this.server.app.use((err, req, res, next) => {
-        this.logger.error(`Middleware Error: ${err.message}`, { error: err });
-        res.status(500).send('An unexpected error occurred. Please try again later.');
-      });
-    } catch (error) {
-      this.logger.error(`Configuring middleware: ${error.message}`);
-    }
-  }
-  async cleanup() {
-    this.logger.info("Starting server cleanup...");
-    try {
-      // Stop the game loop
-      if (this.gameManager) {
-        this.gameManager.stopGameLoop();
-      }
-      // Cleanup GameManager
-      if (this.gameManager) {
-        await this.gameManager.cleanup();
-      }
-      // Cleanup DatabaseManager
-      if (this.databaseManager) {
-        await this.databaseManager.cleanup();
-      }
-      // Cleanup SocketEventManager
-      if (this.socketEventManager) {
-        await this.socketEventManager.cleanup();
-      }
-      // Cleanup QueueManager
-      if (this.queueManager) {
-        await this.queueManager.cleanup();
-      }
-      // Cleanup MessageManager
-      MessageManager.cleanup();
-      // Cleanup ItemManager
-      if (this.itemManager) {
-        await this.itemManager.cleanup();
-      }
-      // Cleanup TransactionManager
-      if (this.transactionManager) {
-        await this.transactionManager.cleanup();
-      }
-      // Cleanup ReplicationManager
-      if (this.replicationManager) {
-        await this.replicationManager.cleanup();
-      }
-      // Cleanup AuthManager
-      if (this.authManager) {
-        await this.authManager.cleanup();
-      }
-      // Cleanup SessionManager
-      if (this.sessionManager) {
-        await this.sessionManager.cleanup();
-      }
-      // Cleanup NpcMovementManager
-      if (this.npcMovementManager) {
-        await this.npcMovementManager.cleanup();
-      }
-      // Close database connection
-      if (this.db) {
-        await this.db.close();
-        this.logger.info('Database connection closed');
-      }
-      // Close socket connection
-      if (this.io) {
-        await new Promise(resolve => this.io.close(resolve));
-        this.logger.info('Socket connection closed');
-      }
-      // Clear all active sessions
-      this.activeSessions.clear();
-      this.logger.info("Server cleanup completed successfully.");
-    } catch (error) {
-      this.logger.error(`During server cleanup: ${error.message}`);
     }
   }
 }
@@ -1286,16 +1225,22 @@ class DatabaseManager extends IDatabaseManager {
     const locationDataPath = this.DATA_PATHS.LOCATIONS;
     if (!locationDataPath) {
       this.logger.error(`LOCATIONS_DATA_PATH is not defined in the configuration`);
-      return;
+      return null;
     }
     try {
-      this.logger.info('- LOAD GAME DATA STARTED');
-      this.logger.info('- Load Locations Data');
-      this.logger.debug(`- Load Locations Data From: ${locationDataPath}`);
+      this.logger.debug(`- Loading locations data from: ${locationDataPath}`);
       const allLocationData = await this.loadData(locationDataPath, 'locations');
-      return this.validateAndParseLocationData(allLocationData);
+      if (!allLocationData || Object.keys(allLocationData).length === 0) {
+        this.logger.error('No location data loaded or parsed successfully');
+        return null;
+      }
+      this.logger.debug(`Raw location data loaded: ${Object.keys(allLocationData).length} locations`);
+      const validatedData = this.validateAndParseLocationData(allLocationData);
+      this.logger.info(`Location data loading complete. ${validatedData.size} valid locations loaded.`);
+      return validatedData;
     } catch (error) {
       this.logger.error(`Failed to load locations data: ${error.message}`);
+      return null;
     }
   }
   async loadData(folderPath, dataType = 'default') {
@@ -1394,10 +1339,10 @@ class DatabaseManager extends IDatabaseManager {
     const referencedLocations = new Set();
     for (const [id, location] of Object.entries(data)) {
       this.logger.debug(`- Validate Location - ID: ${id}`);
-      //this.logger.debug(`- Locations Data:`);
-      //this.logger.debug(`${JSON.stringify(location, null, 2)}`);
+      this.logger.debug(`- Locations Data:`);
+      this.logger.debug(`${JSON.stringify(location, null, 2)}`);
       if (!this.isValidLocation(location)) {
-        this.logger.error(`Invalid locations object${JSON.stringify(location)}`);
+        this.logger.error(`Invalid location object for ID ${id}: ${JSON.stringify(location)}`);
         continue;
       }
       locationData.set(id, location);
@@ -1419,8 +1364,12 @@ class DatabaseManager extends IDatabaseManager {
     if (typeof location !== 'object' || location === null) {
       return false;
     }
-    return typeof location.name === 'string' && typeof location.description === 'string' &&
-           typeof location.exits === 'object' && Array.isArray(location.zone);
+    return (
+      typeof location.name === 'string' &&
+      typeof location.description === 'string' &&
+      typeof location.exits === 'object' &&
+      Array.isArray(location.zone)
+    );
   }
   async loadNpcData() {
     const npcDataPath = this.DATA_PATHS.NPCS;
@@ -1549,10 +1498,10 @@ class GameDataLoader {
     const DATA_TYPES = { LOCATION: 'Location', NPC: 'Npc', ITEM: 'Item' };
     try {
       const loadData = async (loadFunction, type, path) => {
-        logger.info(`- Load ${type}s Data`);
-        logger.debug(`- Load ${type}s Data From: ${path}`);
+        logger.info(`- Loading ${type} Data`);
         try {
           const data = await loadFunction();
+          logger.info(`- ${type} Data Loaded Successfully`);
           return { type, data };
         } catch (error) {
           logger.error(`Loading ${type} data: ${error.message}`);
@@ -1590,7 +1539,7 @@ class GameDataLoader {
         server: this.server,
         locationData
       });
-      await locationCoordinateManager.assignCoordinates(locationData);
+      await locationCoordinateManager.assignCoordinates();
       this.server.gameManager.locations = locationData;
     } else {
       this.logger.error(`Invalid ${locationType} data format`);
@@ -2198,9 +2147,9 @@ class GameComponentInitializer extends IBaseManager {
       await this.initializeDatabaseManager();
       await this.initializeSocketEventEmitter();
       await this.initializeGameManager();
+      await this.setupGameManagerEventListeners();
       await this.initializeGameDataLoader();
       this.logger.info('- LOAD GAME DATA FINISHED');
-      await this.setupGameManagerEventListers();
     } catch (error) {
       this.handleSetupError(error);
     }
@@ -2252,15 +2201,20 @@ class GameComponentInitializer extends IBaseManager {
   async initializeGameDataLoader() {
     try {
       this.logger.debug('- Initialize Game Data Loader');
-      this.server.gameDataLoader = GameDataLoader.getInstance({ server: this.server });
-      await this.server.gameDataLoader.fetchGameData();
+      this.gameDataLoader = GameDataLoader.getInstance({ server: this });
+      // Ensure the database manager is properly initialized before fetching data
+      if (this.databaseManager) {
+        await this.gameDataLoader.fetchGameData();
+      } else {
+        this.logger.error('Database manager not initialized before fetching game data');
+      }
       this.logger.debug('- Initialize Game Data Loader Finished');
     } catch (error) {
       this.logger.error(`Initializing Game Data Loader: ${error.message}`);
       throw error; // Rethrow the error to stop the initialization process
     }
   }
-  async setupGameManagerEventListers() {
+  async setupGameManagerEventListeners() {
     try {
       if (this.server.gameManager) {
         this.logger.debug('- Initialize Game Manager Event Listeners');
@@ -3710,11 +3664,14 @@ class LocationCoordinateManager {
   constructor({ logger, server, locationData }) {
     this.logger = logger;
     this.server = server;
+    if (!(locationData instanceof Map)) {
+      throw new Error("LocationCoordinateManager expects locationData to be a Map");
+    }
     this.locationData = locationData;
     this.assignedCoordinates = new Set();
   }
   async assignCoordinates() {
-    for (const [id, location] of this.locationData.entries()) {
+    for (const [id, location] of this.locationData) {
       if (!location.coordinates) {
         location.coordinates = this.generateUniqueCoordinates();
         this.logger.debug(`Assigned coordinates ${JSON.stringify(location.coordinates)} to location ${id}`);
