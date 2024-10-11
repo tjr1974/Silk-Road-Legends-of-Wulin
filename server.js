@@ -508,29 +508,6 @@ class Merchant extends NPC {
   }
 }
 /**************************************************************************************************
-Chat System Class
-***************************************************************************************************/
-class ChatSystem {
-  constructor() {
-    this.channels = new Map();
-  }
-  createChannel(name, isPrivate = false) {
-    // Create a new chat channel
-  }
-  joinChannel(player, channelName) {
-    // Add player to a channel
-  }
-  leaveChannel(player, channelName) {
-    // Remove player from a channel
-  }
-  sendMessage(player, channelName, message) {
-    // Send a message to a channel
-  }
-  sendPrivateMessage(sender, recipient, message) {
-    // Send a private message
-  }
-}
-/**************************************************************************************************
 Chat Channel Class
 ***************************************************************************************************/
 class ChatChannel {
