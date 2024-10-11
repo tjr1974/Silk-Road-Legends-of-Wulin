@@ -101,7 +101,7 @@
 - Support for custom scripts (e.g., Lua)
 - API for world interaction
 
-### 2. Event System
+### 2. World Event System
 - Trigger system for world events
 - Custom event creation and handling
 
