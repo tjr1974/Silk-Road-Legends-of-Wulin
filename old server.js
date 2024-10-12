@@ -117,7 +117,6 @@ Key features:
 1. Singleton pattern implementation for global access
 2. Configurable log levels with color-coded output
 3. Conditional logging based on severity thresholds
-4. Formatted log output with timestamps and log level indicators
 The Logger class plays a critical role in system diagnostics, error tracking, and runtime
 monitoring, facilitating easier debugging and maintenance of the game system.
 ***************************************************************************************************/

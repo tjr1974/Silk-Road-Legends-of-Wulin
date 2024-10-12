@@ -127,88 +127,6 @@ class DatabaseManager {
   }
 }
 /**************************************************************************************************
-World Event System Class
-***************************************************************************************************/
-class WorldEventSystem {
-  constructor(worldManager) {
-    this.worldManager = worldManager;
-    this.scheduledEvents = new Map();
-    this.activeEvents = new Set();
-    this.eventListeners = new Map();
-  }
-  scheduleWorldEvent(eventName, triggerTime, eventData) {
-    this.scheduledEvents.set(eventName, { triggerTime, eventData });
-  }
-  cancelScheduledWorldEvent(eventName) {
-    this.scheduledEvents.delete(eventName);
-  }
-  triggerWorldEvent(eventName, eventData) {
-    this.activeEvents.add(eventName);
-    this.notifyListeners(eventName, eventData);
-    // Implement event-specific logic here
-    this.worldManager.broadcastToAll('worldEvent', { name: eventName, data: eventData });
-  }
-  endWorldEvent(eventName) {
-    this.activeEvents.delete(eventName);
-    this.notifyListeners(`${eventName}End`, {});
-    this.worldManager.broadcastToAll('worldEventEnd', { name: eventName });
-  }
-  addWorldEventListener(eventName, listener) {
-    if (!this.eventListeners.has(eventName)) {
-      this.eventListeners.set(eventName, new Set());
-    }
-    this.eventListeners.get(eventName).add(listener);
-  }
-  removeWorldEventListener(eventName, listener) {
-    const listeners = this.eventListeners.get(eventName);
-    if (listeners) {
-      listeners.delete(listener);
-    }
-  }
-  notifyWorldEventListeners(eventName, eventData) {
-    const listeners = this.eventListeners.get(eventName);
-    if (listeners) {
-      listeners.forEach(listener => listener(eventData));
-    }
-  }
-  updateWorldEventSystem(currentTime) {
-    for (const [eventName, eventInfo] of this.scheduledEvents.entries()) {
-      if (currentTime >= eventInfo.triggerTime) {
-        this.triggerWorldEvent(eventName, eventInfo.eventData);
-        this.scheduledEvents.delete(eventName);
-      }
-    }
-  }
-}
-/**************************************************************************************************
-World Manager Class
-***************************************************************************************************/
-class WorldManager {
-  constructor() {
-    this.locations = new Map();
-    this.time = new TimeSystem();
-    this.weather = new WeatherSystem();
-    this.worldEventSystem = new WorldEventSystem(this);
-  }
-  loadWorld() {
-    // Load world data from database
-  }
-  getLocation(locationId) {
-    // Get location by ID
-  }
-  moveEntity(entity, newLocationId) {
-    // Move entity to new location
-  }
-  updateWorld(deltaTime) {
-    this.time.update(deltaTime);
-    this.weather.update(deltaTime);
-    this.worldEventSystem.update(this.time.currentTime);
-  }
-  broadcastToAll(eventName, data) {
-    // Implement method to broadcast to all connected clients
-  }
-}
-/**************************************************************************************************
 Game Data Manager Class
 ***************************************************************************************************/
 class GameDataManager {
@@ -291,6 +209,88 @@ class GameDataManager {
   }
 }
 /**************************************************************************************************
+World Event System Class
+***************************************************************************************************/
+class WorldEventSystem {
+  constructor(worldManager) {
+    this.worldManager = worldManager;
+    this.scheduledEvents = new Map();
+    this.activeEvents = new Set();
+    this.eventListeners = new Map();
+  }
+  scheduleWorldEvent(eventName, triggerTime, eventData) {
+    this.scheduledEvents.set(eventName, { triggerTime, eventData });
+  }
+  cancelScheduledWorldEvent(eventName) {
+    this.scheduledEvents.delete(eventName);
+  }
+  triggerWorldEvent(eventName, eventData) {
+    this.activeEvents.add(eventName);
+    this.notifyListeners(eventName, eventData);
+    // Implement event-specific logic here
+    this.worldManager.broadcastToAll('worldEvent', { name: eventName, data: eventData });
+  }
+  endWorldEvent(eventName) {
+    this.activeEvents.delete(eventName);
+    this.notifyListeners(`${eventName}End`, {});
+    this.worldManager.broadcastToAll('worldEventEnd', { name: eventName });
+  }
+  addWorldEventListener(eventName, listener) {
+    if (!this.eventListeners.has(eventName)) {
+      this.eventListeners.set(eventName, new Set());
+    }
+    this.eventListeners.get(eventName).add(listener);
+  }
+  removeWorldEventListener(eventName, listener) {
+    const listeners = this.eventListeners.get(eventName);
+    if (listeners) {
+      listeners.delete(listener);
+    }
+  }
+  notifyWorldEventListeners(eventName, eventData) {
+    const listeners = this.eventListeners.get(eventName);
+    if (listeners) {
+      listeners.forEach(listener => listener(eventData));
+    }
+  }
+  updateWorldEventSystem(currentTime) {
+    for (const [eventName, eventInfo] of this.scheduledEvents.entries()) {
+      if (currentTime >= eventInfo.triggerTime) {
+        this.triggerWorldEvent(eventName, eventInfo.eventData);
+        this.scheduledEvents.delete(eventName);
+      }
+    }
+  }
+}
+/**************************************************************************************************
+World Manager Class
+***************************************************************************************************/
+class WorldManager {
+  constructor() {
+    this.locations = new Map();
+    this.time = new TimeSystem();
+    this.weather = new WeatherSystem();
+    this.worldEventSystem = new WorldEventSystem(this);
+  }
+  loadWorld() {
+    // Load world data from database
+  }
+  getLocation(locationId) {
+    // Get location by ID
+  }
+  moveEntity(entity, newLocationId) {
+    // Move entity to new location
+  }
+  updateWorld(deltaTime) {
+    this.time.update(deltaTime);
+    this.weather.update(deltaTime);
+    this.worldEventSystem.update(this.time.currentTime);
+  }
+  broadcastToAll(eventName, data) {
+    // Implement method to broadcast to all connected clients
+  }
+}
+/**************************************************************************************************
 Time System Class
 ***************************************************************************************************/
 class TimeSystem {
@@ -336,7 +336,6 @@ Character Class
 class Character extends Entity {
   constructor(id, name, description) {
     super(id, name, description);
-    this.attributes = new CharacterAttributes();
     this.inventory = new Inventory();
   }
   takeDamage(amount) {
@@ -787,7 +786,3 @@ class PluginManager {
 /**************************************************************************************************
 Start Server Code
 ***************************************************************************************************/
-const serverInitializer = ServerInitializer.getInstance({ config: CONFIG });
-serverInitializer.initialize().catch(error => {
-  console.error("Failed to initialize server:", error);
-});

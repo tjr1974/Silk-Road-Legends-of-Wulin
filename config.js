@@ -14,10 +14,10 @@ const LOG_FILE_PATH = './server logs';     // Path for log files
 const LOG_MAX_FILE_SIZE = 1048576;  // Max file size for logger = 1 MB in bytes
 // File Paths for Game Data
 const PLAYER_DATA_PATH = './source code/world data/players';
-const LOCATIONS_DATA_PATH = './source code/world data/locations'; // Changed from LOCATION_DATA_PATH
-const NPCS_DATA_PATH = './source code/world data/npcs'; // Changed from NPC_DATA_PATH
-const ITEMS_DATA_PATH = './source code/world data/items'; // Changed from ITEM_DATA_PATH
-const GAME_DATA_PATH = './source code/world data/gameData.json';
+const LOCATIONS_DATA_PATH = './source code/world data/locations';
+const NPCS_DATA_PATH = './source code/world data/npcs';
+const ITEMS_DATA_PATH = './source code/world data/items';
+const GAME_DATA_PATH = './source code/world data/game data.json';
 // Game Configuration
 const PASSWORD_SALT_ROUNDS = 10;     // Number of salt rounds for bcrypt
 const ITEM_UID_SALT_ROUNDS = 1;     // Number of salt rounds for item UIDs
