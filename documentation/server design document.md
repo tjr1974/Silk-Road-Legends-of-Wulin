@@ -2,41 +2,7 @@
 
 This document provides a comprehensive detailed framework for developing a MUD (Multi-User Dungeon) game server. It outlines the architecture, core components, key features of the server implementation, server management, various aspects of game development, and best practices for creating a robust and scalable gaming platform. Remember to implement proper error handling, logging, and security measures throughout the server implementation.
 
-## I. Log System
-
-The Log System provides robust logging functionality for the game server. It implements a Singleton pattern to ensure a single, globally accessible logging instance. This class handles formatting, prioritization, and output of log messages across various severity levels.
-
-### 1. Key Features:
-- Singleton pattern implementation for global access
-- Configurable log levels with color-coded output
-- Conditional logging based on severity thresholds
-
-### 2. Log Levels:
-The system supports four log levels, each associated with a numeric value:
-- 'DEBUG': 0
-- 'INFO': 1
-- 'WARN': 2
-- 'ERROR': 3
-
-### 3. Color-Coded Output:
-The system uses color-coded output for enhanced readability:
-- DEBUG: Orange
-- INFO: Default console color
-- WARN: Magenta
-- ERROR: Red
-
-### 4. Implementation Details:
-- Utilizes the Singleton pattern to ensure a single instance of the logger
-- Configurable through the central configuration file
-- Supports both console output and file logging
-- Implements conditional logging based on the configured log level
-- Provides methods for each log level (debug, info, warn, error)
-- Formats log messages with appropriate color coding
-
-### 5. Usage:
-The Log System can be easily integrated into various parts of the server code, allowing for consistent and centralized logging across the entire application.
-
-## II. Technology Stack and Core Requirements
+## I. Technology Stack and Core Requirements
 
 ### 1. Server Environment
 - Node.js as the runtime environment
@@ -49,7 +15,7 @@ The Log System can be easily integrated into various parts of the server code, a
   - Implement custom events for game-specific actions
   - Use chat channels for efficient broadcasting to subsets of connected clients
 
-### 2. Server Configuration
+### 2. Configuration
 - External configuration file (`config.js`) for easy management of server settings
   - Include database connection details, server ports, and game-specific parameters
 
@@ -85,6 +51,40 @@ The Log System can be easily integrated into various parts of the server code, a
 - Event-driven design for flexible game mechanics implementation
   - Create a robust event emitter system
   - Allow for dynamic register and deregister of event listeners
+
+## II. Log System
+
+The Log System provides robust logging functionality for the game server. It implements a Singleton pattern to ensure a single, globally accessible logging instance. This class handles formatting, prioritization, and output of log messages across various severity levels.
+
+### 1. Key Features:
+- Singleton pattern implementation for global access
+- Configurable log levels with color-coded output
+- Conditional logging based on severity thresholds
+
+### 2. Log Levels:
+The system supports four log levels, each associated with a numeric value:
+- 'DEBUG': 0
+- 'INFO': 1
+- 'WARN': 2
+- 'ERROR': 3
+
+### 3. Color-Coded Output:
+The system uses color-coded output for enhanced readability:
+- DEBUG: Orange
+- INFO: Default console color
+- WARN: Magenta
+- ERROR: Red
+
+### 4. Implementation Details:
+- Utilizes the Singleton pattern to ensure a single instance of the logger
+- Configurable through the central configuration file
+- Supports both console output and file logging
+- Implements conditional logging based on the configured log level
+- Provides methods for each log level (debug, info, warn, error)
+- Formats log messages with appropriate color coding
+
+### 5. Usage:
+The Log System can be easily integrated into various parts of the server code, allowing for consistent and centralized logging across the entire application.
 
 ## III. Database
 - The database consists of multiple json files stored in the following directories as defined in the external configuration file (`config.js`):
@@ -425,7 +425,7 @@ The Log System can be easily integrated into various parts of the server code, a
 ## XIX. Appendix
 
 ### 1. Class List
-1. LogSystem
+1. ConfigurationManager
 2. CoreServer
 3. SocketEventSystem
 4. ClientManager
@@ -465,3 +465,4 @@ The Log System can be easily integrated into various parts of the server code, a
 38. LocationCoordinateManager
 39. QuestLog
 40. DialogueTree
+41. LogSystem

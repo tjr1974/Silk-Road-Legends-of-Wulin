@@ -11,11 +11,45 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 import { exit } from 'process';
 /**************************************************************************************************
+Configuration Manager Class
+***************************************************************************************************/
+class ConfigurationManager {
+  constructor(config) {
+    this.config = config;
+  }
+  get(key) {
+    return this.config[key];
+  }
+  set(key, value) {
+    this.config[key] = value;
+  }
+  getAll() {
+    return { ...this.config };
+  }
+  updateFromEnvironment() {
+    Object.keys(this.config).forEach(key => {
+      if (process.env[key] !== undefined) {
+        this.config[key] = process.env[key];
+      }
+    });
+  }
+  validate() {
+    // Add validation logic for critical configuration settings
+    const requiredKeys = ['HOST', 'PORT', 'LOG_LEVEL', 'SESSION_SECRET'];
+    requiredKeys.forEach(key => {
+      if (this.config[key] === undefined) {
+        throw new Error(`Missing required configuration: ${key}`);
+      }
+    });
+    // Add more specific validation as needed
+  }
+}
+/**************************************************************************************************
 Core Server Class
 ***************************************************************************************************/
 class CoreServer {
   constructor(config) {
-    this.config = config;
+    this.configManager = new ConfigurationManager(config);
     this.express = null;
     this.http = null;
     this.https = null;
@@ -26,9 +60,8 @@ class CoreServer {
     this.worldManager = new WorldManager();
   }
   async initialize() {
-    // Initialize Express, HTTP(S) server, and Socket.IO
-    // Set up routes and middleware
-    // Initialize game components
+    this.configManager.updateFromEnvironment();
+    this.configManager.validate();
   }
   start() {
     // Start the server and game loop
@@ -784,5 +817,91 @@ class PluginManager {
   }
 }
 /**************************************************************************************************
+Log System Class
+***************************************************************************************************/
+class LogSystem {
+  static instance = null;
+  constructor() {
+    if (LogSystem.instance) {
+      return LogSystem.instance;
+    }
+    this.logLevel = this.getLogLevelValue(CONFIG.LOG_LEVEL);
+    this.logFilePath = CONFIG.LOG_FILE_PATH;
+    this.maxFileSize = CONFIG.LOG_MAX_FILE_SIZE;
+    this.CONFIG = CONFIG;
+    LogSystem.instance = this;
+  }
+  getLogLevelValue(level) {
+    const levels = {
+      'DEBUG': 0,
+      'INFO': 1,
+      'WARN': 2,
+      'ERROR': 3
+    };
+    return levels[level] || 0;
+  }
+  async log(level, message) {
+    const levelValue = this.getLogLevelValue(level);
+    if (levelValue >= this.logLevel) {
+      const formattedMessage = this.formatMessage(level, message);
+      console.log(formattedMessage);
+      await this.writeToFile(this.stripAnsiCodes(formattedMessage));
+    }
+  }
+  formatMessage(level, message) {
+    const timestamp = new Date().toISOString();
+    let coloredMessage = message;
+    switch (level) {
+      case 'DEBUG':
+        coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
+        break;
+      case 'WARN':
+        coloredMessage = `${this.CONFIG.MAGENTA}WARNING: ${message}${this.CONFIG.RESET}`;
+        break;
+      case 'ERROR':
+        coloredMessage = `${this.CONFIG.RED}ERROR: ${message}${this.CONFIG.RESET}`;
+        break;
+    }
+    return `[${timestamp}] [${level}] ${coloredMessage}`;
+  }
+  stripAnsiCodes(str) {
+    return str.replace(/\x1B[[(?);]{0,2}(;?\d)*./g, '');
+  }
+  async writeToFile(message) {
+    try {
+      const fileName = `${new Date().toISOString().split('T')[0]}.log`;
+      const filePath = path.join(this.logFilePath, fileName);
+      await fs.mkdir(this.logFilePath, { recursive: true });
+      const stats = await fs.stat(filePath).catch(() => ({ size: 0 }));
+      if (stats.size > this.maxFileSize) {
+        const newFileName = `${fileName}.${Date.now()}`;
+        await fs.rename(filePath, path.join(this.logFilePath, newFileName));
+      }
+      await fs.appendFile(filePath, message + '\n');
+    } catch (error) {
+      console.error('Error writing to log file:', error);
+    }
+  }
+  debug(message) {
+    this.log('DEBUG', message);
+  }
+  info(message) {
+    this.log('INFO', message);
+  }
+  warn(message) {
+    this.log('WARN', message);
+  }
+  error(message) {
+    this.log('ERROR', message);
+  }
+}
+/**************************************************************************************************
 Start Server Code
 ***************************************************************************************************/
+const server = new CoreServer(CONFIG);
+server.initialize().then(() => {
+  server.start();
+}).catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});

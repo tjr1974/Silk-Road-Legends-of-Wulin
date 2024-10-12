@@ -2386,95 +2386,6 @@
   - #### Algorithms
     - Use efficient algorithms for sorting, searching, and other operations.
 
-- ###  Classes
-  List of all classes in 'server.js':
-
-  - #### Interface Classes
-    - 1\. Logger
-    - 2\. ISocketEventEmitter
-    - 3\. IBaseManager
-    - 4\. IDatabaseManager
-    - 5\. IGameManager
-
-  - #### Logging
-    - 6\. Logger
-
-  - #### Configuration Management
-    - 7\. ConfigManager
-
-  - #### Server Core Components
-    - 8\. Server
-    - 9\. ServerInitializer
-    - 10\. ServerConfigurator
-    - 11\. SocketEventManager
-    - 12\. SocketEventEmitter
-    - 13\. ReplicationManager
-    - 14\. AsyncLock
-
-  - #### Task and Queue Management
-    - 15\. QueueManager
-    - 16\. ObjectPool
-    - 17\. TaskManager
-    - 18\. MessageQueueSystem
-
-  - #### Database and Data Management
-    - 19\. DatabaseManager
-    - 20\. GameDataLoader
-    - 21\. UidGenerator
-
-  - #### Game Management
-    - 22\. GameManager
-    - 23\. GameComponentInitializer
-
-  - #### Entity Management
-    - 24\. Entity
-    - 25\. Character
-
-  - #### Player Management
-    - 26\. CreateNewPlayer
-    - 27\. Player
-    - 28\. AuthenticationManager
-    - 29\. SessionManager
-    - 30\. HealthRegenerator
-
-  - #### Command Management
-    - 31\. GameCommandManager
-    - 32\. LookAtCommandHandler
-
-  - #### Combat Management
-    - 33\. CombatManager
-    - 34\. CombatAction
-
-  - #### Locations and Navigation Management
-    - 35\. Locations
-    - 36\. LocationCoordinateManager
-    - 37\. DescribeLocationManager
-    - 38\. DirectionManager
-
-  - #### Npc Management
-    - 39\. Npc
-    - 40\. MobileNpc
-    - 41\. QuestNpc
-    - 42\. MerchantNpc
-    - 43\. NpcMovementManager
-
-  - #### Item Management
-    - 44\. BaseItem
-    - 45\. Item
-    - 46\. ConsumableItem
-    - 47\. ContainerItem
-    - 48\. WeaponItem
-    - 49\. ItemManager
-    - 50\. InventoryManager
-    - 51\. Currency
-    - 52\. TransactionManager
-    - 53\. TradeSession
-    - 54\. AtomicTransaction
-
-  - #### Messaging Management
-    - 55\. FormatMessageManager
-    - 56\. MessageManager
-
 - ### Instance and Singleton Classes
 
     In JavaScript, **instance classes** and **singletons** represent two different patterns for creating and managing objects and instances. Here's a breakdown of each concept:
@@ -2604,66 +2515,19 @@
 
         These classes should be instances because they represent individual entities, handle specific actions, or manage state for particular objects within the game.
 
-        1. SocketEventEmitter (one per socket connection)
-        2. MoveCommandHandler
-        3. LookAtCommandHandler
-        4. Entity
-        5. Character
-        6. CreateNewPlayer
-        7. Player
-        8. HealthRegenerator
-        9. Npc
-        10. MobileNpc
-        11. QuestNpc
-        12. BaseItem
-        13. Item
-        14. ConsumableItem
-        15. ContainerItem
-        16. WeaponItem
-        17. InventoryManager
-        18. Locations
-        19. DescribeLocationManager
-        20. CombatAction
+
 
       - #### Singleton Classes
 
         These classes should be singletons because they manage global state, provide centralized services, or need to maintain consistency across the entire application.
 
-        1. Logger
-        2. ConfigManager
-        3. Server
-        4. ServerInitializer
-        5. ServerConfigurator
-        6. SocketEventManager
-        7. QueueManager
-        8. TaskManager
-        9. MessageQueueSystem
-        10. DatabaseManager
-        11. GameDataLoader
-        12. UidGenerator
-        13. GameManager
-        14. GameComponentInitializer
-        15. GameCommandManager
-        16. ItemManager
-        17. NpcMovementManager
-        18. LocationCoordinateManager
-        19. CombatManager
+
 
       - #### Other Classes
 
-        These classes are designed to be instantiated as needed or to serve as base classes or interfaces for other classes to implement or extend. They are not implemented as singletons or global instances, allowing for multiple instances to be created as required by the game logic.
+        These classes are designed to be instantiated as needed. They are not implemented as singletons or global instances, allowing for multiple instances to be created as required by the game logic.
 
-        Interface and abstract base classes, are not meant to be instantiated directly but rather to be implemented or extended by other classes in the system.
 
-        These include:
-
-        1. ILogger: An interface class for logging operations.
-        2. ISocketEventEmitter: An interface class for socket event emission and handling.
-        3. IBaseManager: An abstract base class for managing various components of the game server.
-        4. IDatabaseManager: An interface class for database operations.
-        5. Entity: A base class for all entities within the game.
-        6. Character: A base class for all characters, extending from Entity.
-        7. MessageManager: A class for managing messages.
 
       - #### Notes:
 
