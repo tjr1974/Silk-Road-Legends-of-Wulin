@@ -16,6 +16,7 @@ Configuration Manager Class
 class ConfigurationManager {
   constructor(config) {
     this.config = config;
+    this.logger = new LogSystem();
   }
   get(key) {
     return this.config[key];
@@ -29,19 +30,68 @@ class ConfigurationManager {
   updateFromEnvironment() {
     Object.keys(this.config).forEach(key => {
       if (process.env[key] !== undefined) {
-        this.config[key] = process.env[key];
+        if (typeof this.config[key] === 'number') {
+          this.config[key] = Number(process.env[key]);
+        } else if (typeof this.config[key] === 'boolean') {
+          this.config[key] = process.env[key].toLowerCase() === 'true';
+        } else if (key === 'REGEN_RATES') {
+          try {
+            this.config[key] = new Map(Object.entries(JSON.parse(process.env[key])));
+          } catch (error) {
+            this.logger.error(`Failed to parse REGEN_RATES from environment: ${error}`);
+          }
+        } else {
+          this.config[key] = process.env[key];
+        }
       }
     });
   }
   validate() {
-    // Add validation logic for critical configuration settings
-    const requiredKeys = ['HOST', 'PORT', 'LOG_LEVEL', 'SESSION_SECRET'];
+    const requiredKeys = [
+      'HOST', 'PORT', 'LOG_LEVEL', 'SESSION_SECRET',
+      'SSL_KEY_PATH', 'SSL_CERT_PATH', 'LOG_FILE_PATH',
+      'PLAYER_DATA_PATH', 'LOCATIONS_DATA_PATH', 'NPCS_DATA_PATH',
+      'ITEMS_DATA_PATH', 'GAME_DATA_PATH'
+    ];
     requiredKeys.forEach(key => {
       if (this.config[key] === undefined) {
-        throw new Error(`Missing required configuration: ${key}`);
+        this.logger.error(`Missing required configuration: ${key}`);
       }
     });
-    // Add more specific validation as needed
+    const numericKeys = [
+      'PORT', 'LOG_MAX_FILE_SIZE', 'PASSWORD_SALT_ROUNDS',
+      'ITEM_UID_SALT_ROUNDS', 'TICK_RATE', 'WORLD_EVENT_INTERVAL',
+      'NPC_MOVEMENT_INTERVAL', 'INITIAL_HEALTH', 'INITIAL_ATTACK_POWER',
+      'REGEN_INTERVAL', 'LEVEL_UP_XP', 'INVENTORY_CAPACITY', 'COMBAT_INTERVAL'
+    ];
+    numericKeys.forEach(key => {
+      if (typeof this.config[key] !== 'number' || isNaN(this.config[key])) {
+        this.logger.error(`Invalid numeric value for ${key}: ${this.config[key]}`);
+      }
+    });
+    const booleanKeys = ['SESSION_RESAVE', 'SESSION_SAVE_UNINITIALIZED', 'COOKIE_SECURE', 'COOKIE_HTTP_ONLY'];
+    booleanKeys.forEach(key => {
+      if (typeof this.config[key] !== 'boolean') {
+        this.logger.error(`Invalid boolean value for ${key}: ${this.config[key]}`);
+      }
+    });
+    if (!(this.config.REGEN_RATES instanceof Map)) {
+      this.logger.error('REGEN_RATES must be a Map');
+    } else {
+      this.config.REGEN_RATES.forEach((value, key) => {
+        if (typeof value !== 'number' || isNaN(value)) {
+          this.logger.error(`Invalid numeric value for REGEN_RATES[${key}]: ${value}`);
+        }
+      });
+    }
+    const validLogLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
+    if (!validLogLevels.includes(this.config.LOG_LEVEL)) {
+      this.logger.error(`Invalid LOG_LEVEL: ${this.config.LOG_LEVEL}`);
+    }
+    const validSameSiteValues = ['strict', 'lax', 'none'];
+    if (!validSameSiteValues.includes(this.config.COOKIE_SAME_SITE.toLowerCase())) {
+      this.logger.error(`Invalid COOKIE_SAME_SITE value: ${this.config.COOKIE_SAME_SITE}`);
+    }
   }
 }
 /**************************************************************************************************
@@ -336,17 +386,6 @@ class TimeSystem {
   }
   isDaytime() {
     // Check if it's currently daytime
-  }
-}
-/**************************************************************************************************
-Weather System Class
-***************************************************************************************************/
-class WeatherSystem {
-  constructor() {
-    this.currentWeather = 'clear';
-  }
-  update(deltaTime) {
-    // Update weather conditions
   }
 }
 /**************************************************************************************************
@@ -793,27 +832,6 @@ class MessageProtocol {
   }
   static createMessage(type, payload) {
     // Create a standardized message object
-  }
-}
-/**************************************************************************************************
-Plugin Manager Class
-***************************************************************************************************/
-class PluginManager {
-  constructor(server) {
-    this.server = server;
-    this.plugins = new Map();
-  }
-  loadPlugin(name, code) {
-    // Load and initialize a plugin
-  }
-  enablePlugin(name) {
-    // Enable a loaded plugin
-  }
-  disablePlugin(name) {
-    // Disable a loaded plugin
-  }
-  callPluginHook(hookName, ...args) {
-    // Call a hook in all enabled plugins
   }
 }
 /**************************************************************************************************

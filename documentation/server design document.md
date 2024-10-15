@@ -1,6 +1,6 @@
 # MUD Game Server Design Document
 
-This document provides a comprehensive detailed framework for developing a MUD (Multi-User Dungeon) game server. It outlines the architecture, core components, key features of the server implementation, server management, various aspects of game development, and best practices for creating a robust and scalable gaming platform. Remember to implement proper error handling, logging, and security measures throughout the server implementation.
+This document provides a detailed and comprehensive framework for developing a MUD (Multi-User Dungeon) game server. It outlines the architecture, core components, key features of the server implementation, server management, various aspects of game development, and best practices for creating a robust and scalable gaming platform. Remember to implement proper error handling, logging, and security measures throughout the server implementation.
 
 ## I. Technology Stack and Core Requirements
 
@@ -38,7 +38,7 @@ This document provides a comprehensive detailed framework for developing a MUD (
 
 ### 5. Scalability and Performance
 - Asynchronous I/O operations leveraging Node.js event loop
-  - Use async/await for cleaner asynchronous code
+  - Use async/await for clean asynchronous code
   - Implement proper error handling for asynchronous operations
 - Efficient handling of concurrent connections
   - Implement connection limits and timeout mechanisms
@@ -47,7 +47,6 @@ This document provides a comprehensive detailed framework for developing a MUD (
 ### 6. Extensibility
 - Modular architecture for easy addition of new features
   - Use dependency injection for loose coupling between modules
-  - Implement a plugin system for third-party extensions
 - Event-driven design for flexible game mechanics implementation
   - Create a robust event emitter system
   - Allow for dynamic register and deregister of event listeners
@@ -95,7 +94,7 @@ The Log System can be easily integrated into various parts of the server code, a
   - `ITEMS_DATA_PATH = './source code/world data/items';`
   - `GAME_DATA_PATH = './source code/world data/game data.json';`
 
-### 1. GameDataManager
+### 1. Game Data Manager
 - The `GameDataManager` class is responsible for loading, parsing, checking, and storing data from these files.
   - Loads location data, parses it, checks for duplicate IDs and logs an error if any are found, then stores it in the `locations` collection as `Map` objects.
   - Utilizes the `LocationCoordinateManager` class, which is responsible for assigning (x,y,z) coordinates to locations.
@@ -109,20 +108,13 @@ The Log System can be easily integrated into various parts of the server code, a
 - Location system
   - Implement a grid-based or graph-based world structure
   - Support for multi-level maps (e.g., dungeons, buildings)
-- Area definitions
-  - Support for different area types (cities, wilderness, dungeons)
-  - Implement area-specific events and rules
+- Zone system
+  - Implement a zone system to limit mobile NPC movement
 
 ### 2. Time System
 - In-game time tracking
-  - Implement a configurable time scale (e.g., 1 real minute = 10 game minutes)
+  - Implement official server time based on real-world time
   - Support for time-based events and quests
-- Day/night cycle
-  - Affect visibility, NPC behavior, and available actions
-  - Implement smooth transitions between day and night
-- Weather simulation
-  - Generate realistic weather patterns
-  - Implement weather effects on gameplay (e.g., reduced visibility, movement penalties)
 
 ## V. Entity System
 
@@ -304,10 +296,11 @@ The Log System can be easily integrated into various parts of the server code, a
 ### 2. Authentication System
 - Secure login process
   - Implement multi-factor authentication options
-  - Support for OAuth2 and other third-party authentication providers
 - Password hashing and salting
   - Use strong, adaptive hashing algorithms (e.g., bcrypt, Argon2)
   - Implement proper salt generation and storage
+- Password recovery
+  - Implement secure password recovery system
 
 ### 3. Anti-Cheat Measures
 - Input validation
@@ -350,8 +343,6 @@ The Log System can be easily integrated into various parts of the server code, a
 
 ### 2. Real-time Updates
 - Implementation for live updates
-  - Use WebSockets for real-time bidirectional communication
-  - Implement fallback mechanisms for clients without WebSocket support
 
 ## XV. Extensibility
 
@@ -434,35 +425,33 @@ The Log System can be easily integrated into various parts of the server code, a
 7. WorldEventSystem
 8. WorldManager
 9. TimeSystem
-10. WeatherSystem
-11. Entity
-12. Character
-13. Player
-14. NPC
-15. Item
-16. Weapon
-17. Consumable
-18. SkillSystem
-19. Skill
-20. QuestSystem
-21. Quest
-22. EconomicSystem
-23. Merchant
-24. ChatChannel
-25. ChatSystem
-26. EmoteSystem
-27. CommandParser
-28. Command
-29. GameStateManager
-30. ScriptEngine
-31. AdminTools
-32. MonitoringSystem
-33. AuthenticationSystem
-34. AntiCheatSystem
-35. CacheManager
-36. MessageProtocol
-37. PluginManager
-38. LocationCoordinateManager
-39. QuestLog
-40. DialogueTree
-41. LogSystem
+10. Entity
+11. Character
+12. Player
+13. NPC
+14. Item
+15. Weapon
+16. Consumable
+17. SkillSystem
+18. Skill
+19. QuestSystem
+20. Quest
+21. EconomicSystem
+22. Merchant
+23. ChatChannel
+24. ChatSystem
+25. EmoteSystem
+26. CommandParser
+27. Command
+28. GameStateManager
+29. ScriptEngine
+30. AdminTools
+31. MonitoringSystem
+32. AuthenticationSystem
+33. AntiCheatSystem
+34. CacheManager
+35. MessageProtocol
+36. LocationCoordinateManager
+37. QuestLog
+38. DialogueTree
+39. LogSystem

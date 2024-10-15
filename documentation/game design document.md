@@ -1458,7 +1458,7 @@
 
   - #### Ghost Festival (中元节 / Zhōngyuán jié)
     - https://en.wikipedia.org/wiki/Ghost_Festival
-    - Falls on the 15th day of the 7th lunar month (14th in parts of southern China)
+    - Falls on the 15th day of the 7th lunar month
     - Game Event Duration: 1 day
     - Celebrated to comfort and appease spirits of the dead
     - Celebrations include burning fake paper money and making offerings to ancestors
@@ -1486,7 +1486,7 @@
 
   - #### Winter Solstice (冬至节 / Dōngzhì jié)
     - https://en.wikipedia.org/wiki/Dongzhi_Festival
-    - Falls on the day of winter solstice (usually December 21st or 22nd)
+    - Falls on the day of winter solstice
     - Game Event Duration: 1 day
     - Celebrated to commemorate the return of longer days and the balance of yin and yang
     - Celebrations include eating sweet rice dumplings (汤圆 / Tāngyuán), drinking fermented wine (酒酿 / Jiǔniàng), ancestor worship, and family gatherings
