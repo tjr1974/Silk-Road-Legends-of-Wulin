@@ -95,12 +95,91 @@ class ConfigurationManager {
   }
 }
 /**************************************************************************************************
-Core Server Class
+Log System Class
 ***************************************************************************************************/
-class CoreServer {
+class LogSystem {
+  static instance = null;
+  constructor() {
+    if (LogSystem.instance) {
+      return LogSystem.instance;
+    }
+    this.logLevel = this.getLogLevelValue(CONFIG.LOG_LEVEL);
+    this.logFilePath = CONFIG.LOG_FILE_PATH;
+    this.maxFileSize = CONFIG.LOG_MAX_FILE_SIZE;
+    this.CONFIG = CONFIG;
+    LogSystem.instance = this;
+  }
+  getLogLevelValue(level) {
+    const levels = {
+      'DEBUG': 0,
+      'INFO': 1,
+      'WARN': 2,
+      'ERROR': 3
+    };
+    return levels[level] || 0;
+  }
+  async log(level, message) {
+    const levelValue = this.getLogLevelValue(level);
+    if (levelValue >= this.logLevel) {
+      const formattedMessage = this.formatMessage(level, message);
+      console.log(formattedMessage);
+      await this.writeToFile(this.stripAnsiCodes(formattedMessage));
+    }
+  }
+  formatMessage(level, message) {
+    const timestamp = new Date().toISOString();
+    let coloredMessage = message;
+    switch (level) {
+      case 'DEBUG':
+        coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
+        break;
+      case 'WARN':
+        coloredMessage = `${this.CONFIG.MAGENTA}WARNING: ${message}${this.CONFIG.RESET}`;
+        break;
+      case 'ERROR':
+        coloredMessage = `${this.CONFIG.RED}ERROR: ${message}${this.CONFIG.RESET}`;
+        break;
+    }
+    return `[${timestamp}] [${level}] ${coloredMessage}`;
+  }
+  stripAnsiCodes(str) {
+    return str.replace(/\x1B[[(?);]{0,2}(;?\d)*./g, '');
+  }
+  async writeToFile(message) {
+    try {
+      const fileName = `${new Date().toISOString().split('T')[0]}.log`;
+      const filePath = path.join(this.logFilePath, fileName);
+      await fs.mkdir(this.logFilePath, { recursive: true });
+      const stats = await fs.stat(filePath).catch(() => ({ size: 0 }));
+      if (stats.size > this.maxFileSize) {
+        const newFileName = `${fileName}.${Date.now()}`;
+        await fs.rename(filePath, path.join(this.logFilePath, newFileName));
+      }
+      await fs.appendFile(filePath, message + '\n');
+    } catch (error) {
+      console.error('Error writing to log file:', error);
+    }
+  }
+  debug(message) {
+    this.log('DEBUG', message);
+  }
+  info(message) {
+    this.log('INFO', message);
+  }
+  warn(message) {
+    this.log('WARN', message);
+  }
+  error(message) {
+    this.log('ERROR', message);
+  }
+}
+/**************************************************************************************************
+Core Server System Class
+***************************************************************************************************/
+class CoreServerSystem {
   constructor(config) {
     this.configManager = new ConfigurationManager(config);
-    this.express = null;
+    this.express = express();
     this.http = null;
     this.https = null;
     this.io = null;
@@ -108,25 +187,114 @@ class CoreServer {
     this.socketEventSystem = new SocketEventSystem();
     this.clientManager = new ClientManager();
     this.worldManager = new WorldManager();
+    this.databaseManager = new DatabaseManager(this.configManager);
+    this.gameDataManager = new GameDataManager(this.configManager, this.databaseManager);
+    this.logger = new LogSystem();
   }
   async initialize() {
     this.configManager.updateFromEnvironment();
     this.configManager.validate();
+    try {
+      await this.databaseManager.initialize();
+      this.logger.info('Database system initialized successfully');
+      await this.gameDataManager.loadGameData();
+      this.logger.info('Game data loaded successfully');
+      this.worldManager.initialize(this.gameDataManager);
+      this.logger.info('World initialized successfully');
+    } catch (error) {
+      this.logger.error(`Failed to initialize server: ${error.message}`);
+      throw error;
+    }
   }
   start() {
     // Start the server and game loop
+    this.setupExpress();
+    this.setupSocketIO();
+    this.startGameLoop();
+    this.logger.info('Server started successfully');
   }
   stop() {
     // Gracefully stop the server and game loop
+    this.stopGameLoop();
+    this.io.close();
+    this.http.close();
+    this.https.close();
+    this.databaseManager.disconnect();
+    this.logger.info('Server stopped successfully');
+  }
+  setupExpress() {
+    const { HOST, PORT, SSL_KEY_PATH, SSL_CERT_PATH } = this.configManager.getAll();
+    this.express.use(express.json());
+    this.express.use(express.static('public'));
+    if (SSL_KEY_PATH && SSL_CERT_PATH) {
+      const httpsOptions = {
+        key: fs.readFileSync(SSL_KEY_PATH),
+        cert: fs.readFileSync(SSL_CERT_PATH)
+      };
+      this.https = https.createServer(httpsOptions, this.express);
+      this.http = http.createServer((req, res) => {
+        res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
+        res.end();
+      });
+      this.https.listen(PORT, HOST, () => {
+        this.logger.info(`HTTPS server running on https://${HOST}:${PORT}`);
+      });
+      this.http.listen(80, HOST, () => {
+        this.logger.info(`HTTP server redirecting to HTTPS`);
+      });
+    } else {
+      this.http = http.createServer(this.express);
+      this.http.listen(PORT, HOST, () => {
+        this.logger.info(`HTTP server running on http://${HOST}:${PORT}`);
+      });
+    }
+  }
+  setupSocketIO() {
+    this.io = new SocketIOServer(this.https || this.http);
+    this.io.on('connection', (socket) => {
+      this.handleNewConnection(socket);
+      socket.on('disconnect', () => {
+        this.handleDisconnection(socket);
+      });
+      // Add more socket event listeners here
+    });
+  }
+  startGameLoop() {
+    const TICK_RATE = this.configManager.get('TICK_RATE');
+    const TICK_INTERVAL = 1000 / TICK_RATE;
+    let lastUpdate = Date.now();
+    this.gameLoop = setInterval(() => {
+      const now = Date.now();
+      const deltaTime = (now - lastUpdate) / 1000;
+      this.tick(deltaTime);
+      lastUpdate = now;
+    }, TICK_INTERVAL);
+    this.logger.info(`Game loop started with tick rate: ${TICK_RATE} Hz`);
+  }
+  stopGameLoop() {
+    if (this.gameLoop) {
+      clearInterval(this.gameLoop);
+      this.gameLoop = null;
+      this.logger.info('Game loop stopped');
+    }
   }
   handleNewConnection(socket) {
-    // Handle new client connection
+    this.logger.info(`New client connected: ${socket.id}`);
+    // Add authentication logic here
+    // For now, we'll create a dummy player
+    const dummyPlayer = new Player(socket.id, `Player_${socket.id}`, 'A new player');
+    this.clientManager.addClient(socket, dummyPlayer);
+    socket.emit('connectionEstablished', { playerId: dummyPlayer.id });
   }
   handleDisconnection(socket) {
-    // Handle client disconnection
+    this.logger.info(`Client disconnected: ${socket.id}`);
+    this.clientManager.removeClient(socket);
   }
   tick(deltaTime) {
-    // Main game loop tick
+    this.worldManager.updateWorld(deltaTime);
+    // Update all connected clients with the new world state
+    const worldState = this.worldManager.getWorldState();
+    this.clientManager.broadcastToAll('worldUpdate', worldState);
   }
 }
 /**************************************************************************************************
@@ -173,51 +341,109 @@ class ClientManager {
     this.clients = new Map();
   }
   addClient(socket, player) {
-    // Add new client
+    this.clients.set(socket.id, { socket, player });
   }
   removeClient(socket) {
-    // Remove client
+    this.clients.delete(socket.id);
   }
   broadcastToAll(event, data) {
-    // Broadcast to all connected clients
+    for (const client of this.clients.values()) {
+      client.socket.emit(event, data);
+    }
   }
 }
 /**************************************************************************************************
 Database Manager Class
 ***************************************************************************************************/
 class DatabaseManager {
-  constructor(config) {
-    this.config = config;
-    this.connection = null;
+  constructor(configManager) {
+    this.configManager = configManager;
+    this.logger = new LogSystem();
+    this.dataPath = this.configManager.get('GAME_DATA_PATH');
   }
-  async connect() {
-    // Establish database connection
+  async initialize() {
+    // Verify that the data directory exists
+    try {
+      await fs.access(this.dataPath);
+      this.logger.info('JSON file system initialized successfully');
+    } catch (error) {
+      this.logger.error(`Data directory not accessible: ${error.message}`);
+      throw error;
+    }
   }
-  async disconnect() {
-    // Close database connection
+  async query(dataType, filter = null) {
+    try {
+      const data = await this.loadJSONData(`${dataType}.json`);
+      if (filter) {
+        return data.filter(filter);
+      }
+      return data;
+    } catch (error) {
+      this.logger.error(`Error querying ${dataType} data: ${error.message}`);
+      throw error;
+    }
+  }
+  async loadJSONData(filename) {
+    try {
+      const filePath = path.join(this.dataPath, filename);
+      const data = await fs.readFile(filePath, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      throw new Error(`Failed to load JSON data from ${filename}: ${error.message}`);
+    }
+  }
+  async saveJSONData(filename, data) {
+    try {
+      const filePath = path.join(this.dataPath, filename);
+      await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+      this.logger.info(`${filename} saved successfully`);
+    } catch (error) {
+      this.logger.error(`Error saving ${filename}:`, error);
+      throw error;
+    }
   }
   async getPlayer(playerId) {
-    // Retrieve player data
+    const players = await this.query('players', player => player.id === playerId);
+    return players[0];
   }
   async savePlayer(player) {
-    // Save player data
+    const players = await this.query('players');
+    const index = players.findIndex(p => p.id === player.id);
+    if (index !== -1) {
+      players[index] = player;
+    } else {
+      players.push(player);
+    }
+    await this.saveJSONData('players.json', players);
+    this.logger.info(`Player ${player.id} saved successfully`);
   }
   async getWorldState() {
-    // Retrieve world state
+    return await this.query('world_state');
   }
   async saveWorldState(worldState) {
-    // Save world state
+    await this.saveJSONData('world_state.json', worldState);
+    this.logger.info('World state saved successfully');
+  }
+  async loadGameData(dataType) {
+    return await this.query(dataType);
+  }
+  async saveGameData(dataType, data) {
+    await this.saveJSONData(`${dataType}.json`, data);
+    this.logger.info(`${dataType} data saved successfully`);
   }
 }
 /**************************************************************************************************
 Game Data Manager Class
 ***************************************************************************************************/
 class GameDataManager {
-  constructor() {
+  constructor(configManager, databaseManager) {
+    this.configManager = configManager;
+    this.databaseManager = databaseManager;
     this.locations = new Map();
     this.npcs = new Map();
     this.items = new Map();
     this.locationCoordinateManager = new LocationCoordinateManager();
+    this.logger = new LogSystem();
   }
   async loadGameData() {
     await this.loadLocationData();
@@ -226,38 +452,42 @@ class GameDataManager {
   }
   async loadLocationData() {
     try {
-      const locationData = await this.parseJSONData('locations.json');
+      const locationData = await this.loadData('locations');
       this.checkForDuplicateIds(locationData, 'location');
       this.initializeLocationCoordinates(locationData);
       locationData.forEach(location => this.locations.set(location.id, location));
     } catch (error) {
-      console.error('Error loading location data:', error);
+      this.logger.error('Error loading location data:', error);
     }
   }
   async loadNPCData() {
     try {
-      const npcData = await this.parseJSONData('npcs.json');
+      const npcData = await this.loadData('npcs');
       this.checkForDuplicateIds(npcData, 'NPC');
       npcData.forEach(npc => this.npcs.set(npc.id, npc));
     } catch (error) {
-      console.error('Error loading NPC data:', error);
+      this.logger.error('Error loading NPC data:', error);
     }
   }
   async loadItemData() {
     try {
-      const itemData = await this.parseJSONData('items.json');
+      const itemData = await this.loadData('items');
       this.checkForDuplicateIds(itemData, 'item');
       itemData.forEach(item => {
         item.uid = this.generateUID();
         this.items.set(item.id, item);
       });
     } catch (error) {
-      console.error('Error loading item data:', error);
+      this.logger.error('Error loading item data:', error);
     }
+  }
+  async loadData(dataType) {
+    return await this.parseJSONData(`${dataType}.json`);
   }
   async parseJSONData(filename) {
     try {
-      const data = await fs.readFile(path.join('data', filename), 'utf8');
+      const dataPath = this.configManager.get('GAME_DATA_PATH');
+      const data = await fs.readFile(path.join(dataPath, filename), 'utf8');
       return JSON.parse(data);
     } catch (error) {
       throw new Error(`Failed to parse JSON data from ${filename}: ${error.message}`);
@@ -289,6 +519,21 @@ class GameDataManager {
   }
   getItem(id) {
     return this.items.get(id);
+  }
+  async saveGameData() {
+    await this.saveDataToJSON('locations.json', Array.from(this.locations.values()));
+    await this.saveDataToJSON('npcs.json', Array.from(this.npcs.values()));
+    await this.saveDataToJSON('items.json', Array.from(this.items.values()));
+  }
+  async saveDataToJSON(filename, data) {
+    try {
+      const dataPath = this.configManager.get('GAME_DATA_PATH');
+      const filePath = path.join(dataPath, filename);
+      await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+      this.logger.info(`${filename} saved successfully`);
+    } catch (error) {
+      this.logger.error(`Error saving ${filename}:`, error);
+    }
   }
 }
 /**************************************************************************************************
@@ -352,8 +597,8 @@ class WorldManager {
   constructor() {
     this.locations = new Map();
     this.time = new TimeSystem();
-    this.weather = new WeatherSystem();
     this.worldEventSystem = new WorldEventSystem(this);
+    this.entities = new Map();
   }
   loadWorld() {
     // Load world data from database
@@ -366,8 +611,28 @@ class WorldManager {
   }
   updateWorld(deltaTime) {
     this.time.update(deltaTime);
-    this.weather.update(deltaTime);
-    this.worldEventSystem.update(this.time.currentTime);
+    this.worldEventSystem.updateWorldEventSystem(this.time.currentTime);
+    // Update all entities
+    for (const entity of this.entities.values()) {
+      entity.update(deltaTime);
+    }
+  }
+  getWorldState() {
+    return {
+      time: this.time.currentTime,
+      entities: Array.from(this.entities.values()).map(entity => ({
+        id: entity.id,
+        name: entity.name,
+        location: entity.location,
+        // Add more properties as needed
+      }))
+    };
+  }
+  addEntity(entity) {
+    this.entities.set(entity.id, entity);
+  }
+  removeEntity(entityId) {
+    this.entities.delete(entityId);
   }
   broadcastToAll(eventName, data) {
     // Implement method to broadcast to all connected clients
@@ -382,10 +647,14 @@ class TimeSystem {
     this.dayLength = 24 * 60 * 60; // 24 hours in seconds
   }
   update(deltaTime) {
-    // Update game time
+    this.currentTime += deltaTime;
+    if (this.currentTime >= this.dayLength) {
+      this.currentTime -= this.dayLength;
+    }
   }
   isDaytime() {
-    // Check if it's currently daytime
+    const hour = (this.currentTime / 3600) % 24;
+    return hour >= 6 && hour < 18;
   }
 }
 /**************************************************************************************************
@@ -835,88 +1104,9 @@ class MessageProtocol {
   }
 }
 /**************************************************************************************************
-Log System Class
-***************************************************************************************************/
-class LogSystem {
-  static instance = null;
-  constructor() {
-    if (LogSystem.instance) {
-      return LogSystem.instance;
-    }
-    this.logLevel = this.getLogLevelValue(CONFIG.LOG_LEVEL);
-    this.logFilePath = CONFIG.LOG_FILE_PATH;
-    this.maxFileSize = CONFIG.LOG_MAX_FILE_SIZE;
-    this.CONFIG = CONFIG;
-    LogSystem.instance = this;
-  }
-  getLogLevelValue(level) {
-    const levels = {
-      'DEBUG': 0,
-      'INFO': 1,
-      'WARN': 2,
-      'ERROR': 3
-    };
-    return levels[level] || 0;
-  }
-  async log(level, message) {
-    const levelValue = this.getLogLevelValue(level);
-    if (levelValue >= this.logLevel) {
-      const formattedMessage = this.formatMessage(level, message);
-      console.log(formattedMessage);
-      await this.writeToFile(this.stripAnsiCodes(formattedMessage));
-    }
-  }
-  formatMessage(level, message) {
-    const timestamp = new Date().toISOString();
-    let coloredMessage = message;
-    switch (level) {
-      case 'DEBUG':
-        coloredMessage = `${this.CONFIG.ORANGE}${message}${this.CONFIG.RESET}`;
-        break;
-      case 'WARN':
-        coloredMessage = `${this.CONFIG.MAGENTA}WARNING: ${message}${this.CONFIG.RESET}`;
-        break;
-      case 'ERROR':
-        coloredMessage = `${this.CONFIG.RED}ERROR: ${message}${this.CONFIG.RESET}`;
-        break;
-    }
-    return `[${timestamp}] [${level}] ${coloredMessage}`;
-  }
-  stripAnsiCodes(str) {
-    return str.replace(/\x1B[[(?);]{0,2}(;?\d)*./g, '');
-  }
-  async writeToFile(message) {
-    try {
-      const fileName = `${new Date().toISOString().split('T')[0]}.log`;
-      const filePath = path.join(this.logFilePath, fileName);
-      await fs.mkdir(this.logFilePath, { recursive: true });
-      const stats = await fs.stat(filePath).catch(() => ({ size: 0 }));
-      if (stats.size > this.maxFileSize) {
-        const newFileName = `${fileName}.${Date.now()}`;
-        await fs.rename(filePath, path.join(this.logFilePath, newFileName));
-      }
-      await fs.appendFile(filePath, message + '\n');
-    } catch (error) {
-      console.error('Error writing to log file:', error);
-    }
-  }
-  debug(message) {
-    this.log('DEBUG', message);
-  }
-  info(message) {
-    this.log('INFO', message);
-  }
-  warn(message) {
-    this.log('WARN', message);
-  }
-  error(message) {
-    this.log('ERROR', message);
-  }
-}
-/**************************************************************************************************
 Start Server Code
 ***************************************************************************************************/
-const server = new CoreServer(CONFIG);
+const server = new CoreServerSystem(CONFIG);
 server.initialize().then(() => {
   server.start();
 }).catch(error => {

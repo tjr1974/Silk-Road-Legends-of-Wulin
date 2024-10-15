@@ -1,10 +1,10 @@
 # MUD Game Server Design Document
 
-This document provides a detailed and comprehensive framework for developing a MUD (Multi-User Dungeon) game server. It outlines the architecture, core components, key features of the server implementation, server management, various aspects of game development, and best practices for creating a robust and scalable gaming platform. Remember to implement proper error handling, logging, and security measures throughout the server implementation.
+This document provides a detailed and comprehensive framework for developing a MUD (Multi-User Dungeon) game server. It outlines the architecture, core components, key features of the server implementation, server management, various aspects of game development, and best practices for creating a robust and scalable gaming platform.
 
-## I. Technology Stack and Core Requirements
+## I. Technology Stack and Core Server System Requirements
 
-### 1. Server Environment
+### 1. Core Server System
 - Node.js as the runtime environment
   - Leverage asynchronous I/O and event-driven architecture
   - Use the latest LTS version for stability and performance
@@ -17,7 +17,7 @@ This document provides a detailed and comprehensive framework for developing a M
 
 ### 2. Configuration
 - External configuration file (`config.js`) for easy management of server settings
-  - Include database connection details, server ports, and game-specific parameters
+  - Includes server host, port, SSL paths, log settings, file paths, and game-specific parameters
 
 ### 3. Security
 - HTTPS support for encrypted connections
@@ -53,12 +53,13 @@ This document provides a detailed and comprehensive framework for developing a M
 
 ## II. Log System
 
-The Log System provides robust logging functionality for the game server. It implements a Singleton pattern to ensure a single, globally accessible logging instance. This class handles formatting, prioritization, and output of log messages across various severity levels.
+The Log System provides robust logging functionality for the game server. It implements a Singleton pattern to ensure a single, globally accessible logging instance.
 
 ### 1. Key Features:
 - Singleton pattern implementation for global access
 - Configurable log levels with color-coded output
 - Conditional logging based on severity thresholds
+- File logging with rotation based on file size
 
 ### 2. Log Levels:
 The system supports four log levels, each associated with a numeric value:
@@ -417,41 +418,41 @@ The Log System can be easily integrated into various parts of the server code, a
 
 ### 1. Class List
 1. ConfigurationManager
-2. CoreServer
-3. SocketEventSystem
-4. ClientManager
-5. DatabaseManager
-6. GameDataManager
-7. WorldEventSystem
-8. WorldManager
-9. TimeSystem
-10. Entity
-11. Character
-12. Player
-13. NPC
-14. Item
-15. Weapon
-16. Consumable
-17. SkillSystem
-18. Skill
-19. QuestSystem
-20. Quest
-21. EconomicSystem
-22. Merchant
-23. ChatChannel
-24. ChatSystem
-25. EmoteSystem
-26. CommandParser
-27. Command
-28. GameStateManager
-29. ScriptEngine
-30. AdminTools
-31. MonitoringSystem
-32. AuthenticationSystem
-33. AntiCheatSystem
-34. CacheManager
-35. MessageProtocol
-36. LocationCoordinateManager
-37. QuestLog
-38. DialogueTree
-39. LogSystem
+2. LogSystem
+3. CoreServerSystem
+4. SocketEventSystem
+5. ClientManager
+6. DatabaseManager
+7. GameDataManager
+8. WorldEventSystem
+9. WorldManager
+10. TimeSystem
+11. Entity
+12. Character
+13. Player
+14. NPC
+15. Item
+16. Weapon
+17. Consumable
+18. SkillSystem
+19. Skill
+20. QuestSystem
+21. Quest
+22. EconomicSystem
+23. Merchant
+24. ChatChannel
+25. ChatSystem
+26. EmoteSystem
+27. CommandParser
+28. Command
+29. GameStateManager
+30. ScriptEngine
+31. AdminTools
+32. MonitoringSystem
+33. AuthenticationSystem
+34. AntiCheatSystem
+35. CacheManager
+36. MessageProtocol
+37. LocationCoordinateManager
+38. QuestLog
+39. DialogueTree
