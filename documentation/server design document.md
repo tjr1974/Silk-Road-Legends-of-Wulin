@@ -105,7 +105,7 @@ The Log System can be easily integrated into various parts of the server code, a
   - Loads location data, parses it, checks for duplicate IDs and logs an error if any are found, then stores it in the `locations` collection as `Map` objects.
   - Utilizes the `LocationCoordinateManager` class, which is responsible for assigning (x,y,z) coordinates to locations.
   - Loads NPC data, parses it, checks for duplicate IDs and logs an error if any are found, then stores it in the `npcs` collection as `Map` objects.
-  - Categorizes NPCs based on their type (mobile, merchant, quest)
+  - Creates separate maps of NPCs based on their type (mobile, merchant, quest)
   - Loads item data, parses it, checks for duplicate IDs and logs an error if any are found, generates a unique ID for each item using the `generateUID()` method, then stores it in the `items` collection as `Map` objects.
 
 ### 2. Database Manager
@@ -120,10 +120,13 @@ The Log System can be easily integrated into various parts of the server code, a
 ### 1. World Map
 - Location system
   - Implemented through the `LocationSystem` class
-  - Manages a collection of `Location` objects
+  - Manages a map of `Location` objects
   - Handles player movement between locations
+- Coordinate system
+  - Implemented through the `LocationCoordinateManager` class
+  - Assigns (x,y,z) coordinates to locations
 - Zone system
-  - Not explicitly implemented in the current code, but can be added to the `Location` class
+  - Implemented in the `Location` class as a `zone` property
 
 ### 2. Time System
 - In-game time tracking
@@ -150,8 +153,46 @@ The Log System can be easily integrated into various parts of the server code, a
   - Not explicitly implemented in the current code, but can be added to the `Character` class
 - Inventory management
   - Basic inventory system implemented in `Character` class
+  - Supports different NPC types: mobile, merchant, and quest
+  - Mobile NPCs have movement capabilities
 
-### 3. Item System
+### 3. NPC Movement System
+- Implemented through the `NPCManager` class
+- Handles movement of mobile NPCs at regular intervals
+- Key features:
+  - Moves NPCs based on a configurable interval (`NPC_MOVEMENT_INTERVAL`)
+  - Random movement with a 33% chance to move during each interval
+  - Respects NPC zone restrictions when moving
+  - Updates NPC location in the game world
+  - Notifies players in affected locations about NPC movements
+
+#### NPC Movement Process:
+1. The `WorldManager` class triggers NPC movement checks at regular intervals
+2. The `NPCManager` iterates through all mobile NPCs
+3. For each NPC, there's a 33% chance to initiate movement
+4. If movement is initiated:
+   - Retrieves connected locations for the NPC's current location
+   - Filters locations based on the NPC's allowed zones (if specified)
+   - Randomly selects a valid destination from available locations
+   - Updates the NPC's location in the game world
+   - Removes the NPC from the old location and adds it to the new location
+   - Broadcasts messages to players in both the old and new locations
+
+#### NPC Class Enhancements:
+- Added `zones` property to restrict NPC movement to specific areas
+- Implemented `currentLocation` to track the NPC's current position
+- Added `aiState` to manage different NPC behaviors (e.g., 'idle', 'patrolling', 'combat')
+
+#### Integration with World Manager:
+- The `WorldManager` class includes an `NPCManager` instance
+- NPC movement checks are integrated into the world update cycle
+- Utilizes the `LocationSystem` to manage NPC positions within the game world
+
+This system provides a foundation for more complex NPC behaviors, such as:
+- Adding time-based or event-triggered movements
+- Expanding AI states to include more diverse behaviors (e.g., fleeing, following players)
+
+### 4. Item System
 - Item types (consumables, weapons, etc.)
   - Basic `Item` class implemented
   - `Weapon` and `Consumable` classes extending `Item`
@@ -436,28 +477,29 @@ The Log System can be easily integrated into various parts of the server code, a
 14. Character
 15. Player
 16. NPC
-17. Item
-18. Weapon
-19. Consumable
-20. SkillSystem
-21. Skill
-22. QuestSystem
-23. Quest
-24. EconomicSystem
-25. Merchant
-26. ChatChannel
-27. ChatSystem
-28. EmoteSystem
-29. CommandParser
-30. Command
-31. GameStateManager
-32. ScriptEngine
-33. AdminTools
-34. MonitoringSystem
-35. AuthenticationSystem
-36. AntiCheatSystem
-37. CacheManager
-38. MessageProtocol
-39. LocationCoordinateManager
-40. QuestLog
-41. DialogueTree
+17. Merchant
+18. NPCManager
+19. Item
+20. Weapon
+21. Consumable
+22. SkillSystem
+23. Skill
+24. QuestSystem
+25. Quest
+26. EconomicSystem
+27. ChatChannel
+28. ChatSystem
+29. EmoteSystem
+30. CommandParser
+31. Command
+32. GameStateManager
+33. ScriptEngine
+34. AdminTools
+35. MonitoringSystem
+36. AuthenticationSystem
+37. AntiCheatSystem
+38. CacheManager
+39. MessageProtocol
+40. LocationCoordinateManager
+41. QuestLog
+42. DialogueTree

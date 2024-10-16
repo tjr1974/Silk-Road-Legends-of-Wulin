@@ -10,7 +10,7 @@ const SSL_KEY_PATH = './ssl/server.key'; // SSL key path
 const SSL_CERT_PATH = './ssl/server.crt'; // SSL cert path
 // Log Configuration
 const LOG_LEVEL = 'DEBUG'; // Set the default log level. Options: 'DEBUG', 'INFO', 'WARN', 'ERROR'
-const LOG_FILE_PATH = './server logs';     // Path for log files
+const LOG_FILE_PATH = './server logs'; // Path for log files
 const LOG_MAX_FILE_SIZE = 1048576;  // Max file size for logs = 1 MB in bytes
 // File Paths for Game Data
 const PLAYER_DATA_PATH = './source code/world data/players';

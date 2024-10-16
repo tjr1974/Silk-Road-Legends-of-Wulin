@@ -478,14 +478,12 @@ class GameDataManager {
           npcData.questId
         );
         this.npcs.set(npc.id, npc);
-
         // Categorize NPCs based on their type
         if (npc.type === 'mobile') {
           this.mobileNPCs.set(npc.id, npc);
         } else if (npc.type === 'merchant') {
           this.merchantNPCs.set(npc.id, npc);
         }
-
         // Quest NPCs can be of any type, so we check for questId
         if (npc.questId) {
           this.questNPCs.set(npc.id, npc);
@@ -743,6 +741,9 @@ class WorldManager {
     this.worldEventSystem = new WorldEventSystem(this);
     this.entities = new Map();
     this.locationCoordinateManager = new LocationCoordinateManager();
+    this.movementDirections = ['north', 'east', 'west', 'south', 'up', 'down'];
+    this.npcManager = new NPCManager(this, gameDataManager);
+    this.lastNPCMovementTime = Date.now();
   }
   initialize() {
     this.locations.initialize();
@@ -751,26 +752,48 @@ class WorldManager {
   getLocation(locationId) {
     // Get location by ID
   }
-  moveEntity(entity, newLocationId) {
-    const oldLocation = this.locations.getLocation(entity.location);
-    const newLocation = this.locations.getLocation(newLocationId);
-    if (oldLocation && newLocation && this.locations.canMove(entity.location, newLocationId)) {
-      oldLocation.removePlayer(entity.id);
-      newLocation.addPlayer(entity.id);
-      entity.location = newLocationId;
-      // Send updated location info to the player
-      const locationInfo = this.getLocationInfo(newLocationId);
-      this.broadcastToPlayer(entity.id, 'locationUpdate', locationInfo);
-      // Notify other players in the old and new locations
-      this.broadcastToLocation(oldLocation.id, 'playerLeft', { playerId: entity.id });
-      this.broadcastToLocation(newLocation.id, 'playerEntered', { playerId: entity.id });
-      return true;
+  moveEntity(entity, direction) {
+    if (!this.movementDirections.includes(direction.toLowerCase())) {
+      return { success: false, message: "Invalid direction." };
     }
-    return false;
+    const currentLocation = this.locations.getLocation(entity.location);
+    if (!currentLocation) {
+      return { success: false, message: "Current location not found." };
+    }
+    const newLocationId = currentLocation.exits[direction.toLowerCase()];
+    if (!newLocationId) {
+      return { success: false, message: `You cannot go ${direction} from here.` };
+    }
+    const newLocation = this.locations.getLocation(newLocationId);
+    if (!newLocation) {
+      return { success: false, message: "Destination location not found." };
+    }
+    // Remove entity from current location
+    currentLocation.removePlayer(entity.id);
+    // Add entity to new location
+    newLocation.addPlayer(entity.id);
+    // Update entity's location
+    entity.location = newLocationId;
+    // Prepare location info for the player
+    const locationInfo = this.getLocationInfo(newLocationId);
+    // Notify other players in the old and new locations
+    this.broadcastToLocation(currentLocation.id, 'playerLeft', { playerId: entity.id });
+    this.broadcastToLocation(newLocation.id, 'playerEntered', { playerId: entity.id });
+    return {
+      success: true,
+      message: `You move ${direction} to ${newLocation.name}.`,
+      locationInfo: locationInfo
+    };
   }
   updateWorld(deltaTime) {
     this.time.update(deltaTime);
     this.worldEventSystem.updateWorldEventSystem(this.time.currentTime);
+    // Check if it's time to move NPCs
+    const currentTime = Date.now();
+    if (currentTime - this.lastNPCMovementTime >= CONFIG.NPC_MOVEMENT_INTERVAL) {
+      this.npcManager.moveMobileNPCs();
+      this.lastNPCMovementTime = currentTime;
+    }
     // Update all entities
     for (const entity of this.entities.values()) {
       entity.update(deltaTime);
@@ -805,7 +828,7 @@ class WorldManager {
       id: location.id,
       name: location.name,
       description: location.description,
-      exits: location.exits,
+      exits: Object.keys(location.exits),
       items: Array.from(location.items),
       npcs: Array.from(location.npcs),
       players: Array.from(location.players),
@@ -817,6 +840,14 @@ class WorldManager {
   }
   broadcastToLocation(locationId, eventName, data) {
     // Implement method to broadcast to all players in a specific location
+  }
+  getConnectedLocations(locationId) {
+    const location = this.locations.getLocation(locationId);
+    if (!location) return [];
+    return Object.entries(location.exits).map(([direction, targetId]) => ({
+      direction,
+      location: this.locations.getLocation(targetId)
+    }));
   }
 }
 /**************************************************************************************************
@@ -878,17 +909,22 @@ class Player extends Character {
   gainExperience(amount) {
     // Handle gaining experience
   }
+  move(direction, worldManager) {
+    return worldManager.moveEntity(this, direction);
+  }
 }
 /**************************************************************************************************
 NPC Class
 ***************************************************************************************************/
 class NPC extends Character {
-  constructor(id, name, description, type, dialogueTree, inventory, questId = null) {
+  constructor(id, name, description, type, dialogueTree, inventory, questId = null, zones = []) {
     super(id, name, description);
-    this.type = type; // e.g., 'merchant', 'quest_giver', 'enemy'
+    this.type = type;
     this.dialogueTree = new DialogueTree(dialogueTree);
     this.inventory = new Inventory(inventory);
     this.questId = questId;
+    this.zones = zones;
+    this.currentLocation = null;
     this.respawnTime = 0;
     this.lastInteractionTime = 0;
     this.currentDialogueNode = 'greeting';
@@ -979,6 +1015,60 @@ class NPC extends Character {
       this.inventory.addItem(item, quantity);
     }
     return true;
+  }
+}
+/**************************************************************************************************
+Merchant Class
+***************************************************************************************************/
+class Merchant extends NPC {
+  constructor(id, name, description, inventory) {
+    super(id, name, description);
+    this.inventory = inventory;
+  }
+  updateInventory() {
+    // Refresh merchant's inventory
+  }
+}
+/**************************************************************************************************
+NPC Manager Class
+***************************************************************************************************/
+class NPCManager {
+  constructor(worldManager, gameDataManager) {
+    this.worldManager = worldManager;
+    this.gameDataManager = gameDataManager;
+    this.mobileNPCs = gameDataManager.getMobileNPCs();
+  }
+  moveMobileNPCs() {
+    for (const [npcId, npc] of this.mobileNPCs) {
+      if (Math.random() < 0.33) { // 33% chance to move
+        this.moveNPC(npc);
+      }
+    }
+  }
+  moveNPC(npc) {
+    const connectedLocations = this.worldManager.getConnectedLocations(npc.currentLocation);
+    if (connectedLocations.length === 0) return;
+    let validLocations = connectedLocations;
+    // If the NPC has specified zones, filter locations based on those zones
+    if (npc.zones && npc.zones.length > 0) {
+      validLocations = connectedLocations.filter(loc =>
+        loc.location.zone.some(zone => npc.zones.includes(zone))
+      );
+    }
+    // If no valid locations after filtering, don't move
+    if (validLocations.length === 0) return;
+    // Choose a random valid location
+    const chosenLocation = validLocations[Math.floor(Math.random() * validLocations.length)];
+    // Move the NPC
+    const oldLocation = this.worldManager.locations.getLocation(npc.currentLocation);
+    const newLocation = chosenLocation.location;
+    oldLocation.removeNPC(npc.id);
+    newLocation.addNPC(npc.id);
+    npc.currentLocation = newLocation.id;
+    // Notify players in both locations
+    this.worldManager.broadcastToLocation(oldLocation.id, 'npcLeft', { npcId: npc.id, npcName: npc.name });
+    this.worldManager.broadcastToLocation(newLocation.id, 'npcEntered', { npcId: npc.id, npcName: npc.name });
+    console.log(`NPC ${npc.name} moved from ${oldLocation.name} to ${newLocation.name}`);
   }
 }
 /**************************************************************************************************
@@ -1104,18 +1194,6 @@ class EconomicSystem {
   }
   updatePrices() {
     // Update item prices based on supply and demand
-  }
-}
-/**************************************************************************************************
-Merchant Class
-***************************************************************************************************/
-class Merchant extends NPC {
-  constructor(id, name, description, inventory) {
-    super(id, name, description);
-    this.inventory = inventory;
-  }
-  updateInventory() {
-    // Refresh merchant's inventory
   }
 }
 /**************************************************************************************************
