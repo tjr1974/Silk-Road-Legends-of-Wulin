@@ -18,6 +18,10 @@ This document provides a detailed and comprehensive framework for developing a M
 ### 2. Configuration
 - External configuration file (`config.js`) for easy management of server settings
   - Includes server host, port, SSL paths, log settings, file paths, and game-specific parameters
+- `ConfigurationManager` class for managing and validating configuration
+  - Implements methods to get, set, and retrieve all configuration values
+  - Updates configuration from environment variables
+  - Validates configuration values, including required keys, numeric values, boolean values, and specific formats (e.g., REGEN_RATES as a Map)
 
 ### 3. Security
 - HTTPS support for encrypted connections
@@ -81,7 +85,8 @@ The system uses color-coded output for enhanced readability:
 - Supports both console output and file logging
 - Implements conditional logging based on the configured log level
 - Provides methods for each log level (debug, info, warn, error)
-- Formats log messages with appropriate color coding
+- Formats log messages with appropriate color coding and timestamps
+- Implements file rotation based on configurable max file size
 
 ### 5. Usage:
 The Log System can be easily integrated into various parts of the server code, allowing for consistent and centralized logging across the entire application.
@@ -96,58 +101,63 @@ The Log System can be easily integrated into various parts of the server code, a
   - `GAME_DATA_PATH = './source code/world data/game data.json';`
 
 ### 1. Game Data Manager
-- The `GameDataManager` class is responsible for loading, parsing, checking, and storing data from these files.
+- The `GameDataManager` class is responsible for loading, parsing, checking, and storing data from JSON files.
   - Loads location data, parses it, checks for duplicate IDs and logs an error if any are found, then stores it in the `locations` collection as `Map` objects.
   - Utilizes the `LocationCoordinateManager` class, which is responsible for assigning (x,y,z) coordinates to locations.
   - Loads NPC data, parses it, checks for duplicate IDs and logs an error if any are found, then stores it in the `npcs` collection as `Map` objects.
+  - Categorizes NPCs based on their type (mobile, merchant, quest)
   - Loads item data, parses it, checks for duplicate IDs and logs an error if any are found, generates a unique ID for each item using the `generateUID()` method, then stores it in the `items` collection as `Map` objects.
-  - Stores game-related data in the `gameData` object.
+
+### 2. Database Manager
+- The `DatabaseManager` class handles data persistence and retrieval.
+  - Implements methods for querying, loading, and saving JSON data
+  - Provides specific methods for player data management (getPlayer, savePlayer)
+  - Handles world state persistence (getWorldState, saveWorldState)
+  - Manages game data loading and saving for various entity types
 
 ## IV. Game World
 
 ### 1. World Map
 - Location system
-  - Implement a grid-based or graph-based world structure
-  - Support for multi-level maps (e.g., dungeons, buildings)
+  - Implemented through the `LocationSystem` class
+  - Manages a collection of `Location` objects
+  - Handles player movement between locations
 - Zone system
-  - Implement a zone system to limit mobile NPC movement
+  - Not explicitly implemented in the current code, but can be added to the `Location` class
 
 ### 2. Time System
 - In-game time tracking
-  - Implement official server time based on real-world time
-  - Support for time-based events and quests
+  - Implemented through the `TimeSystem` class
+  - Tracks current time and updates based on delta time
+  - Provides methods to check if it's daytime
 
 ## V. Entity System
 
 ### 1. Base Entity Class
 - Common properties (ID, name, description)
-  - Implement a unique identifier system
-  - Support for localization of names and descriptions
+  - Implemented in the `Entity` class
 - State management
-  - Implement a robust state machine for entity behavior
-  - Support for custom states and transitions
+  - Basic update method provided in `Entity` class
 
 ### 2. Character System
 - Player characters
-  - Implement character creation and customization
-  - Support for multiple characters per account
+  - Implemented through the `Player` class, extending `Character`
+  - Includes inventory and quest log
 - Non-Player Characters (NPCs)
-  - Implement AI routines for NPC behavior
-  - Support for scripted interactions and dialogues
+  - Implemented through the `NPC` class, extending `Character`
+  - Includes type, dialogue tree, inventory, and AI state
 - Attributes (health, strength, etc.)
-  - Implement a flexible attribute system
-  - Support for derived attributes and status effects
+  - Not explicitly implemented in the current code, but can be added to the `Character` class
 - Inventory management
-  - Implement weight and size limitations
-  - Support for equipment slots and item usage
+  - Basic inventory system implemented in `Character` class
 
 ### 3. Item System
-- Item types (consumables, containers, weapons, etc.)
-  - Implement a hierarchical item classification system
-  - Support for custom item types and properties
+- Item types (consumables, weapons, etc.)
+  - Basic `Item` class implemented
+  - `Weapon` and `Consumable` classes extending `Item`
 - Item properties and effects
-  - Implement a flexible system for defining item effects
-  - Support for temporary and permanent item modifications
+  - Basic properties implemented (id, name, description, type)
+  - Effects can be implemented in the `use` method of each item type
 
 ## VI. Game Mechanics
 
@@ -174,15 +184,8 @@ The Log System can be easily integrated into various parts of the server code, a
   - Support for skill masteries and specializations
 
 ### 3. Quest System
-- Quest tracking
-  - Implement a flexible quest log system
-  - Support for main quests, side quests, and daily quests
-- Objective management
-  - Implement various objective types (kill X, collect Y, reach location Z)
-  - Support for complex, multi-stage quests
-- Reward distribution
-  - Implement a flexible reward system (items, experience, currency, reputation)
-  - Support for choice-based rewards
+- Basic `QuestSystem` and `Quest` classes implemented
+- Methods for registering quests, assigning quests, updating progress, and completing quests
 
 ### 4. Economy
 - Currency system
@@ -424,35 +427,37 @@ The Log System can be easily integrated into various parts of the server code, a
 5. ClientManager
 6. DatabaseManager
 7. GameDataManager
-8. WorldEventSystem
-9. WorldManager
-10. TimeSystem
-11. Entity
-12. Character
-13. Player
-14. NPC
-15. Item
-16. Weapon
-17. Consumable
-18. SkillSystem
-19. Skill
-20. QuestSystem
-21. Quest
-22. EconomicSystem
-23. Merchant
-24. ChatChannel
-25. ChatSystem
-26. EmoteSystem
-27. CommandParser
-28. Command
-29. GameStateManager
-30. ScriptEngine
-31. AdminTools
-32. MonitoringSystem
-33. AuthenticationSystem
-34. AntiCheatSystem
-35. CacheManager
-36. MessageProtocol
-37. LocationCoordinateManager
-38. QuestLog
-39. DialogueTree
+8. LocationSystem
+9. Location
+10. WorldEventSystem
+11. WorldManager
+12. TimeSystem
+13. Entity
+14. Character
+15. Player
+16. NPC
+17. Item
+18. Weapon
+19. Consumable
+20. SkillSystem
+21. Skill
+22. QuestSystem
+23. Quest
+24. EconomicSystem
+25. Merchant
+26. ChatChannel
+27. ChatSystem
+28. EmoteSystem
+29. CommandParser
+30. Command
+31. GameStateManager
+32. ScriptEngine
+33. AdminTools
+34. MonitoringSystem
+35. AuthenticationSystem
+36. AntiCheatSystem
+37. CacheManager
+38. MessageProtocol
+39. LocationCoordinateManager
+40. QuestLog
+41. DialogueTree

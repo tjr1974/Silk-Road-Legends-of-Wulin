@@ -186,9 +186,9 @@ class CoreServerSystem {
     this.gameLoop = null;
     this.socketEventSystem = new SocketEventSystem();
     this.clientManager = new ClientManager();
-    this.worldManager = new WorldManager();
     this.databaseManager = new DatabaseManager(this.configManager);
     this.gameDataManager = new GameDataManager(this.configManager, this.databaseManager);
+    this.worldManager = new WorldManager(this.gameDataManager);
     this.logger = new LogSystem();
   }
   async initialize() {
@@ -199,7 +199,7 @@ class CoreServerSystem {
       this.logger.info('Database system initialized successfully');
       await this.gameDataManager.loadGameData();
       this.logger.info('Game data loaded successfully');
-      this.worldManager.initialize(this.gameDataManager);
+      this.worldManager.initialize();
       this.logger.info('World initialized successfully');
     } catch (error) {
       this.logger.error(`Failed to initialize server: ${error.message}`);
@@ -441,6 +441,9 @@ class GameDataManager {
     this.databaseManager = databaseManager;
     this.locations = new Map();
     this.npcs = new Map();
+    this.mobileNPCs = new Map();
+    this.merchantNPCs = new Map();
+    this.questNPCs = new Map();
     this.items = new Map();
     this.locationCoordinateManager = new LocationCoordinateManager();
     this.logger = new LogSystem();
@@ -464,7 +467,31 @@ class GameDataManager {
     try {
       const npcData = await this.loadData('npcs');
       this.checkForDuplicateIds(npcData, 'NPC');
-      npcData.forEach(npc => this.npcs.set(npc.id, npc));
+      npcData.forEach(npcData => {
+        const npc = new NPC(
+          npcData.id,
+          npcData.name,
+          npcData.description,
+          npcData.type,
+          npcData.dialogueTree,
+          npcData.inventory,
+          npcData.questId
+        );
+        this.npcs.set(npc.id, npc);
+
+        // Categorize NPCs based on their type
+        if (npc.type === 'mobile') {
+          this.mobileNPCs.set(npc.id, npc);
+        } else if (npc.type === 'merchant') {
+          this.merchantNPCs.set(npc.id, npc);
+        }
+
+        // Quest NPCs can be of any type, so we check for questId
+        if (npc.questId) {
+          this.questNPCs.set(npc.id, npc);
+        }
+      });
+      this.logger.info(`Loaded ${this.npcs.size} NPCs, including ${this.mobileNPCs.size} mobile, ${this.merchantNPCs.size} merchant, and ${this.questNPCs.size} quest NPCs`);
     } catch (error) {
       this.logger.error('Error loading NPC data:', error);
     }
@@ -535,6 +562,121 @@ class GameDataManager {
       this.logger.error(`Error saving ${filename}:`, error);
     }
   }
+  getMobileNPCs() {
+    return this.mobileNPCs;
+  }
+  getMerchantNPCs() {
+    return this.merchantNPCs;
+  }
+  getQuestNPCs() {
+    return this.questNPCs;
+  }
+}
+/**************************************************************************************************
+Location System Class
+***************************************************************************************************/
+class LocationSystem {
+  constructor(gameDataManager) {
+    this.gameDataManager = gameDataManager;
+    this.locations = new Map();
+    this.logger = new LogSystem();
+  }
+  initialize() {
+    this.loadLocations();
+    this.validateConnections();
+    this.logger.info('Location System initialized successfully');
+  }
+  loadLocations() {
+    for (const [id, locationData] of this.gameDataManager.locations) {
+      this.locations.set(id, new Location(locationData));
+    }
+  }
+  validateConnections() {
+    for (const location of this.locations.values()) {
+      for (const [direction, targetId] of Object.entries(location.exits)) {
+        if (!this.locations.has(targetId)) {
+          this.logger.warn(`Invalid exit in location ${location.id}: ${direction} leads to non-existent location ${targetId}`);
+        }
+      }
+    }
+  }
+  getLocation(id) {
+    return this.locations.get(id);
+  }
+  getConnectedLocations(locationId) {
+    const location = this.getLocation(locationId);
+    if (!location) return [];
+    return Object.entries(location.exits).map(([direction, targetId]) => ({
+      direction,
+      location: this.getLocation(targetId)
+    }));
+  }
+  canMove(fromId, toId) {
+    const fromLocation = this.getLocation(fromId);
+    return fromLocation && Object.values(fromLocation.exits).includes(toId);
+  }
+  addLocation(locationData) {
+    const newLocation = new Location(locationData);
+    this.locations.set(newLocation.id, newLocation);
+    this.gameDataManager.locations.set(newLocation.id, locationData);
+    this.logger.info(`New location added: ${newLocation.id}`);
+  }
+  updateLocation(id, updateData) {
+    const location = this.getLocation(id);
+    if (location) {
+      Object.assign(location, updateData);
+      this.gameDataManager.locations.set(id, { ...location });
+      this.logger.info(`Location updated: ${id}`);
+    } else {
+      this.logger.warn(`Attempted to update non-existent location: ${id}`);
+    }
+  }
+  removeLocation(id) {
+    if (this.locations.delete(id)) {
+      this.gameDataManager.locations.delete(id);
+      this.logger.info(`Location removed: ${id}`);
+      this.validateConnections(); // Re-validate after removal
+    } else {
+      this.logger.warn(`Attempted to remove non-existent location: ${id}`);
+    }
+  }
+}
+/**************************************************************************************************
+Location Class
+***************************************************************************************************/
+class Location {
+  constructor({ id, name, description, exits, items, npcs, zone }) {
+    this.id = id;
+    this.name = name;
+    this.description = description;
+    this.exits = exits;
+    this.items = new Set(items);
+    this.npcs = new Set(npcs);
+    this.zone = zone;
+    this.players = new Set();
+  }
+  addPlayer(playerId) {
+    this.players.add(playerId);
+  }
+  removePlayer(playerId) {
+    this.players.delete(playerId);
+  }
+  addItem(itemId) {
+    this.items.add(itemId);
+  }
+  removeItem(itemId) {
+    this.items.delete(itemId);
+  }
+  addNPC(npcId) {
+    this.npcs.add(npcId);
+  }
+  removeNPC(npcId) {
+    this.npcs.delete(npcId);
+  }
+  getDescription() {
+    // This method could be expanded to include dynamic elements
+    return this.description;
+  }
 }
 /**************************************************************************************************
 World Event System Class
@@ -594,20 +736,37 @@ class WorldEventSystem {
 World Manager Class
 ***************************************************************************************************/
 class WorldManager {
-  constructor() {
-    this.locations = new Map();
+  constructor(gameDataManager) {
+    this.gameDataManager = gameDataManager;
+    this.locations = new LocationSystem(gameDataManager);
     this.time = new TimeSystem();
     this.worldEventSystem = new WorldEventSystem(this);
     this.entities = new Map();
+    this.locationCoordinateManager = new LocationCoordinateManager();
   }
-  loadWorld() {
-    // Load world data from database
+  initialize() {
+    this.locations.initialize();
+    // Initialize other systems...
   }
   getLocation(locationId) {
     // Get location by ID
   }
   moveEntity(entity, newLocationId) {
-    // Move entity to new location
+    const oldLocation = this.locations.getLocation(entity.location);
+    const newLocation = this.locations.getLocation(newLocationId);
+    if (oldLocation && newLocation && this.locations.canMove(entity.location, newLocationId)) {
+      oldLocation.removePlayer(entity.id);
+      newLocation.addPlayer(entity.id);
+      entity.location = newLocationId;
+      // Send updated location info to the player
+      const locationInfo = this.getLocationInfo(newLocationId);
+      this.broadcastToPlayer(entity.id, 'locationUpdate', locationInfo);
+      // Notify other players in the old and new locations
+      this.broadcastToLocation(oldLocation.id, 'playerLeft', { playerId: entity.id });
+      this.broadcastToLocation(newLocation.id, 'playerEntered', { playerId: entity.id });
+      return true;
+    }
+    return false;
   }
   updateWorld(deltaTime) {
     this.time.update(deltaTime);
@@ -636,6 +795,28 @@ class WorldManager {
   }
   broadcastToAll(eventName, data) {
     // Implement method to broadcast to all connected clients
+  }
+  getLocationInfo(locationId) {
+    const location = this.locations.getLocation(locationId);
+    if (!location) {
+      return null;
+    }
+    return {
+      id: location.id,
+      name: location.name,
+      description: location.description,
+      exits: location.exits,
+      items: Array.from(location.items),
+      npcs: Array.from(location.npcs),
+      players: Array.from(location.players),
+      coordinates: this.locationCoordinateManager.getCoordinates(locationId)
+    };
+  }
+  broadcastToPlayer(playerId, eventName, data) {
+    // Implement method to send data to a specific player
+  }
+  broadcastToLocation(locationId, eventName, data) {
+    // Implement method to broadcast to all players in a specific location
   }
 }
 /**************************************************************************************************
@@ -702,12 +883,102 @@ class Player extends Character {
 NPC Class
 ***************************************************************************************************/
 class NPC extends Character {
-  constructor(id, name, description) {
+  constructor(id, name, description, type, dialogueTree, inventory, questId = null) {
     super(id, name, description);
-    this.dialogue = new DialogueTree();
+    this.type = type; // e.g., 'merchant', 'quest_giver', 'enemy'
+    this.dialogueTree = new DialogueTree(dialogueTree);
+    this.inventory = new Inventory(inventory);
+    this.questId = questId;
+    this.respawnTime = 0;
+    this.lastInteractionTime = 0;
+    this.currentDialogueNode = 'greeting';
+    this.aiState = 'idle';
+    this.movementPattern = null;
+    this.combatAbilities = [];
   }
   interact(player) {
-    // Handle player interaction
+    this.lastInteractionTime = Date.now();
+    const dialogue = this.dialogueTree.getNode(this.currentDialogueNode);
+    return {
+      message: dialogue.message,
+      options: dialogue.options
+    };
+  }
+  respondToPlayer(player, choice) {
+    const dialogue = this.dialogueTree.getNode(this.currentDialogueNode);
+    const chosenOption = dialogue.options.find(option => option.id === choice);
+    if (chosenOption) {
+      this.currentDialogueNode = chosenOption.next;
+      return this.interact(player);
+    }
+    return null;
+  }
+  update(deltaTime, worldManager) {
+    super.update(deltaTime);
+    if (this.aiState === 'patrolling') {
+      this.updateMovement(deltaTime, worldManager);
+    } else if (this.aiState === 'combat') {
+      this.updateCombat(deltaTime, worldManager);
+    }
+    // Reset dialogue if no interaction for a while
+    if (Date.now() - this.lastInteractionTime > 300000) { // 5 minutes
+      this.currentDialogueNode = 'greeting';
+    }
+  }
+  updateMovement(deltaTime, worldManager) {
+    if (this.movementPattern) {
+      // Implement movement logic based on the pattern
+      // For example, move to the next location in the pattern
+    }
+  }
+  updateCombat(deltaTime, worldManager) {
+    // Implement combat AI logic
+    // For example, choose and use combat abilities
+  }
+  setMovementPattern(pattern) {
+    this.movementPattern = pattern;
+  }
+  addCombatAbility(ability) {
+    this.combatAbilities.push(ability);
+  }
+  die() {
+    this.aiState = 'dead';
+    // Drop loot, if any
+    // Set respawn timer
+  }
+  respawn(location) {
+    this.health = this.maxHealth;
+    this.aiState = 'idle';
+    this.location = location;
+  }
+  startQuest(player) {
+    if (this.questId && player.quests) {
+      return player.quests.startQuest(this.questId);
+    }
+    return false;
+  }
+  completeQuest(player) {
+    if (this.questId && player.quests) {
+      return player.quests.completeQuest(this.questId);
+    }
+    return false;
+  }
+  trade(player, itemId, quantity, isBuying) {
+    if (this.type !== 'merchant') return false;
+    const item = isBuying ? this.inventory.getItem(itemId) : player.inventory.getItem(itemId);
+    if (!item) return false;
+    const totalPrice = item.price * quantity;
+    if (isBuying) {
+      if (player.currency < totalPrice) return false;
+      if (!this.inventory.removeItem(itemId, quantity)) return false;
+      player.currency -= totalPrice;
+      player.inventory.addItem(item, quantity);
+    } else {
+      if (!player.inventory.removeItem(itemId, quantity)) return false;
+      player.currency += totalPrice;
+      this.inventory.addItem(item, quantity);
+    }
+    return true;
   }
 }
 /**************************************************************************************************
@@ -1101,6 +1372,21 @@ class MessageProtocol {
   }
   static createMessage(type, payload) {
     // Create a standardized message object
+  }
+}
+/**************************************************************************************************
+Location Coordinate Manager Class
+***************************************************************************************************/
+class LocationCoordinateManager {
+  constructor() {
+    this.coordinates = new Map();
+  }
+  initialize(locationData) {
+    // Initialize coordinates for all locations
+    // This method should be called when loading game data
+  }
+  getCoordinates(locationId) {
+    return this.coordinates.get(locationId) || null;
   }
 }
 /**************************************************************************************************
