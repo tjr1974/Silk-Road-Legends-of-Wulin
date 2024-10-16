@@ -18,7 +18,7 @@ This document provides a detailed and comprehensive framework for developing a M
 ### 2. Configuration
 - External configuration file (`config.js`) for easy management of server settings
   - Includes server host, port, SSL paths, log settings, file paths, and game-specific parameters
-- `ConfigurationManager` class for managing and validating configuration
+- `ConfigurationSystem` class for managing and validating configuration
   - Implements methods to get, set, and retrieve all configuration values
   - Updates configuration from environment variables
   - Validates configuration values, including required keys, numeric values, boolean values, and specific formats (e.g., REGEN_RATES as a Map)
@@ -55,7 +55,71 @@ This document provides a detailed and comprehensive framework for developing a M
   - Create a robust event emitter system
   - Allow for dynamic register and deregister of event listeners
 
-## II. Log System
+## II. Configuration System
+
+The Configuration System is implemented through the `ConfigurationSystem` class and the `config.js` file. It provides a centralized and flexible way to manage server settings and game parameters.
+
+### 1. Configuration File (`config.js`)
+
+The `config.js` file contains all the configuration constants for the server and game. It includes:
+
+- Console output color codes
+- Core server settings (HOST, PORT, SSL paths)
+- Logging configuration
+- File paths for game data
+- Game-specific parameters (health, attack power, regeneration rates, etc.)
+- Security settings (password salting, session configuration)
+- Timing constants (tick rate, event intervals)
+
+All these settings are exported as a single `CONFIG` object.
+
+### 2. ConfigurationSystem Class
+
+The `ConfigurationSystem` class provides methods to manage and validate the configuration:
+
+#### Key Features:
+- Singleton pattern implementation for global access
+- Methods to get, set, and retrieve all configuration values
+- Ability to update configuration from environment variables
+- Comprehensive configuration validation
+
+#### Methods:
+- `constructor(config)`: Initializes the configuration system with the provided config object.
+- `get(key)`: Retrieves a specific configuration value.
+- `set(key, value)`: Sets a specific configuration value.
+- `getAll()`: Returns a copy of the entire configuration object.
+- `updateFromEnvironment()`: Updates configuration values from environment variables.
+- `validate()`: Performs comprehensive validation of the configuration.
+
+#### Configuration Validation:
+The `validate()` method checks for:
+- Required keys
+- Numeric values
+- Boolean values
+- Specific formats (e.g., REGEN_RATES as a Map)
+- Valid log levels
+- Valid cookie settings
+
+### 3. Usage in Server Initialization
+
+The configuration system is used in the server initialization process:
+
+1. The `CONFIG` object is imported from `config.js`.
+2. A new `CoreServerSystem` instance is created with the `CONFIG` object.
+3. The `initialize()` method of `CoreServerSystem` sets up the configuration system.
+4. Configuration values are used throughout the server code to customize behavior.
+
+### 4. Environment Variable Override
+
+The configuration system allows for easy override of settings through environment variables. This feature enables different configurations for development, testing, and production environments without changing the code.
+
+### 5. Extensibility
+
+The configuration system is designed to be easily extensible. New configuration parameters can be added to the `config.js` file and will automatically be managed by the `ConfigurationSystem` class.
+
+This robust configuration system ensures that the server and game settings are centralized, easily manageable, and can be adjusted for different environments without code changes.
+
+## III. Log System
 
 The Log System provides robust logging functionality for the game server. It implements a Singleton pattern to ensure a single, globally accessible logging instance.
 
@@ -91,7 +155,7 @@ The system uses color-coded output for enhanced readability:
 ### 5. Usage:
 The Log System can be easily integrated into various parts of the server code, allowing for consistent and centralized logging across the entire application.
 
-## III. Database
+## IV. Database System
 - The database consists of multiple json files stored in the following directories as defined in the external configuration file (`config.js`):
 
   - `PLAYER_DATA_PATH = './source code/world data/players';`
@@ -100,7 +164,14 @@ The Log System can be easily integrated into various parts of the server code, a
   - `ITEMS_DATA_PATH = './source code/world data/items';`
   - `GAME_DATA_PATH = './source code/world data/game data.json';`
 
-### 1. Game Data Manager
+### 1. Database Manager
+- The `DatabaseManager` class handles data persistence and retrieval.
+  - Implements methods for querying, loading, and saving JSON data
+  - Provides specific methods for player data management (getPlayer, savePlayer)
+  - Handles world state persistence (getWorldState, saveWorldState)
+  - Manages game data loading and saving for various entity types
+
+### 2. Game Data Manager
 - The `GameDataManager` class is responsible for loading, parsing, checking, and storing data from JSON files.
   - Loads location data, parses it, checks for duplicate IDs and logs an error if any are found, then stores it in the `locations` collection as `Map` objects.
   - Utilizes the `LocationCoordinateManager` class, which is responsible for assigning (x,y,z) coordinates to locations.
@@ -108,14 +179,7 @@ The Log System can be easily integrated into various parts of the server code, a
   - Creates separate maps of NPCs based on their type (mobile, merchant, quest)
   - Loads item data, parses it, checks for duplicate IDs and logs an error if any are found, generates a unique ID for each item using the `generateUID()` method, then stores it in the `items` collection as `Map` objects.
 
-### 2. Database Manager
-- The `DatabaseManager` class handles data persistence and retrieval.
-  - Implements methods for querying, loading, and saving JSON data
-  - Provides specific methods for player data management (getPlayer, savePlayer)
-  - Handles world state persistence (getWorldState, saveWorldState)
-  - Manages game data loading and saving for various entity types
-
-## IV. Game World
+## V. Game World System
 
 ### 1. World Map
 - Location system
@@ -134,7 +198,7 @@ The Log System can be easily integrated into various parts of the server code, a
   - Tracks current time and updates based on delta time
   - Provides methods to check if it's daytime
 
-## V. Entity System
+## VI. Entity System
 
 ### 1. Base Entity Class
 - Common properties (ID, name, description)
@@ -149,22 +213,22 @@ The Log System can be easily integrated into various parts of the server code, a
 - Non-Player Characters (NPCs)
   - Implemented through the `NPC` class, extending `Character`
   - Includes type, dialogue tree, inventory, and AI state
+  - Supports different NPC types: mobile, merchant, and quest
+  - Mobile NPCs have movement capabilities
 - Attributes (health, strength, etc.)
   - Not explicitly implemented in the current code, but can be added to the `Character` class
 - Inventory management
   - Basic inventory system implemented in `Character` class
-  - Supports different NPC types: mobile, merchant, and quest
-  - Mobile NPCs have movement capabilities
 
 ### 3. NPC Movement System
 - Implemented through the `NPCManager` class
-- Handles movement of mobile NPCs at regular intervals
-- Key features:
-  - Moves NPCs based on a configurable interval (`NPC_MOVEMENT_INTERVAL`)
-  - Random movement with a 33% chance to move during each interval
-  - Respects NPC zone restrictions when moving
-  - Updates NPC location in the game world
-  - Notifies players in affected locations about NPC movements
+- Moves NPCs based on a configurable interval (`NPC_MOVEMENT_INTERVAL`)
+- Random movement with a 33% chance to move during each interval
+- Utilizes `zones` property to restrict NPC movement to specific areas
+- Utilizes `currentLocation` to track the NPC's current position
+- Utilizes `aiState` to manage different NPC behaviors (e.g., 'idle', 'patrolling', 'combat')
+- Updates NPC location in the game world
+- Notifies players in affected locations about NPC movements
 
 #### NPC Movement Process:
 1. The `WorldManager` class triggers NPC movement checks at regular intervals
@@ -177,11 +241,6 @@ The Log System can be easily integrated into various parts of the server code, a
    - Updates the NPC's location in the game world
    - Removes the NPC from the old location and adds it to the new location
    - Broadcasts messages to players in both the old and new locations
-
-#### NPC Class Enhancements:
-- Added `zones` property to restrict NPC movement to specific areas
-- Implemented `currentLocation` to track the NPC's current position
-- Added `aiState` to manage different NPC behaviors (e.g., 'idle', 'patrolling', 'combat')
 
 #### Integration with World Manager:
 - The `WorldManager` class includes an `NPCManager` instance
@@ -200,7 +259,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Basic properties implemented (id, name, description, type)
   - Effects can be implemented in the `use` method of each item type
 
-## VI. Game Mechanics
+## VII. Game Mechanics
 
 ### 1. Combat System
 - Real-time combat
@@ -239,7 +298,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement dynamic pricing based on supply and demand
   - Support for unique or rare item offerings
 
-## VII. Communication
+## VIII. Communication System
 
 ### 1. Chat System
 - Global chat
@@ -258,7 +317,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Allow players to create custom emotes
   - Implement filtering and moderation for custom emotes
 
-## VIII. Command Processing
+## IX. Command Processing System
 
 ### 1. Command Parser
 - Input sanitization
@@ -279,7 +338,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement powerful admin tools for game management
   - Support for different levels of admin permissions
 
-## IX. Game State Management
+## X. Game State Management System
 
 ### 1. Player Session Handling
 - Login/logout processes
@@ -297,7 +356,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement support for world events and environmental changes
   - Support for persistent changes to the game world
 
-## X. Scripting System
+## XI. Scripting System
 
 ### 1. World Event System
 - Trigger system for world events
@@ -307,7 +366,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Allow admins to create and manage custom events
   - Support for event scheduling and recurrence
 
-## XI. Admin Tools
+## XII. Admin Tools
 
 ### 1. Server Management
 - Player moderation tools
@@ -328,7 +387,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement comprehensive error logging and stack traces
   - Support for automatic error reporting and notifications
 
-## XII. Networking and Security
+## XIII. Networking and Security
 
 ### 1. Connection Handling
 - Secure socket layer (SSL/TLS)
@@ -358,7 +417,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement end-to-end encryption for sensitive communications
   - Support for secure storage of player credentials and payment info
 
-## XIII. Performance Optimization
+## XIV. Performance Optimization
 
 ### 1. Concurrency Management
 - Multi-threading for heavy operations
@@ -376,7 +435,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement efficient cache invalidation mechanisms
   - Support for partial cache updates and versioning
 
-## XIV. Client Communication Protocol
+## XV. Client Communication Protocol
 
 ### 1. Message Formatting
 - Standardized message structure
@@ -389,7 +448,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
 ### 2. Real-time Updates
 - Implementation for live updates
 
-## XV. Extensibility
+## XVI. Extensibility
 
 ### 1. Content Management System
 - Tools for easy content creation and management
@@ -399,7 +458,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Support common data formats (JSON, CSV, XML)
   - Implement data validation and error checking for imports
 
-## XVI. Testing and Quality Assurance
+## XVII. Testing and Quality Assurance
 
 ### 1. Unit Testing
 - Test suite for core functionalities
@@ -417,7 +476,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement tools for simulating high player loads
   - Support for identifying and resolving performance bottlenecks
 
-## XVII. Documentation
+## XVIII. Documentation
 
 ### 1. Code Documentation
 - Inline comments
@@ -435,7 +494,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Create comprehensive guides for game management
   - Include best practices for moderation and event creation
 
-## XVIII. Deployment and Maintenance
+## XIX. Deployment and Maintenance
 
 ### 1. Deployment Scripts
 - Automated deployment process
@@ -458,7 +517,7 @@ This system provides a foundation for more complex NPC behaviors, such as:
   - Implement version control for all game data
   - Support for quick rollbacks in case of critical issues
 
-## XIX. Appendix
+## XX. Appendix
 
 ### 1. Class List
 1. ConfigurationManager

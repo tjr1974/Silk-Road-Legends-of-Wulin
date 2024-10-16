@@ -11,9 +11,9 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 import { exit } from 'process';
 /**************************************************************************************************
-Configuration Manager Class
+Configuration System Class
 ***************************************************************************************************/
-class ConfigurationManager {
+class ConfigurationSystem {
   constructor(config) {
     this.config = config;
     this.logger = new LogSystem();
@@ -178,7 +178,7 @@ Core Server System Class
 ***************************************************************************************************/
 class CoreServerSystem {
   constructor(config) {
-    this.configManager = new ConfigurationManager(config);
+    this.configSystem = new ConfigurationSystem(config);
     this.express = express();
     this.http = null;
     this.https = null;
@@ -186,14 +186,14 @@ class CoreServerSystem {
     this.gameLoop = null;
     this.socketEventSystem = new SocketEventSystem();
     this.clientManager = new ClientManager();
-    this.databaseManager = new DatabaseManager(this.configManager);
-    this.gameDataManager = new GameDataManager(this.configManager, this.databaseManager);
+    this.databaseManager = new DatabaseManager(this.configSystem);
+    this.gameDataManager = new GameDataManager(this.configSystem, this.databaseManager);
     this.worldManager = new WorldManager(this.gameDataManager);
     this.logger = new LogSystem();
   }
   async initialize() {
-    this.configManager.updateFromEnvironment();
-    this.configManager.validate();
+    this.configSystem.updateFromEnvironment();
+    this.configSystem.validate();
     try {
       await this.databaseManager.initialize();
       this.logger.info('Database system initialized successfully');
@@ -223,7 +223,7 @@ class CoreServerSystem {
     this.logger.info('Server stopped successfully');
   }
   setupExpress() {
-    const { HOST, PORT, SSL_KEY_PATH, SSL_CERT_PATH } = this.configManager.getAll();
+    const { HOST, PORT, SSL_KEY_PATH, SSL_CERT_PATH } = this.configSystem.getAll();
     this.express.use(express.json());
     this.express.use(express.static('public'));
     if (SSL_KEY_PATH && SSL_CERT_PATH) {
@@ -260,7 +260,7 @@ class CoreServerSystem {
     });
   }
   startGameLoop() {
-    const TICK_RATE = this.configManager.get('TICK_RATE');
+    const TICK_RATE = this.configSystem.get('TICK_RATE');
     const TICK_INTERVAL = 1000 / TICK_RATE;
     let lastUpdate = Date.now();
     this.gameLoop = setInterval(() => {
@@ -356,10 +356,10 @@ class ClientManager {
 Database Manager Class
 ***************************************************************************************************/
 class DatabaseManager {
-  constructor(configManager) {
-    this.configManager = configManager;
+  constructor(configSystem) {
+    this.configSystem = configSystem;
     this.logger = new LogSystem();
-    this.dataPath = this.configManager.get('GAME_DATA_PATH');
+    this.dataPath = this.configSystem.get('GAME_DATA_PATH');
   }
   async initialize() {
     // Verify that the data directory exists
@@ -436,8 +436,8 @@ class DatabaseManager {
 Game Data Manager Class
 ***************************************************************************************************/
 class GameDataManager {
-  constructor(configManager, databaseManager) {
-    this.configManager = configManager;
+  constructor(configSystem, databaseManager) {
+    this.configSystem = configSystem;
     this.databaseManager = databaseManager;
     this.locations = new Map();
     this.npcs = new Map();
@@ -498,10 +498,11 @@ class GameDataManager {
     try {
       const itemData = await this.loadData('items');
       this.checkForDuplicateIds(itemData, 'item');
-      itemData.forEach(item => {
-        item.uid = this.generateUID();
+      for (const item of itemData) {
+        item.uid = await this.generateUID(item.id);
         this.items.set(item.id, item);
-      });
+      }
+      this.logger.info(`Loaded ${this.items.size} items`);
     } catch (error) {
       this.logger.error('Error loading item data:', error);
     }
@@ -511,7 +512,7 @@ class GameDataManager {
   }
   async parseJSONData(filename) {
     try {
-      const dataPath = this.configManager.get('GAME_DATA_PATH');
+      const dataPath = this.configSystem.get('GAME_DATA_PATH');
       const data = await fs.readFile(path.join(dataPath, filename), 'utf8');
       return JSON.parse(data);
     } catch (error) {
@@ -533,8 +534,11 @@ class GameDataManager {
       location.coordinates = this.locationCoordinateManager.getCoordinates(location.id);
     });
   }
-  generateUID() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  async generateUID(itemId) {
+    const ITEM_UID_SALT_ROUNDS = this.configSystem.get('ITEM_UID_SALT_ROUNDS');
+    const salt = await bcrypt.genSalt(ITEM_UID_SALT_ROUNDS);
+    const hash = await bcrypt.hash(itemId, salt);
+    return hash.replace(/[/$.]/g, '').slice(0, 24); // Remove bcrypt special chars and truncate
   }
   getLocation(id) {
     return this.locations.get(id);
@@ -552,7 +556,7 @@ class GameDataManager {
   }
   async saveDataToJSON(filename, data) {
     try {
-      const dataPath = this.configManager.get('GAME_DATA_PATH');
+      const dataPath = this.configSystem.get('GAME_DATA_PATH');
       const filePath = path.join(dataPath, filename);
       await fs.writeFile(filePath, JSON.stringify(data, null, 2));
       this.logger.info(`${filename} saved successfully`);
